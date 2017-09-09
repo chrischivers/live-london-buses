@@ -1,13 +1,13 @@
-package lbt.db
+package lbt.scripts
 
 import lbt.ConfigLoader
+import lbt.db.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.BusRoute
-import lbt.scripts.BusRouteDefinitionsUpdater
+import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{OptionValues, fixture}
-import org.scalatest.Matchers._
-import scala.concurrent.ExecutionContext.Implicits.global
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class DefinitionsUpdaterTest extends fixture.FunSuite with ScalaFutures with OptionValues {
@@ -22,7 +22,7 @@ class DefinitionsUpdaterTest extends fixture.FunSuite with ScalaFutures with Opt
   case class FixtureParam(definitionsUpdater: BusRouteDefinitionsUpdater, definitionsTable: RouteDefinitionsTable)
 
   def withFixture(test: OneArgTest) = {
-    val db = new PostgresDB(config.dBConfig)
+    val db = new PostgresDB(config.postgresDbConfig)
     val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(tableName = "lbttest"), createNewTable = true)
 
     val updater = new BusRouteDefinitionsUpdater(config.definitionsConfig, routeDefinitionsTable)

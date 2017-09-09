@@ -16,11 +16,14 @@ sealed trait DBConfig {
 
 case class PostgresDBConfig(host: String, port: Int, username: String, password: String, dbName: String) extends DBConfig
 
+case class RedisDBConfig(host: String, port: Int, username: String, password: String, dbName: String) extends DBConfig
+
 case class HistoricalRecordsConfig(vehicleInactivityTimeBeforePersist: Long, numberOfLinesToCleanupAfter: Int, minimumNumberOfStopsToPersist: Int, toleranceForFuturePredictions: Long, defaultRetrievalLimit: Int)
 
 case class LBTConfig(
                       dataSourceConfig: DataSourceConfig,
-                      dBConfig: PostgresDBConfig,
+                      postgresDbConfig: PostgresDBConfig,
+                      redisDBConfig: RedisDBConfig,
                       definitionsConfig: DefinitionsConfig,
                       historicalRecordsConfig: HistoricalRecordsConfig)
 
@@ -34,6 +37,7 @@ object ConfigLoader {
     val definitionsParamsPrefix = "dataSource.definitions."
     val historicalRecordsParamsPrefix = "lbt.historical-records."
     val postgresDBParamsPrefix = "db.postgres."
+    val redisDBParamsPrefix = "db.redis."
     LBTConfig(
       DataSourceConfig(
         defaultConfigFactory.getString(dataSourceStreamingParamsPrefix + "tfl-url"),
@@ -58,6 +62,13 @@ object ConfigLoader {
         defaultConfigFactory.getString(postgresDBParamsPrefix + "username"),
         defaultConfigFactory.getString(postgresDBParamsPrefix + "password"),
         defaultConfigFactory.getString(postgresDBParamsPrefix + "dbName")
+      ),
+      RedisDBConfig(
+        defaultConfigFactory.getString(redisDBParamsPrefix + "host"),
+        defaultConfigFactory.getInt(redisDBParamsPrefix + "port"),
+        defaultConfigFactory.getString(redisDBParamsPrefix + "username"),
+        defaultConfigFactory.getString(redisDBParamsPrefix + "password"),
+        defaultConfigFactory.getString(redisDBParamsPrefix + "dbName")
       ),
       DefinitionsConfig(
         defaultConfigFactory.getString(definitionsParamsPrefix + "definitions-all-url"),

@@ -21,7 +21,7 @@ class RouteDefinitionsDBTest extends fixture.FunSuite with ScalaFutures with Opt
   case class FixtureParam(definitionsTable: RouteDefinitionsTable)
 
   def withFixture(test: OneArgTest) = {
-    val db = new PostgresDB(config.dBConfig)
+    val db = new PostgresDB(config.postgresDbConfig)
     val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(tableName = "lbttest"), createNewTable = true)
 
     val testFixture = FixtureParam(routeDefinitionsTable)

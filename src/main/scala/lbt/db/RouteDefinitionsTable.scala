@@ -8,7 +8,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
 
-class RouteDefinitionsTable(val db: DB[PostgreSQLConnection], val schema: RouteDefinitionSchema, createNewTable: Boolean = false)(implicit ec: ExecutionContext) extends Table[PostgreSQLConnection] {
+class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: RouteDefinitionSchema, createNewTable: Boolean = false)(implicit ec: ExecutionContext) extends Table[PostgreSQLConnection] {
 
   if (createNewTable) {
     Await.result({

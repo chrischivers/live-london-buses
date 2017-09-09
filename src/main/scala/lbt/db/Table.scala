@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.StrictLogging
 import scala.concurrent.{ExecutionContext, Future}
 
 trait Table[T <: Connection] extends StrictLogging {
-  val db: DB[T]
+  val db: SqlDb[T]
   val schema: Schema
 
   protected def createTable: Future[QueryResult]

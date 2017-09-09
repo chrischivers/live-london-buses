@@ -13,14 +13,16 @@ import scala.concurrent.{Await, Future}
 import scala.io.Source
 import scala.concurrent.ExecutionContext.Implicits.global
 
-object BusRouteDefinitionsUpdater extends App {
+object BusRouteDefinitionsUpdater extends App with StrictLogging {
   val config = ConfigLoader.defaultConfig
   val defConfig = config.definitionsConfig
-  val db = new PostgresDB(config.dBConfig)
+  val db = new PostgresDB(config.postgresDbConfig)
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = false)
 
   val updater = new BusRouteDefinitionsUpdater(defConfig, routeDefinitionsTable)
-  Await.result(updater.start(), 30 minutes)
+  logger.info("Starting definitions update")
+  Await.result(updater.start(Some(List(BusRoute("3", "outbound")))), 120 minutes)
+  logger.info("Finished updating definitions")
 }
 
 
@@ -32,7 +34,9 @@ class BusRouteDefinitionsUpdater(defConfig: DefinitionsConfig, routeDefinitionsT
       case Left(e) => throw e
       case Right(routes) =>
         val allBusRoutes = routes.filter(_.mode == "bus").flatMap(r => r.directions.map(dir => BusRoute(r.routeId, dir)))
+        logger.info(s"${allBusRoutes.size} bus routes in total")
         val filteredBusRoutes = limitUpdateTo.fold(allBusRoutes)(limitBy => allBusRoutes.filter(route => limitBy.contains(route)))
+        logger.info(s"${filteredBusRoutes.size} bus routes after filtering applied")
 
         val numberToProcess = filteredBusRoutes.size
         logger.info(s"Bus route fetcher has $numberToProcess to process")

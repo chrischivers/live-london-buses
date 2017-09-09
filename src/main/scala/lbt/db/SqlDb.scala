@@ -1,16 +1,16 @@
 package lbt.db
 
-import com.typesafe.scalalogging.StrictLogging
 import com.github.mauricio.async.db.pool.{ConnectionPool, ObjectFactory, PoolConfiguration}
 import com.github.mauricio.async.db.postgresql.PostgreSQLConnection
 import com.github.mauricio.async.db.postgresql.pool.PostgreSQLConnectionFactory
 import com.github.mauricio.async.db.{Configuration, Connection}
-import lbt.DBConfig
+import com.typesafe.scalalogging.StrictLogging
+import lbt.PostgresDBConfig
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-trait DB[T <: Connection] extends StrictLogging {
+trait SqlDb[T <: Connection] extends StrictLogging {
 
   val connectionConfiguration: Configuration
 
@@ -27,7 +27,7 @@ trait DB[T <: Connection] extends StrictLogging {
 
 }
 
-class PostgresDB(dBConfig: DBConfig) extends DB[PostgreSQLConnection] {
+class PostgresDB(dBConfig: PostgresDBConfig) extends SqlDb[PostgreSQLConnection] {
   logger.info(s"Setting up DB: ${dBConfig.dbName}")
 
   override val connectionConfiguration = Configuration(

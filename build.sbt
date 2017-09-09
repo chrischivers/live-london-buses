@@ -10,6 +10,7 @@ libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
 libraryDependencies += "com.typesafe" % "config" % "1.3.1"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 libraryDependencies += "com.github.mauricio" % "postgresql-async_2.12" % "0.2.21"
+libraryDependencies += "net.debasishg" %% "redisclient" % "3.4"
 
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core",
