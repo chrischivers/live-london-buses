@@ -30,12 +30,12 @@ object JsonCodecs {
         id <- c.downField("id").as[String]
         name <- c.downField("name").as[String]
         lat <- c.downField("lat").as[Double]
-        lng <- c.downField("lng").as[Double]
+        lng <- c.downField("lon").as[Double]
       } yield {
         BusStop(id, name, lat, lng)
       }
   }
 
-  implicit val decodeBusStops = Decoder[List[BusStop]].prepare(_.downField("stopPointSequences").downField("stopPoint"))
+  implicit val decodeBusStops = Decoder[List[BusStop]].prepare(_.downField("stopPointSequences").downArray.first.downField("stopPoint"))
 
 }
