@@ -16,14 +16,14 @@ sealed trait DBConfig {
 
 case class PostgresDBConfig(host: String, port: Int, username: String, password: String, dbName: String) extends DBConfig
 
-case class RedisDBConfig(host: String, port: Int, username: String, password: String, dbName: String) extends DBConfig
+case class RedisConfig(host: String, port: Int, dbIndex: Int, maxListLength: Int)
 
 case class HistoricalRecordsConfig(vehicleInactivityTimeBeforePersist: Long, numberOfLinesToCleanupAfter: Int, minimumNumberOfStopsToPersist: Int, toleranceForFuturePredictions: Long, defaultRetrievalLimit: Int)
 
 case class LBTConfig(
                       dataSourceConfig: DataSourceConfig,
                       postgresDbConfig: PostgresDBConfig,
-                      redisDBConfig: RedisDBConfig,
+                      redisDBConfig: RedisConfig,
                       definitionsConfig: DefinitionsConfig,
                       historicalRecordsConfig: HistoricalRecordsConfig)
 
@@ -40,7 +40,7 @@ object ConfigLoader {
     val redisDBParamsPrefix = "db.redis."
     LBTConfig(
       DataSourceConfig(
-        defaultConfigFactory.getString(dataSourceStreamingParamsPrefix + "tfl-url"),
+        defaultConfigFactory.getString(dataSourceStreamingParamsPrefix + "source-url"),
         defaultConfigFactory.getString(dataSourceStreamingParamsPrefix + "username"),
         defaultConfigFactory.getString(dataSourceStreamingParamsPrefix + "password"),
         defaultConfigFactory.getString(dataSourceStreamingParamsPrefix + "authscope-url"),
@@ -63,12 +63,11 @@ object ConfigLoader {
         defaultConfigFactory.getString(postgresDBParamsPrefix + "password"),
         defaultConfigFactory.getString(postgresDBParamsPrefix + "dbName")
       ),
-      RedisDBConfig(
+      RedisConfig(
         defaultConfigFactory.getString(redisDBParamsPrefix + "host"),
         defaultConfigFactory.getInt(redisDBParamsPrefix + "port"),
-        defaultConfigFactory.getString(redisDBParamsPrefix + "username"),
-        defaultConfigFactory.getString(redisDBParamsPrefix + "password"),
-        defaultConfigFactory.getString(redisDBParamsPrefix + "dbName")
+        defaultConfigFactory.getInt(redisDBParamsPrefix + "dbIndex"),
+        defaultConfigFactory.getInt(redisDBParamsPrefix + "maxListLength"),
       ),
       DefinitionsConfig(
         defaultConfigFactory.getString(definitionsParamsPrefix + "definitions-all-url"),

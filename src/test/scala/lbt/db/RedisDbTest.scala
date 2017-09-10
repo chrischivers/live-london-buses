@@ -7,6 +7,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{OptionValues, fixture}
 
 import scala.concurrent.duration._
+import scala.util.Random
 
 class RedisDbTest extends fixture.FunSuite with ScalaFutures with OptionValues {
 
@@ -20,7 +21,7 @@ class RedisDbTest extends fixture.FunSuite with ScalaFutures with OptionValues {
   case class FixtureParam(redisClient: RedisClient)
 
   def withFixture(test: OneArgTest) = {
-    val redisClient = new RedisClient(config.redisDBConfig.copy(dbName = "1")) // 1 = test, 0 = main
+    val redisClient = new RedisClient(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
 
     val testFixture = FixtureParam(redisClient)
 
@@ -45,6 +46,24 @@ class RedisDbTest extends fixture.FunSuite with ScalaFutures with OptionValues {
     val timeList = f.redisClient.getStopToStopTimes(busRoute, 0, 1).value
     timeList should have size 2
     timeList shouldBe List(time2, time1)
+  }
+
+  test("Route timing data stored in redis should be limited by maxListLength") { f =>
+
+    val busRoute = BusRoute("3", "outbound")
+
+    (0 to 98).foreach(_ => f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, Random.nextInt(200)))
+    f.redisClient.getStopToStopTimes(busRoute, 0, 1).value should have size 99
+
+    f.redisClient.flushDB
+
+    (0 to 99).foreach(_ => f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, Random.nextInt(200)))
+    f.redisClient.getStopToStopTimes(busRoute, 0, 1).value should have size 100
+
+    f.redisClient.flushDB
+
+    (0 to 100).foreach(_ => f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, Random.nextInt(200)))
+    f.redisClient.getStopToStopTimes(busRoute, 0, 1).value should have size 100
   }
 
 }
