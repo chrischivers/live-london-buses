@@ -1,5 +1,8 @@
 package lbt.streaming
 
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReferenceArray}
+
+import akka.actor.ActorSystem
 import com.xebialabs.restito.builder.stub.StubHttp.whenHttp
 import com.xebialabs.restito.semantics.Action._
 import com.xebialabs.restito.semantics.Condition._
@@ -9,6 +12,7 @@ import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{OptionValues, fixture}
 
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -21,34 +25,44 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
     interval = scaled(1 second)
   )
 
-  case class FixtureParam(streamingClient: StreamingClient, restitoServer: StubServer)
+  case class FixtureParam(streamingClient: StreamingClient, restitoServer: StubServer, linesReceivedBuffer: ListBuffer[String])
 
   def withFixture(test: OneArgTest) = {
 
-    val restitoPort =  7000 + Random.nextInt(1000)
+    val restitoPort =  8000 + Random.nextInt(1000)
     val restitoServer = new StubServer(restitoPort)
-    val streamingClient = new StreamingClient(config.dataSourceConfig.copy(
-      sourceUrl = s"http://localhost:$restitoPort/stream"))
+    val actorSystem = ActorSystem()
+    val modifiedConfig = config.dataSourceConfig.copy(sourceUrl = s"http://localhost:$restitoPort/stream")
+    var linesReceivedBuffer = new ListBuffer[String]()
 
-    val testFixture = FixtureParam(streamingClient, restitoServer)
+    def addToBuffer(line: String) = {
+      println(line)
+      linesReceivedBuffer += line
+    }
+
+    val streamingClient = new StreamingClient(modifiedConfig, addToBuffer)(actorSystem)
+
+    val testFixture = FixtureParam(streamingClient, restitoServer, linesReceivedBuffer)
 
     try {
       restitoServer.start()
       withFixture(test.toNoArgTest(testFixture))
     }
     finally {
-      streamingClient.closeDataSource
+      streamingClient.closeClient
       restitoServer.stop()
     }
   }
 
-  test("Streaming client should drop first line of stream response") { f =>
+  test("Streaming client should drop first record (header) of stream response") { f =>
 
     val fullStreamResponse = generateStreamResponse
     setStreamResponse(f.restitoServer, fullStreamResponse)
     val streamResponseFirstLineDropped = fullStreamResponse.split("\n").drop(1).toList
+    f.streamingClient.start().futureValue
 
-    f.streamingClient.dataStream.toList shouldBe streamResponseFirstLineDropped
+    f.linesReceivedBuffer should have size streamResponseFirstLineDropped.size
+    f.linesReceivedBuffer.toList shouldBe streamResponseFirstLineDropped
     f.restitoServer.getCalls should have size 1
   }
 
@@ -57,7 +71,6 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
       get("/stream"))
       .`then`(ok(), stringContent(response))
   }
-
 
   private def generateStreamResponse: String = {
     val time = System.currentTimeMillis()
@@ -71,5 +84,4 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
         |[1,"490006083S","493",2,"St Georges Hosp","SN12AVL",${time + 300000}]
       """.stripMargin
   }
-
 }
