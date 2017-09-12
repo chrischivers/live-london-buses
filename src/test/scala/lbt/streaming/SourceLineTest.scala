@@ -25,7 +25,7 @@ class SourceLineTest extends fixture.FunSuite with ScalaFutures with OptionValue
   val db = new PostgresDB(config.postgresDbConfig)
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(tableName = "lbttest"), createNewTable = true)
   val updater = new BusRouteDefinitionsUpdater(config.definitionsConfig, routeDefinitionsTable)
-  updater.start(limitUpdateTo = Some(List(BusRoute("25", "outbound"))))
+  updater.start(limitUpdateTo = Some(List(BusRoute("25", "outbound")))).futureValue
 
   override protected def afterAll(): Unit = {
     routeDefinitionsTable.dropTable.futureValue
@@ -54,23 +54,25 @@ class SourceLineTest extends fixture.FunSuite with ScalaFutures with OptionValue
     sourceLine.arrival_TimeStamp shouldBe time
   }
 
-  test("Source Line validation fails if time is in the past and passes if in future") { f =>
+  test("Source Line validation passes if all criteria met") { f =>
+    val sourceLinePast = generateSourceLine()
+    SourceLine.validate(sourceLinePast, f.definitions) shouldBe true
+  }
+
+  test("Source Line validation fails if time is in the past") { f =>
     val sourceLinePast = generateSourceLine(timeStamp = System.currentTimeMillis() - 1000)
     SourceLine.validate(sourceLinePast, f.definitions) shouldBe false
-
-    val sourceLineFuture = generateSourceLine(timeStamp = System.currentTimeMillis() + 1000)
-    SourceLine.validate(sourceLineFuture, f.definitions) shouldBe true
   }
 
-  test("Source Line validation fails if route is not in the definitions and passes if it is") { f =>
+  test("Source Line validation fails if route is not in the definitions ") { f =>
     val sourceLineInvalidRoute = generateSourceLine(route = "999", direction = 1)
     SourceLine.validate(sourceLineInvalidRoute, f.definitions) shouldBe false
-
-    val sourceLineValidRoute = generateSourceLine()
-    SourceLine.validate(sourceLineValidRoute, f.definitions) shouldBe true
   }
 
-  //TODO test stop definition validation
+  test("Source Line validation fails if stop is not in definitions") { f =>
+    val sourceLineInvalidStop = generateSourceLine(stopId = "49000INVALID")
+    SourceLine.validate(sourceLineInvalidStop, f.definitions) shouldBe false
+  }
 
 
   def generateSourceLine(

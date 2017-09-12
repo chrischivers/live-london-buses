@@ -36,21 +36,18 @@ object SourceLine extends StrictLogging {
 
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
 
-    def validRoute(busRoute: BusRoute): Validated[NEL[String], String] = {
-
+    def validRoute(): Validated[NEL[String], String] = {
       definitions.routeDefinitions.get(busRoute) match {
         case None => invalid(NEL.of(s"Bus route $busRoute does not exist in definitions"))
         case Some(_) => valid(s"Bus Route $busRoute is valid")
       }
     }
 
-    def validStop(busStopList: List[BusStop]): Validated[NEL[String], String] = {
-      //TODO look up stop definitions
-      //      busStopList.find(stop => stop.stopID == sourceLine.stopID) match {
-      //        case Some(busStop) => busStop.successNel
-      //        case None => s"Bus Stop ${sourceLine.stopID} not defined in definitions for route ${sourceLine.route} and direction ${sourceLine.direction}".failureNel
-      //      }
-      valid(s"Bus stops list for route $busRoute are valid")
+    def validStop(): Validated[NEL[String], String] = {
+      definitions.routeDefinitions.get(busRoute) match {
+        case Some(list) if list.exists(_._2.stopID == sourceLine.stopID) => valid("Bus stop is valid")
+        case _ => invalid(NEL.of(s"Bus stop not found for bus route $busRoute in definitions"))
+      }
     }
 
     def notOnIgnoreList(): Validated[NEL[String], String] = {
@@ -59,13 +56,14 @@ object SourceLine extends StrictLogging {
     }
 
     def isInPast(): Validated[NEL[String], String] = {
-      //TODO is this working with clock change?
       if (sourceLine.arrival_TimeStamp - System.currentTimeMillis() > 0) valid("Event is not in the past")
       else invalid(NEL.of("Event is in the past"))
     }
 
-    (validRoute(busRoute) |@| validStop(List.empty) |@| notOnIgnoreList() |@| isInPast()).map(_ + _ + _ + _) match {
-      case Valid(v) => true
+    def isTooFarInFuture() = ???
+
+    (validRoute() |@| validStop() |@| notOnIgnoreList() |@| isInPast()).map(_ + _ + _ + _) match {
+      case Valid(_) => true
       case Invalid(iv) =>
         logger.debug(s"Unable to validate sourceLine $sourceLine, errors: ${iv.toString()}")
         false

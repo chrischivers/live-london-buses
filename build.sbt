@@ -16,6 +16,8 @@ libraryDependencies += "net.debasishg" %% "redisclient" % "3.4"
 libraryDependencies += "org.apache.httpcomponents" % "httpclient" % "4.5.3"
 libraryDependencies += "com.xebialabs.restito" % "restito" % "0.9.1" % "test"
 libraryDependencies += "com.typesafe.play" %% "play-ahc-ws-standalone" % "1.0.7"
+libraryDependencies += "com.github.cb372" % "scalacache-core_2.12" % "0.9.4"
+libraryDependencies += "com.github.cb372" %% "scalacache-guava" % "0.9.4"
 
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core",
