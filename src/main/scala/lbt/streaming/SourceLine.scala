@@ -4,6 +4,7 @@ import cats.data.Validated.{Invalid, Valid, invalid, valid}
 import cats.data.{Validated, NonEmptyList => NEL, _}
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
+import lbt.Definitions
 import lbt.common.Commons
 import lbt.models.{BusRoute, BusStop}
 
@@ -31,17 +32,16 @@ object SourceLine extends StrictLogging {
     }
   }
 
-  def validate(sourceLine: SourceLine): Boolean = {
+  def validate(sourceLine: SourceLine, definitions: Definitions): Boolean = {
 
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
 
-    def validRouteAndStop(busRoute: BusRoute): Validated[NEL[String], String] = {
-      //TODO look up in definitions
-      //      definitions.get(busRoute) match {
-      //        case Some(stopList) => validStop(stopList)
-      //        case None => s"Route not defined in definitions. Route ID: ${busRoute.name}. Direction: ${busRoute.direction}".failureNel
-      //      }
-      valid(s"Bus Route $busRoute is valid")
+    def validRoute(busRoute: BusRoute): Validated[NEL[String], String] = {
+
+      definitions.routeDefinitions.get(busRoute) match {
+        case None => invalid(NEL.of(s"Bus route $busRoute does not exist in definitions"))
+        case Some(_) => valid(s"Bus Route $busRoute is valid")
+      }
     }
 
     def validStop(busStopList: List[BusStop]): Validated[NEL[String], String] = {
@@ -64,7 +64,7 @@ object SourceLine extends StrictLogging {
       else invalid(NEL.of("Event is in the past"))
     }
 
-    (validRouteAndStop(busRoute) |@| validStop(List.empty) |@| notOnIgnoreList() |@| isInPast()).map(_ + _ + _ + _) match {
+    (validRoute(busRoute) |@| validStop(List.empty) |@| notOnIgnoreList() |@| isInPast()).map(_ + _ + _ + _) match {
       case Valid(v) => true
       case Invalid(iv) =>
         logger.debug(s"Unable to validate sourceLine $sourceLine, errors: ${iv.toString()}")
