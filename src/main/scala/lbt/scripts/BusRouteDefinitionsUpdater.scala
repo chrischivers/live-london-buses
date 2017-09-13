@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.StrictLogging
 import io.circe
 import io.circe.parser._
 import lbt.{ConfigLoader, DefinitionsConfig}
-import lbt.JsonCodecs._
+import lbt.common.JsonCodecs._
 import lbt.db.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.{BusRoute, BusStop}
 import scala.concurrent.duration._
@@ -17,11 +17,11 @@ object BusRouteDefinitionsUpdater extends App with StrictLogging {
   val config = ConfigLoader.defaultConfig
   val defConfig = config.definitionsConfig
   val db = new PostgresDB(config.postgresDbConfig)
-  val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = false)
+  val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = true)
 
   val updater = new BusRouteDefinitionsUpdater(defConfig, routeDefinitionsTable)
   logger.info("Starting definitions update")
-  Await.result(updater.start(Some(List(BusRoute("3", "outbound")))), 120 minutes)
+  Await.result(updater.start(), 120 minutes)
   logger.info("Finished updating definitions")
 }
 

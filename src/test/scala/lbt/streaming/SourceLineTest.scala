@@ -3,12 +3,13 @@ package lbt.streaming
 import lbt.db.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.BusRoute
 import lbt.scripts.BusRouteDefinitionsUpdater
-import lbt.{ConfigLoader, Definitions}
+import lbt.ConfigLoader
+import lbt.common.Definitions
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, OptionValues, fixture}
-import scala.concurrent.ExecutionContext.Implicits.global
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class SourceLineTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll {

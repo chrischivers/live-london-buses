@@ -4,8 +4,7 @@ import cats.data.Validated.{Invalid, Valid, invalid, valid}
 import cats.data.{Validated, NonEmptyList => NEL, _}
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
-import lbt.Definitions
-import lbt.common.Commons
+import lbt.common.{Commons, Definitions}
 import lbt.models.{BusRoute, BusStop}
 
 

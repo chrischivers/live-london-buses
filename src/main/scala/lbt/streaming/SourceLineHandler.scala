@@ -3,8 +3,8 @@ package lbt.streaming
 import cats._
 import cats.data.OptionT
 import com.typesafe.scalalogging.StrictLogging
-import lbt.{Definitions, SourceLineHandlerConfig}
-import lbt.common.Commons
+import lbt.SourceLineHandlerConfig
+import lbt.common.{Commons, Definitions}
 import lbt.models.BusRoute
 import cats.data._
 import cats.implicits._

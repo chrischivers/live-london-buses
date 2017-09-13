@@ -1,0 +1,40 @@
+@(recordList: List[(Int, String, Double)])
+<html>
+    <head>
+        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+        <title>LBT</title>
+    </head>
+    <body>
+
+        <div class="container">
+            <h2>Bordered Table</h2>
+            <p>The .table-bordered class adds borders to a table:</p>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Stop Number</th>
+                        <th>Stop Name</th>
+                        <th>Average time to next stop</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for(rec <- recordList) {
+                        <tr>
+                            <td>@rec._1</td>
+                            <td>rec._2</td>
+                            <td>rec._3</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAsL6wsuPFovAUq8STgMIp0xrOqMjv3F6A&libraries=visualization&callback=initMap">
+        </script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+    </body>
+</html>

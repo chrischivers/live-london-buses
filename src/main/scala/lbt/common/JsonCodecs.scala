@@ -1,4 +1,4 @@
-package lbt
+package lbt.common
 
 import io.circe.generic.semiauto._
 import io.circe.{Decoder, HCursor}

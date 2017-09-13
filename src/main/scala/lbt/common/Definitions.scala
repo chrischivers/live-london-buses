@@ -1,9 +1,10 @@
-package lbt
+package lbt.common
 
 import lbt.db.RouteDefinitionsTable
 import lbt.models.{BusRoute, BusStop}
-import scala.concurrent.duration._
+
 import scala.concurrent.Await
+import scala.concurrent.duration._
 
 class Definitions(routeDefinitionsTable: RouteDefinitionsTable ) {
 
