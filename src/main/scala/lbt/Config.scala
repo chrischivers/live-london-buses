@@ -2,6 +2,9 @@ package lbt
 
 import com.typesafe.config.ConfigFactory
 
+import scala.collection.JavaConverters._
+import scala.concurrent.duration.{Duration, FiniteDuration}
+
 case class DataSourceConfig(sourceUrl: String, username: String, password: String, authScopeURL: String, authScopePort: Int, timeout: Int, linesToDisregard: Int, waitTimeAfterClose: Int, cacheTimeToLiveSeconds: Int, timeWindowToAcceptLines: Int, numberEmptyIteratorCasesBeforeRestart: Int, simulationIterator: Option[Iterator[String]] = None)
 
 case class DefinitionsConfig(sourceAllUrl: String, sourceSingleUrl: String, definitionsCachedTime: Int)
@@ -18,16 +21,19 @@ case class PostgresDBConfig(host: String, port: Int, username: String, password:
 
 case class RedisConfig(host: String, port: Int, dbIndex: Int, maxListLength: Int)
 
-case class HistoricalRecordsConfig(vehicleInactivityTimeBeforePersist: Long, numberOfLinesToCleanupAfter: Int, minimumNumberOfStopsToPersist: Int, toleranceForFuturePredictions: Long, defaultRetrievalLimit: Int)
+case class CacheConfig(ttl: Duration)
 
 case class LBTConfig(
                       dataSourceConfig: DataSourceConfig,
                       postgresDbConfig: PostgresDBConfig,
                       redisDBConfig: RedisConfig,
                       definitionsConfig: DefinitionsConfig,
-                      historicalRecordsConfig: HistoricalRecordsConfig)
+                      cacheConfig: CacheConfig)
 
 object ConfigLoader {
+
+  implicit def asFiniteDuration(d: java.time.Duration): FiniteDuration =
+    scala.concurrent.duration.Duration.fromNanos(d.toNanos)
 
   private val defaultConfigFactory = ConfigFactory.load()
 
@@ -74,12 +80,8 @@ object ConfigLoader {
         defaultConfigFactory.getString(definitionsParamsPrefix + "definitions-single-url"),
         defaultConfigFactory.getInt(definitionsParamsPrefix + "definitions-cached-time")
       ),
-      HistoricalRecordsConfig(
-        defaultConfigFactory.getLong(historicalRecordsParamsPrefix + "vehicle-inactivity-time-before-persist"),
-        defaultConfigFactory.getInt(historicalRecordsParamsPrefix + "lines-to-cleanup-after"),
-        defaultConfigFactory.getInt(historicalRecordsParamsPrefix + "minimum-number-of-stops-for-persist"),
-        defaultConfigFactory.getLong(historicalRecordsParamsPrefix + "tolerance-for-future-predictions"),
-        defaultConfigFactory.getInt(historicalRecordsParamsPrefix + "default-retrieval-limit")
+      CacheConfig(
+        defaultConfigFactory.getDuration("cache.ttl")
       )
     )
 

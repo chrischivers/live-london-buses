@@ -17,6 +17,7 @@ import scalacache.{NoSerialization, ScalaCache, _}
 class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll {
 
   val config: LBTConfig = ConfigLoader.defaultConfig
+  val configWithShortTtl = config.copy(cacheConfig = config.cacheConfig.copy(ttl = 5 seconds))
   implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
   override implicit val patienceConfig = PatienceConfig(
@@ -25,9 +26,9 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
   )
 
   //These are set outside the fixture so that definitions db does not need to be repopulated before each test
-  val db = new PostgresDB(config.postgresDbConfig)
+  val db = new PostgresDB(configWithShortTtl.postgresDbConfig)
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(tableName = "lbttest"), createNewTable = true)
-  val updater = new BusRouteDefinitionsUpdater(config.definitionsConfig, routeDefinitionsTable)
+  val updater = new BusRouteDefinitionsUpdater(configWithShortTtl.definitionsConfig, routeDefinitionsTable)
   updater.start(limitUpdateTo = Some(List(BusRoute("25", "outbound")))).futureValue
   val definitions = new Definitions(routeDefinitionsTable)
 
@@ -40,7 +41,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
 
   def withFixture(test: OneArgTest) = {
     val cache = ScalaCache(GuavaCache())
-    val sourceLineHandler = new SourceLineHandler(definitions)(cache, ec)
+    val sourceLineHandler = new SourceLineHandler(definitions, configWithShortTtl.cacheConfig)(cache, ec)
     val testFixture = FixtureParam(sourceLineHandler, cache)
 
     withFixture(test.toNoArgTest(testFixture))
@@ -87,8 +88,96 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     getArrivalTimestampFromCache(sourceLine2, f.cache).futureValue.value shouldBe timestamp2
   }
 
+  test("Incoming source line is ignored if index is equal or less than last persisted record") { f =>
+    val timestamp1 = System.currentTimeMillis() + 10000
+    val stop1 = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value(4)
+    val sourceLine1 = generateSourceLine(timeStamp = timestamp1, stopId = stop1._2.stopID)
 
+    f.sourceLineHandler.handle(sourceLine1).value.futureValue
+    getArrivalTimestampFromCache(sourceLine1, f.cache).futureValue.value shouldBe timestamp1
 
+    val timestamp2 = System.currentTimeMillis() + 5000
+    val stop2 = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value(5)
+    val sourceLine2 = generateSourceLine(timeStamp = timestamp2, stopId = stop2._2.stopID)
+
+    f.sourceLineHandler.handle(sourceLine2).value.futureValue
+    getLastIndexPersistedFromCache(sourceLine2, f.cache).futureValue.value shouldBe 5
+
+    val timestamp3 = System.currentTimeMillis() + 8000
+    val stop3 = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value(5)
+    val sourceLine3 = generateSourceLine(timeStamp = timestamp3, stopId = stop3._2.stopID)
+
+    getArrivalTimestampFromCache(sourceLine3, f.cache).futureValue.value shouldBe timestamp2 //timestamp 3 disregarded
+
+    val timestamp4 = System.currentTimeMillis() + 2000
+    val stop4 = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value(4)
+    val sourceLine4 = generateSourceLine(timeStamp = timestamp4, stopId = stop4._2.stopID)
+
+    getArrivalTimestampFromCache(sourceLine4, f.cache).futureValue should not be defined
+  }
+
+  test("Stops at beginning of route are handled correctly") { f =>
+    val timestamp1 = System.currentTimeMillis() + 10000
+    val stop1 = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value(0)
+    val sourceLine1 = generateSourceLine(timeStamp = timestamp1, stopId = stop1._2.stopID)
+
+    f.sourceLineHandler.handle(sourceLine1).value.futureValue
+    getArrivalTimestampFromCache(sourceLine1, f.cache).futureValue.value shouldBe timestamp1
+
+    val timestamp2 = System.currentTimeMillis() + 5000
+    val stop2 = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value(1)
+    val sourceLine2 = generateSourceLine(timeStamp = timestamp2, stopId = stop2._2.stopID)
+
+    f.sourceLineHandler.handle(sourceLine2).value.futureValue
+    getLastIndexPersistedFromCache(sourceLine2, f.cache).futureValue.value shouldBe 1
+    getArrivalTimestampFromCache(sourceLine1, f.cache).futureValue should not be defined
+
+    f.sourceLineHandler.handle(sourceLine1).value.futureValue //try persisting previous index again
+    getLastIndexPersistedFromCache(sourceLine2, f.cache).futureValue.value shouldBe 1
+    getArrivalTimestampFromCache(sourceLine1, f.cache).futureValue should not be defined
+
+  }
+
+  test("Stops at end of route are handled correctly") { f =>
+    val timestamp1 = System.currentTimeMillis() + 10000
+    val definitionsSize = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value.size
+
+    val stop1 = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value(definitionsSize - 2)
+    val sourceLine1 = generateSourceLine(timeStamp = timestamp1, stopId = stop1._2.stopID)
+
+    f.sourceLineHandler.handle(sourceLine1).value.futureValue
+    getArrivalTimestampFromCache(sourceLine1, f.cache).futureValue.value shouldBe timestamp1
+
+    val timestamp2 = System.currentTimeMillis() + 5000
+    val stop2 = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value(definitionsSize - 1)
+    val sourceLine2 = generateSourceLine(timeStamp = timestamp2, stopId = stop2._2.stopID)
+
+    f.sourceLineHandler.handle(sourceLine2).value.futureValue
+    getLastIndexPersistedFromCache(sourceLine2, f.cache).futureValue.value shouldBe (definitionsSize - 1)
+    getArrivalTimestampFromCache(sourceLine1, f.cache).futureValue should not be defined
+
+    f.sourceLineHandler.handle(sourceLine1).value.futureValue //try persisting previous index again
+    getLastIndexPersistedFromCache(sourceLine2, f.cache).futureValue.value shouldBe (definitionsSize - 1)
+    getArrivalTimestampFromCache(sourceLine1, f.cache).futureValue should not be defined
+  }
+
+  test("Records are dropped automatically if too much time elapses") { f =>
+    val timestamp = System.currentTimeMillis() + 10000
+    val definitionsSize = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value.size
+    val sourceLine = generateSourceLine(timeStamp = timestamp)
+    f.sourceLineHandler.handle(sourceLine).value.futureValue
+    getArrivalTimestampFromCache(sourceLine, f.cache).futureValue.value shouldBe timestamp
+    Thread.sleep(5500)
+    getArrivalTimestampFromCache(sourceLine, f.cache).futureValue should not be defined
+  }
+
+//  test("An error is thrown if stop is persisted that is not in definitions") { f =>
+//    val timestamp = System.currentTimeMillis() + 10000
+//    val sourceLine = generateSourceLine(timeStamp = timestamp, stopId = "fake")
+//    f.sourceLineHandler.handle(sourceLine).value.futureValue
+//
+//    getLastIndexPersistedFromCache(sourceLine, f.cache).futureValue should not be defined
+//  }
 
 
   def generateSourceLine(
