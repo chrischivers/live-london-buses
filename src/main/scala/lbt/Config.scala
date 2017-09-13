@@ -21,14 +21,14 @@ case class PostgresDBConfig(host: String, port: Int, username: String, password:
 
 case class RedisConfig(host: String, port: Int, dbIndex: Int, maxListLength: Int)
 
-case class CacheConfig(ttl: Duration)
+case class SourceLineHandlerConfig(cacheTtl: Duration, minimumTimeDifferenceToPersist: Duration)
 
 case class LBTConfig(
                       dataSourceConfig: DataSourceConfig,
                       postgresDbConfig: PostgresDBConfig,
                       redisDBConfig: RedisConfig,
                       definitionsConfig: DefinitionsConfig,
-                      cacheConfig: CacheConfig)
+                      sourceLineHandlerConfig: SourceLineHandlerConfig)
 
 object ConfigLoader {
 
@@ -44,6 +44,7 @@ object ConfigLoader {
     val historicalRecordsParamsPrefix = "lbt.historical-records."
     val postgresDBParamsPrefix = "db.postgres."
     val redisDBParamsPrefix = "db.redis."
+    val sourceLineHandlerParamsPrefix = "source-line-handler."
     LBTConfig(
       DataSourceConfig(
         defaultConfigFactory.getString(dataSourceStreamingParamsPrefix + "source-url"),
@@ -80,8 +81,9 @@ object ConfigLoader {
         defaultConfigFactory.getString(definitionsParamsPrefix + "definitions-single-url"),
         defaultConfigFactory.getInt(definitionsParamsPrefix + "definitions-cached-time")
       ),
-      CacheConfig(
-        defaultConfigFactory.getDuration("cache.ttl")
+      SourceLineHandlerConfig(
+        defaultConfigFactory.getDuration(sourceLineHandlerParamsPrefix + "cache-ttl"),
+        defaultConfigFactory.getDuration(sourceLineHandlerParamsPrefix + "minimum-time-difference")
       )
     )
 
