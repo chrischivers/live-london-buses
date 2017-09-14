@@ -8,7 +8,9 @@ import lbt.common.{Commons, Definitions}
 import lbt.models.{BusRoute, BusStop}
 
 
-case class SourceLine(route: String, direction: Int, stopID: String, destinationText: String, vehicleID: String, arrival_TimeStamp: Long)
+case class SourceLine(route: String, direction: Int, stopID: String, destinationText: String, vehicleID: String, arrival_TimeStamp: Long) {
+  def validate(definitions: Definitions): Boolean = SourceLine.validate(this, definitions)
+}
 
 object SourceLine extends StrictLogging {
 

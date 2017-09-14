@@ -64,4 +64,16 @@ class DefinitionsUpdaterTest extends fixture.FunSuite with ScalaFutures with Opt
     stopList.get(busRoute).value.last._1 shouldBe 42
     stopList.get(busRoute).value.last._2.stopName should include("Crystal Palace")
   }
+
+  test("Route names with lowercase letters should be converted and persisted as uppercase") { f =>
+
+    val busRouteLowercase = BusRoute("b13", "outbound")
+    val busRouteUppercase = BusRoute("B13", "outbound")
+    f.definitionsUpdater.start(limitUpdateTo = Some(List(busRouteLowercase))).futureValue
+
+    val stopList = f.definitionsTable.getAllRouteDefinitions.futureValue
+    stopList.keys should have size 1
+    stopList.get(busRouteLowercase) should not be defined
+    stopList.get(busRouteUppercase).value should have size 1
+  }
 }

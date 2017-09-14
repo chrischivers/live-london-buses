@@ -41,7 +41,6 @@ object ConfigLoader {
     val dataSourceStreamingParamsPrefix = "dataSource.streaming-parameters."
     val dataBaseParamsPrefix = "database."
     val definitionsParamsPrefix = "dataSource.definitions."
-    val historicalRecordsParamsPrefix = "lbt.historical-records."
     val postgresDBParamsPrefix = "db.postgres."
     val redisDBParamsPrefix = "db.redis."
     val sourceLineHandlerParamsPrefix = "source-line-handler."

@@ -1,4 +1,5 @@
-@(recordList: List[(Int, String, Double)])
+@import lbt.models.BusRoute
+@(busRoute: BusRoute, recordList: List[(Int, String, Double)])
 <html>
     <head>
         <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
@@ -9,8 +10,7 @@
     <body>
 
         <div class="container">
-            <h2>Bordered Table</h2>
-            <p>The .table-bordered class adds borders to a table:</p>
+            <h2>Average durations for stops on bus route @{busRoute.id} heading @{busRoute.direction}</h2>
             <table class="table table-bordered">
                 <thead>
                     <tr>
@@ -23,8 +23,8 @@
                     @for(rec <- recordList) {
                         <tr>
                             <td>@rec._1</td>
-                            <td>rec._2</td>
-                            <td>rec._3</td>
+                            <td>@rec._2</td>
+                            <td>@rec._3</td>
                         </tr>
                     }
                 </tbody>

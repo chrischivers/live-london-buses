@@ -4,7 +4,7 @@ version := "0.1"
 
 scalaVersion := "2.12.3"
 val circeVersion = "0.8.0"
-val Http4sVersion = "0.15.11a"
+val Http4sVersion = "0.17.0-M3"
 
 resolvers += Resolver.sonatypeRepo("snapshots")
 
@@ -30,7 +30,8 @@ libraryDependencies ++= Seq(
   "org.http4s"     %% "http4s-blaze-server" % Http4sVersion,
   "org.http4s"     %% "http4s-circe"        % Http4sVersion,
   "org.http4s"     %% "http4s-twirl"        % Http4sVersion,
-  "org.http4s"     %% "http4s-dsl"          % Http4sVersion
+  "org.http4s"     %% "http4s-dsl"          % Http4sVersion,
+  "org.http4s"     %% "http4s-blaze-client" % Http4sVersion
 )
 
 lazy val root = (project in file(".")).enablePlugins(SbtTwirl)

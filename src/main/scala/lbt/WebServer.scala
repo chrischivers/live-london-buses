@@ -21,7 +21,7 @@ object WebServer extends ServerApp with StrictLogging {
 
   val config = ConfigLoader.defaultConfig
   val db = new PostgresDB(config.postgresDbConfig)
-  val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(tableName = "lbttest"), createNewTable = true)
+  val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = false)
   val definitions = new Definitions(routeDefinitionsTable)
 
   val redisClient = new RedisClient(config.redisDBConfig)

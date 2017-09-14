@@ -21,7 +21,7 @@ object BusRouteDefinitionsUpdater extends App with StrictLogging {
 
   val updater = new BusRouteDefinitionsUpdater(defConfig, routeDefinitionsTable)
   logger.info("Starting definitions update")
-  Await.result(updater.start(), 120 minutes)
+  Await.result(updater.start(limitUpdateTo = Some(List(BusRoute("3", "outbound")))), 120 minutes)
   logger.info("Finished updating definitions")
 }
 
@@ -33,18 +33,21 @@ class BusRouteDefinitionsUpdater(defConfig: DefinitionsConfig, routeDefinitionsT
     val result = getRouteList match {
       case Left(e) => throw e
       case Right(routes) =>
-        val allBusRoutes = routes.filter(_.mode == "bus").flatMap(r => r.directions.map(dir => BusRoute(r.routeId, dir)))
+        val allBusRoutes = routes.filter(_.mode == "bus").flatMap(r => r.directions.map(dir => BusRoute(r.routeId.toUpperCase, dir)))
         logger.info(s"${allBusRoutes.size} bus routes in total")
-        val filteredBusRoutes = limitUpdateTo.fold(allBusRoutes)(limitBy => allBusRoutes.filter(route => limitBy.contains(route)))
+        val uniqueBusRoutes = allBusRoutes.distinct
+        logger.info(s"${uniqueBusRoutes.size} unique bus routes in total")
+        val filteredBusRoutes = limitUpdateTo.fold(uniqueBusRoutes){limitBy =>
+          uniqueBusRoutes.filter(route => limitBy.map(r => BusRoute(r.id.toUpperCase, r.direction)).contains(route))
+        }
         logger.info(s"${filteredBusRoutes.size} bus routes after filtering applied")
 
-        val numberToProcess = filteredBusRoutes.size
-        logger.info(s"Bus route fetcher has $numberToProcess to process")
-
         filteredBusRoutes.zipWithIndex.map { case (route, routeIndex) =>
-          logger.info(s"Processing $routeIndex of $numberToProcess (Route: ${route.id}, Direction: ${route.direction})")
+          logger.info(s"Processing $routeIndex of ${filteredBusRoutes.size} (Route: ${route.id}, Direction: ${route.direction})")
           getStopListFor(route) match {
-            case Left(e) => throw e
+            case Left(e) =>
+              logger.error(s"Error decoding stop list for $route", e)
+              throw e
             case Right(stopList) => routeDefinitionsTable.insertRouteDefinitions(route, stopList.zipWithIndex)
           }
         }
@@ -70,9 +73,7 @@ class BusRouteDefinitionsUpdater(defConfig: DefinitionsConfig, routeDefinitionsT
     for {
       json <- parse(Source.fromURL(url).mkString)
       decodedStops <- json.as[List[BusStop]]
-    } yield {
-      decodedStops
-    }
+    } yield decodedStops
   }
 
 }
