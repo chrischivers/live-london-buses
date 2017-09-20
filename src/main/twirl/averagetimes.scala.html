@@ -10,7 +10,7 @@
     <body>
 
         <div class="container">
-            <h2>Average durations for stops on bus route @{busRoute.id} heading @{busRoute.direction}</h2>
+            <h2>Average durations for stops on bus route @{busRoute.id} heading towards @{recordList.last._2}</h2>
             <table class="table table-bordered">
                 <thead>
                     <tr>
@@ -20,13 +20,18 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @for(rec <- recordList) {
+                    @for(rec <- recordList.dropRight(1)) {
                         <tr>
                             <td>@rec._1</td>
                             <td>@rec._2</td>
                             <td>@rec._3</td>
                         </tr>
                     }
+                    <tr>
+                        <td>@recordList.last._1</td>
+                        <td>@recordList.last._2</td>
+                        <td>N/A</td>
+                    </tr>
                 </tbody>
             </table>
         </div>

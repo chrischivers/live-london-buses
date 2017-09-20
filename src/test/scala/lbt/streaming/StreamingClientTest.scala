@@ -40,7 +40,8 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
       linesReceivedBuffer += line
     }
 
-    val streamingClient = new StreamingClient(modifiedConfig, addToBuffer)(actorSystem)
+    val dataSourceClient = new BusDataSourceClient(modifiedConfig)
+    val streamingClient = new StreamingClient(dataSourceClient, addToBuffer)(actorSystem)
 
     val testFixture = FixtureParam(streamingClient, restitoServer, linesReceivedBuffer)
 
@@ -49,7 +50,7 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
       withFixture(test.toNoArgTest(testFixture))
     }
     finally {
-      streamingClient.closeClient
+      streamingClient.close
       restitoServer.stop()
     }
   }

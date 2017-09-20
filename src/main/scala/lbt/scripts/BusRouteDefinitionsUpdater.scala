@@ -17,11 +17,11 @@ object BusRouteDefinitionsUpdater extends App with StrictLogging {
   val config = ConfigLoader.defaultConfig
   val defConfig = config.definitionsConfig
   val db = new PostgresDB(config.postgresDbConfig)
-  val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = true)
+  val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = false)
 
   val updater = new BusRouteDefinitionsUpdater(defConfig, routeDefinitionsTable)
   logger.info("Starting definitions update")
-  Await.result(updater.start(limitUpdateTo = Some(List(BusRoute("3", "outbound")))), 120 minutes)
+  Await.result(updater.start(), 120 minutes)
   logger.info("Finished updating definitions")
 }
 
@@ -46,8 +46,8 @@ class BusRouteDefinitionsUpdater(defConfig: DefinitionsConfig, routeDefinitionsT
           logger.info(s"Processing $routeIndex of ${filteredBusRoutes.size} (Route: ${route.id}, Direction: ${route.direction})")
           getStopListFor(route) match {
             case Left(e) =>
-              logger.error(s"Error decoding stop list for $route", e)
-              throw e
+              logger.error(s"Error decoding stop list for $route. Skipping...", e)
+              Future(List.empty)
             case Right(stopList) => routeDefinitionsTable.insertRouteDefinitions(route, stopList.zipWithIndex)
           }
         }

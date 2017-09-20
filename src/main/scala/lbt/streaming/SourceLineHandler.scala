@@ -19,6 +19,7 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
   type LastIndexPersisted = Int
 
   def handle(sourceLine: SourceLine): OptionT[Future, Unit] = {
+    logger.debug(s"Handling line: $sourceLine")
 
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
     val stopList = definitions.routeDefinitions.getOrElse(busRoute, throw new RuntimeException(s"Unable to find route $busRoute in definitions after validation passed"))

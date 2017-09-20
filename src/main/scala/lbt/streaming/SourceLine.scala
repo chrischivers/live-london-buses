@@ -16,7 +16,7 @@ object SourceLine extends StrictLogging {
 
   def fromRawLine(line: String): Option[SourceLine] = {
     def splitLine(line: String) = line
-      .substring(1, line.length - 1) // remove leading and trailing square brackets,
+      .substring(1, line.length - 1) // remove leading and trailing square brackets and \r line break
       .split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")
       .map(_.replaceAll("\"", "")) //takes out double quotations after split
       .map(_.trim) // remove trailing or leading white space

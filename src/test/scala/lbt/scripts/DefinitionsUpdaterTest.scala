@@ -74,6 +74,7 @@ class DefinitionsUpdaterTest extends fixture.FunSuite with ScalaFutures with Opt
     val stopList = f.definitionsTable.getAllRouteDefinitions.futureValue
     stopList.keys should have size 1
     stopList.get(busRouteLowercase) should not be defined
-    stopList.get(busRouteUppercase).value should have size 1
+    stopList.get(busRouteUppercase) shouldBe defined
+    stopList.get(busRouteUppercase).value should have size 17
   }
 }

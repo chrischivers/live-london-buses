@@ -7,6 +7,9 @@ import lbt.models.BusRoute
 import org.http4s._
 import org.http4s.dsl._
 import org.http4s.twirl._
+import scala.concurrent.ExecutionContext.Implicits.global
+
+import scala.concurrent.Future
 
 object RouteIdParamMatcher extends QueryParamDecoderMatcher[String]("bounds")
 
@@ -20,13 +23,17 @@ class LbtServlet(redisClient: RedisClient, definitions: Definitions) extends Str
       val busRoute = BusRoute(routeId, direction)
       logger.debug(s"Http request received for $busRoute")
       definitions.routeDefinitions.get(busRoute).fold(NotFound()) { routeList =>
-        val result: List[(Int, String, Double)] = routeList.dropRight(1).map(stopRec => {
+        val result: Future[List[(Int, String, Double)]] = Future.sequence(routeList.map(stopRec => {
           val timeDiffsOpt = redisClient.getStopToStopTimes(busRoute, stopRec._1, stopRec._1 + 1)
-          val averageTimeDiffOpt = timeDiffsOpt.map(list => list.sum.toDouble / list.size.toDouble)
-          (stopRec._1, stopRec._2.stopName, averageTimeDiffOpt.getOrElse(0.0))
-        })
-
-        Ok(html.averagetimes(result))
+          val averageTimeDiff = timeDiffsOpt.map(list => calculateAverageTimes(list))
+          averageTimeDiff.map(av => (stopRec._1, stopRec._2.stopName, av))
+        }))
+        Ok(result.map(res => html.averagetimes(busRoute, res)))
       }
+  }
+
+  private def calculateAverageTimes(timeDiffs: Seq[Int]): Double = {
+    if (timeDiffs.isEmpty) 0.0
+    else timeDiffs.sum.toDouble / timeDiffs.size.toDouble
   }
 }

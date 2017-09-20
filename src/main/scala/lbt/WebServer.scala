@@ -2,6 +2,7 @@ package lbt
 
 import java.util.concurrent.{ExecutorService, Executors}
 
+import akka.actor.ActorSystem
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
 import lbt.db.{PostgresDB, RedisClient, RouteDefinitionSchema, RouteDefinitionsTable}
@@ -18,6 +19,7 @@ object WebServer extends ServerApp with StrictLogging {
   val port: Int = envOrNone("HTTP_PORT") map (_.toInt) getOrElse 8080
   val ip: String = "0.0.0.0"
   val pool: ExecutorService = Executors.newCachedThreadPool()
+  implicit val actorSystem = ActorSystem()
 
   val config = ConfigLoader.defaultConfig
   val db = new PostgresDB(config.postgresDbConfig)

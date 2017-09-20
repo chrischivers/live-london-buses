@@ -1,5 +1,6 @@
 package lbt.streaming
 
+import akka.actor.ActorSystem
 import lbt.common.{Commons, Definitions}
 import lbt.db.{PostgresDB, RedisClient, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.BusRoute
@@ -42,6 +43,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
   def withFixture(test: OneArgTest) = {
 
     val cache = ScalaCache(GuavaCache())
+    implicit val actorSystem: ActorSystem = ActorSystem()
     val redisClient = new RedisClient(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
     val sourceLineHandler = new SourceLineHandler(definitions, configWithShortTtl.sourceLineHandlerConfig, redisClient)(cache, ec)
     val testFixture = FixtureParam(sourceLineHandler, cache, redisClient)
@@ -237,7 +239,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
 
     getLastIndexPersistedFromCache(sourceLine1, f.cache).futureValue.value shouldBe 10
 
-   val recordFromRedis = f.redisClient.getStopToStopTimes(BusRoute("25", "outbound"), 9, 10).value
+   val recordFromRedis = f.redisClient.getStopToStopTimes(BusRoute("25", "outbound"), 9, 10).futureValue
     recordFromRedis should have size 1
     recordFromRedis.head shouldBe ((timestamp2 - timestamp1) / 1000)
   }
@@ -265,7 +267,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
 
     getLastIndexPersistedFromCache(sourceLine3, f.cache).futureValue.value shouldBe 10
 
-    val recordFromRedis = f.redisClient.getStopToStopTimes(BusRoute("25", "outbound"), 9, 10).value
+    val recordFromRedis = f.redisClient.getStopToStopTimes(BusRoute("25", "outbound"), 9, 10).futureValue
     recordFromRedis should have size 2
     recordFromRedis(0) shouldBe ((timestamp4 - timestamp3) / 1000)
     recordFromRedis(1) shouldBe ((timestamp2 - timestamp1) / 1000)

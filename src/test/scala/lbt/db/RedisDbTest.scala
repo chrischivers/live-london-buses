@@ -1,11 +1,14 @@
 package lbt.db
 
+import akka.actor.ActorSystem
 import lbt.ConfigLoader
 import lbt.models.BusRoute
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{OptionValues, fixture}
+
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -21,16 +24,17 @@ class RedisDbTest extends fixture.FunSuite with ScalaFutures with OptionValues {
   case class FixtureParam(redisClient: RedisClient)
 
   def withFixture(test: OneArgTest) = {
-    val redisClient = new RedisClient(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
 
+    implicit val actorSystem: ActorSystem = ActorSystem()
+    val redisClient = new RedisClient(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
     val testFixture = FixtureParam(redisClient)
 
     try {
-      redisClient.flushDB
+      redisClient.flushDB.futureValue
       withFixture(test.toNoArgTest(testFixture))
     }
     finally {
-      redisClient.flushDB
+      redisClient.flushDB.futureValue
     }
   }
 
@@ -40,10 +44,10 @@ class RedisDbTest extends fixture.FunSuite with ScalaFutures with OptionValues {
     val time1 = 60
     val time2 = 65
 
-    f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, time1)
-    f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, time2)
+    f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, time1).futureValue
+    f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, time2).futureValue
 
-    val timeList = f.redisClient.getStopToStopTimes(busRoute, 0, 1).value
+    val timeList = f.redisClient.getStopToStopTimes(busRoute, 0, 1).futureValue
     timeList should have size 2
     timeList shouldBe List(time2, time1)
   }
@@ -52,18 +56,18 @@ class RedisDbTest extends fixture.FunSuite with ScalaFutures with OptionValues {
 
     val busRoute = BusRoute("3", "outbound")
 
-    (0 to 98).foreach(_ => f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, Random.nextInt(200)))
-    f.redisClient.getStopToStopTimes(busRoute, 0, 1).value should have size 99
+    Future.sequence((0 to 98).map(_ => f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, Random.nextInt(200)))).futureValue
+    f.redisClient.getStopToStopTimes(busRoute, 0, 1).futureValue should have size 99
 
-    f.redisClient.flushDB
+    f.redisClient.flushDB.futureValue
 
-    (0 to 99).foreach(_ => f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, Random.nextInt(200)))
-    f.redisClient.getStopToStopTimes(busRoute, 0, 1).value should have size 100
+    Future.sequence((0 to 99).map(_ => f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, Random.nextInt(200)))).futureValue
+    f.redisClient.getStopToStopTimes(busRoute, 0, 1).futureValue should have size 100
 
-    f.redisClient.flushDB
+    f.redisClient.flushDB.futureValue
 
-    (0 to 100).foreach(_ => f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, Random.nextInt(200)))
-    f.redisClient.getStopToStopTimes(busRoute, 0, 1).value should have size 100
+    Future.sequence((0 to 100).map(_ => f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, Random.nextInt(200)))).futureValue
+    f.redisClient.getStopToStopTimes(busRoute, 0, 1).futureValue should have size 100
   }
 
 }

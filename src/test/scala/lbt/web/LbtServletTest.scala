@@ -2,6 +2,7 @@ package lbt.web
 
 import java.util.concurrent.{ExecutorService, Executors}
 
+import akka.actor.ActorSystem
 import lbt.ConfigLoader
 import lbt.common.Definitions
 import lbt.db.{PostgresDB, RedisClient, RouteDefinitionSchema, RouteDefinitionsTable}
@@ -47,6 +48,7 @@ class LbtServletTest extends fixture.FunSuite with ScalaFutures with OptionValue
 
   def withFixture(test: OneArgTest) = {
 
+    implicit val actorSystem: ActorSystem = ActorSystem()
     val redisClient = new RedisClient(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
     val lbtServlet = new LbtServlet(redisClient, definitions)
     val httpClient = PooledHttp1Client()
