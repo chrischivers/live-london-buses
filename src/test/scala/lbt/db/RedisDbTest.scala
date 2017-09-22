@@ -26,7 +26,7 @@ class RedisDbTest extends fixture.FunSuite with ScalaFutures with OptionValues {
   def withFixture(test: OneArgTest) = {
 
     implicit val actorSystem: ActorSystem = ActorSystem()
-    val redisClient = new RedisClient(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
+    val redisClient = new RedisClient(config.redisDBConfig.copy(dbIndex = 1, keyTTL = 5 seconds)) // 1 = test, 0 = main
     val testFixture = FixtureParam(redisClient)
 
     try {
@@ -70,4 +70,12 @@ class RedisDbTest extends fixture.FunSuite with ScalaFutures with OptionValues {
     f.redisClient.getStopToStopTimes(busRoute, 0, 1).futureValue should have size 100
   }
 
+  test("Route timing data stored in redis should expire after specified period passed") { f =>
+
+    val busRoute = BusRoute("3", "outbound")
+    f.redisClient.persistStopToStopTime(busRoute, 0, 1, 0, Random.nextInt(200)).futureValue
+    f.redisClient.getStopToStopTimes(busRoute, 0, 1).futureValue should have size 1
+    Thread.sleep(5500)
+    f.redisClient.getStopToStopTimes(busRoute, 0, 1).futureValue should have size 0
+  }
 }

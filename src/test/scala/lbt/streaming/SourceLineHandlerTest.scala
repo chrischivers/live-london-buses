@@ -18,10 +18,10 @@ import scalacache.{NoSerialization, ScalaCache, _}
 class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll {
 
   val config: LBTConfig = ConfigLoader.defaultConfig
-  val configWithShortTtl = config.copy(sourceLineHandlerConfig = config.sourceLineHandlerConfig.copy(cacheTtl = 5 seconds))
+  val configWithShortTtl: LBTConfig = config.copy(sourceLineHandlerConfig = config.sourceLineHandlerConfig.copy(cacheTtl = 5 seconds))
   implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
-  override implicit val patienceConfig = PatienceConfig(
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(
     timeout = scaled(5 minutes),
     interval = scaled(500 millis)
   )
@@ -49,10 +49,10 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     val testFixture = FixtureParam(sourceLineHandler, cache, redisClient)
 
     try {
-      redisClient.flushDB
+      redisClient.flushDB.futureValue
       withFixture(test.toNoArgTest(testFixture))
     } finally {
-      redisClient.flushDB
+      redisClient.flushDB.futureValue
     }
   }
 

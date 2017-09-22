@@ -28,7 +28,7 @@ class StreamingClient(busDataSourceClient: BusDataSourceClient, action: (String 
   def start(): Future[Long] = {
     logger.info("Starting streaming client")
     Source.fromIterator(() => dataStream).runFold[Long](0L) { (total, line) =>
-      if(total % 10000 == 0) println(total)
+      if(total % 10000 == 0) logger.info(s"$total streamed rows processed")
       action(line)
       total + 1
     }
