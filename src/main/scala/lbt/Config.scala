@@ -6,7 +6,7 @@ import lbt.ConfigLoader.defaultConfigFactory
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-case class DataSourceConfig(sourceUrl: String, username: String, password: String, authScopeURL: String, authScopePort: Int, timeout: Int, waitTimeAfterClose: Int, cacheTimeToLiveSeconds: Int, timeWindowToAcceptLines: Int, numberEmptyIteratorCasesBeforeRestart: Int, simulationIterator: Option[Iterator[String]] = None)
+case class DataSourceConfig(sourceUrl: String, username: String, password: String, authScopeURL: String, authScopePort: Int, timeout: Int, waitTimeAfterClose: Int, cacheTimeToLiveSeconds: Int, timeWindowToAcceptLines: Int, numberEmptyIteratorCasesBeforeRestart: Int)
 
 case class DefinitionsConfig(sourceAllUrl: String, sourceSingleUrl: String, definitionsCachedTime: Int, directionsApiKeys: List[String])
 
@@ -20,7 +20,7 @@ sealed trait DBConfig {
 
 case class PostgresDBConfig(host: String, port: Int, username: String, password: String, dbName: String) extends DBConfig
 
-case class RedisConfig(host: String, port: Int, dbIndex: Int, maxListLength: Int, keyTTL: Duration)
+case class RedisConfig(host: String, port: Int, dbIndex: Int, durationRecordTTL: Duration, durationMaxListLength: Int, wsClientCacheTTL: Duration, wsClientCacheMaxResultsReturned: Int)
 
 case class SourceLineHandlerConfig(cacheTtl: Duration, minimumTimeDifferenceToPersist: Duration)
 
@@ -56,7 +56,7 @@ object ConfigLoader {
         defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "wait-time-after-close"),
         defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "cache-time-to-live-seconds"),
         defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "time-window-to-accept-lines"),
-        defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "number-empty-iterator-cases-before-restart"),
+        defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "number-empty-iterator-cases-before-restart")
 //        defaultConfigFactory.getStringList(dataSourceStreamingParamsPrefix + "get-only-routes").toList.map(rec => parse(rec).extract[BusRoute]) match {
 //          case Nil => None
 //          case x => Some(x)
@@ -73,8 +73,10 @@ object ConfigLoader {
         defaultConfigFactory.getString(redisDBParamsPrefix + "host"),
         defaultConfigFactory.getInt(redisDBParamsPrefix + "port"),
         defaultConfigFactory.getInt(redisDBParamsPrefix + "dbIndex"),
-        defaultConfigFactory.getInt(redisDBParamsPrefix + "maxListLength"),
-        defaultConfigFactory.getDuration(redisDBParamsPrefix + "keyTTL")
+        defaultConfigFactory.getDuration(redisDBParamsPrefix + "durationRecordTTL"),
+        defaultConfigFactory.getInt(redisDBParamsPrefix + "durationMaxListLength"),
+        defaultConfigFactory.getDuration(redisDBParamsPrefix + "wsClientCacheTTL"),
+        defaultConfigFactory.getInt(redisDBParamsPrefix + "wsClientCacheMaxResultsReturned")
       ),
       DefinitionsConfig(
         defaultConfigFactory.getString(definitionsParamsPrefix + "definitions-all-url"),

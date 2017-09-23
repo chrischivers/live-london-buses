@@ -1,14 +1,12 @@
 package lbt
 
-import java.util.concurrent.{ExecutorService, Executors}
-
 import akka.actor.ActorSystem
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
-import lbt.db.{PostgresDB, RedisClient, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.web.LbtServlet
-import org.http4s.server.ServerApp
+import lbt.db.caching.RedisDurationRecorder
+import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
+import lbt.web.{LbtServlet, WebSocketServlet}
 import org.http4s.server.blaze.BlazeBuilder
 import org.http4s.util.StreamApp
 
@@ -20,7 +18,7 @@ object WebServer extends StreamApp[IO] with StrictLogging {
 
   val port: Int = envOrNone("HTTP_PORT") map (_.toInt) getOrElse 8080
   val ip: String = "0.0.0.0"
-//  val pool: ExecutorService = Executors.newCachedThreadPool()
+  //  val pool: ExecutorService = Executors.newCachedThreadPool()
   implicit val actorSystem = ActorSystem()
 
   val config = ConfigLoader.defaultConfig
@@ -28,16 +26,19 @@ object WebServer extends StreamApp[IO] with StrictLogging {
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = false)
   val definitions = new Definitions(routeDefinitionsTable)
 
-  val redisClient = new RedisClient(config.redisDBConfig)
+  val redisClient = new RedisDurationRecorder(config.redisDBConfig)
 
   val lbtServlet = new LbtServlet(redisClient, definitions)
+  val webSocketServlet = new WebSocketServlet()
+
 
   override def stream(args: List[String], requestShutdown: IO[Unit]) = {
     logger.info(s"Starting up servlet using port $port bound to ip $ip")
     BlazeBuilder[IO]
       .bindHttp(port, ip)
       .withIdleTimeout(3.minutes)
-      .mountService(lbtServlet.service)
+      .withWebSockets(true)
+      .mountService(lbtServlet.service, "/lbt")
       .serve
   }
 }

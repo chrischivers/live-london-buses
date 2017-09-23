@@ -6,6 +6,11 @@ import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.{Commons, Definitions}
 import lbt.models.{BusRoute, BusStop}
+import cats._
+import cats.data.Validated
+import cats.syntax.{CartesianOps, CartesianSyntax}
+import cats.instances.all._
+import cats.syntax.apply._
 
 
 case class SourceLine(route: String, direction: Int, stopID: String, destinationText: String, vehicleID: String, arrival_TimeStamp: Long) {
@@ -61,9 +66,9 @@ object SourceLine extends StrictLogging {
       else invalid(NEL.of("Event is in the past"))
     }
 
-    def isTooFarInFuture() = ???
+//    def isTooFarInFuture() = ???
 
-    (validRoute(), validStop(), notOnIgnoreList(), isInPast()).mapN[String]{case (a, b, c, d) => a + b + c + d} match {
+    (validRoute() |@| validStop() |@| notOnIgnoreList() |@| isInPast()).map(_ + _ + _ + _) match {
       case Valid(_) => true
       case Invalid(iv) =>
         logger.debug(s"Unable to validate sourceLine $sourceLine, errors: ${iv.toString()}")

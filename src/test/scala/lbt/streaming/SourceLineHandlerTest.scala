@@ -2,7 +2,8 @@ package lbt.streaming
 
 import akka.actor.ActorSystem
 import lbt.common.{Commons, Definitions}
-import lbt.db.{PostgresDB, RedisClient, RouteDefinitionSchema, RouteDefinitionsTable}
+import lbt.db.caching.RedisDurationRecorder
+import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.BusRoute
 import lbt.scripts.BusRouteDefinitionsUpdater
 import lbt.{ConfigLoader, LBTConfig}
@@ -38,13 +39,13 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     db.disconnect.futureValue
   }
 
-  case class FixtureParam(sourceLineHandler: SourceLineHandler, cache: ScalaCache[NoSerialization], redisClient: RedisClient)
+  case class FixtureParam(sourceLineHandler: SourceLineHandler, cache: ScalaCache[NoSerialization], redisClient: RedisDurationRecorder)
 
   def withFixture(test: OneArgTest) = {
 
     val cache = ScalaCache(GuavaCache())
     implicit val actorSystem: ActorSystem = ActorSystem()
-    val redisClient = new RedisClient(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
+    val redisClient = new RedisDurationRecorder(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
     val sourceLineHandler = new SourceLineHandler(definitions, configWithShortTtl.sourceLineHandlerConfig, redisClient)(cache, ec)
     val testFixture = FixtureParam(sourceLineHandler, cache, redisClient)
 

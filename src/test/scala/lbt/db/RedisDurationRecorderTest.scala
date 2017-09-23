@@ -2,6 +2,7 @@ package lbt.db
 
 import akka.actor.ActorSystem
 import lbt.ConfigLoader
+import lbt.db.caching.RedisDurationRecorder
 import lbt.models.BusRoute
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
@@ -12,7 +13,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
 
-class RedisDbTest extends fixture.FunSuite with ScalaFutures with OptionValues {
+class RedisDurationRecorderTest extends fixture.FunSuite with ScalaFutures with OptionValues {
 
   val config = ConfigLoader.defaultConfig
 
@@ -21,12 +22,12 @@ class RedisDbTest extends fixture.FunSuite with ScalaFutures with OptionValues {
     interval = scaled(500 millis)
   )
 
-  case class FixtureParam(redisClient: RedisClient)
+  case class FixtureParam(redisClient: RedisDurationRecorder)
 
   def withFixture(test: OneArgTest) = {
 
     implicit val actorSystem: ActorSystem = ActorSystem()
-    val redisClient = new RedisClient(config.redisDBConfig.copy(dbIndex = 1, keyTTL = 5 seconds)) // 1 = test, 0 = main
+    val redisClient = new RedisDurationRecorder(config.redisDBConfig.copy(dbIndex = 1, durationRecordTTL = 5 seconds)) // 1 = test, 0 = main
     val testFixture = FixtureParam(redisClient)
 
     try {

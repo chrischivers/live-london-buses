@@ -1,4 +1,4 @@
-package lbt.db
+package lbt.db.sql
 
 import com.github.mauricio.async.db.{Connection, QueryResult}
 import com.typesafe.scalalogging.StrictLogging

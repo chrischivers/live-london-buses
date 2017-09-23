@@ -4,14 +4,15 @@ import com.github.mauricio.async.db.QueryResult
 import com.typesafe.scalalogging.StrictLogging
 import io.circe
 import io.circe.parser._
-import lbt.{ConfigLoader, DefinitionsConfig}
 import lbt.common.JsonCodecs._
-import lbt.db.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
+import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.{BusRoute, BusStop}
+import lbt.{ConfigLoader, DefinitionsConfig}
+
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.io.Source
-import scala.concurrent.ExecutionContext.Implicits.global
 
 object BusRouteDefinitionsUpdater extends App with StrictLogging {
   val config = ConfigLoader.defaultConfig

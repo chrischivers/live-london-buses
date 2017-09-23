@@ -3,7 +3,8 @@ package lbt
 import akka.actor.ActorSystem
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
-import lbt.db.{PostgresDB, RedisClient, RouteDefinitionSchema, RouteDefinitionsTable}
+import lbt.db.caching.RedisDurationRecorder
+import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.streaming._
 
 import scala.concurrent.ExecutionContext
@@ -22,7 +23,7 @@ object StreamingApp extends App with StrictLogging {
 
   val dataSourceClient = new BusDataSourceClient(config.dataSourceConfig)
 
-  val redisClient = new RedisClient(config.redisDBConfig)
+  val redisClient = new RedisDurationRecorder(config.redisDBConfig)
 
   val streamingClient = new StreamingClient(dataSourceClient, processSourceLine)
 

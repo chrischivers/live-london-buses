@@ -1,4 +1,4 @@
-package lbt.db
+package lbt.db.sql
 
 import com.github.mauricio.async.db.pool.{ConnectionPool, ObjectFactory, PoolConfiguration}
 import com.github.mauricio.async.db.postgresql.PostgreSQLConnection

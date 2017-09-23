@@ -3,7 +3,7 @@ package lbt.web
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
-import lbt.db.RedisClient
+import lbt.db.caching.RedisDurationRecorder
 import lbt.models.BusRoute
 import org.http4s._
 import org.http4s.dsl._
@@ -16,10 +16,10 @@ object RouteIdParamMatcher extends QueryParamDecoderMatcher[String]("bounds")
 
 object CategoryQueryParamMatcher extends QueryParamDecoderMatcher[String]("category")
 
-class LbtServlet(redisClient: RedisClient, definitions: Definitions) extends StrictLogging {
+class LbtServlet(redisClient: RedisDurationRecorder, definitions: Definitions) extends StrictLogging {
 
-  val service = HttpService[IO] {
-    case GET -> Root / "lbt" / routeId / direction =>
+  def service = HttpService[IO] {
+    case GET -> Root / routeId / direction =>
 
       val busRoute = BusRoute(routeId, direction)
       logger.debug(s"Http request received for $busRoute")

@@ -1,10 +1,10 @@
 package lbt.streaming
 
-import lbt.db.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.models.BusRoute
-import lbt.scripts.BusRouteDefinitionsUpdater
 import lbt.ConfigLoader
 import lbt.common.Definitions
+import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
+import lbt.models.BusRoute
+import lbt.scripts.BusRouteDefinitionsUpdater
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, OptionValues, fixture}

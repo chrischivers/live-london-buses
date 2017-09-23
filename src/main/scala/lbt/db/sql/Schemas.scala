@@ -1,4 +1,4 @@
-package lbt.db
+package lbt.db.sql
 
 sealed trait Schema {
   val tableName: String

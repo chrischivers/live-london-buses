@@ -3,10 +3,11 @@ package lbt.scripts
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Commons.BusPolyLine
 import lbt.common.Definitions
-import lbt.db.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
+import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.BusStop
 import lbt.{ConfigLoader, DefinitionsConfig}
 import org.joda.time.DateTime
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 import scala.util.Random

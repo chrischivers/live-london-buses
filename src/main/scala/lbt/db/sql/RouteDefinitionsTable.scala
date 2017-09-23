@@ -1,4 +1,4 @@
-package lbt.db
+package lbt.db.sql
 
 import com.github.mauricio.async.db.QueryResult
 import com.github.mauricio.async.db.postgresql.PostgreSQLConnection

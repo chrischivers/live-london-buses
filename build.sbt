@@ -22,19 +22,22 @@ libraryDependencies += "com.github.cb372" %% "scalacache-guava" % "0.9.4"
 libraryDependencies += "com.typesafe.akka" % "akka-stream_2.12" % "2.5.4"
 libraryDependencies += "com.typesafe.akka" % "akka-actor_2.12" % "2.5.4"
 libraryDependencies += "com.typesafe.akka" % "akka-http_2.12" % "10.0.10"
+libraryDependencies += "org.typelevel" % "cats-core_2.12" % "0.9.0"
+
+
 
 libraryDependencies ++= Seq(
-  "io.circe" %% "circe-core",
+  "io.circe" %% "circe-core" ,
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
-).map(_ % circeVersion)
+).map(_ % circeVersion excludeAll ExclusionRule("org.typelevel", "cats-core_2.12"))
 
 libraryDependencies ++= Seq(
-  "org.http4s"     %% "http4s-blaze-server" % Http4sVersion,
-  "org.http4s"     %% "http4s-circe"        % Http4sVersion,
-  "org.http4s"     %% "http4s-twirl"        % Http4sVersion,
-  "org.http4s"     %% "http4s-dsl"          % Http4sVersion,
-  "org.http4s"     %% "http4s-blaze-client" % Http4sVersion
+  "org.http4s"     %% "http4s-blaze-server" % Http4sVersion excludeAll ExclusionRule("org.typelevel", "cats-core_2.12"),
+  "org.http4s"     %% "http4s-circe"        % Http4sVersion excludeAll ExclusionRule("org.typelevel", "cats-core_2.12"),
+  "org.http4s"     %% "http4s-twirl"        % Http4sVersion excludeAll ExclusionRule("org.typelevel", "cats-core_2.12"),
+  "org.http4s"     %% "http4s-dsl"          % Http4sVersion excludeAll ExclusionRule("org.typelevel", "cats-core_2.12"),
+  "org.http4s"     %% "http4s-blaze-client" % Http4sVersion excludeAll ExclusionRule("org.typelevel", "cats-core_2.12")
 )
 
 lazy val root = (project in file(".")).enablePlugins(SbtTwirl)

@@ -8,12 +8,12 @@ import lbt.common.{Commons, Definitions}
 import lbt.models.BusRoute
 import cats.data._
 import cats.implicits._
-import lbt.db.RedisClient
+import lbt.db.caching.RedisDurationRecorder
 
 import scala.concurrent.{ExecutionContext, Future}
 import scalacache.{NoSerialization, ScalaCache, put, _}
 
-class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfig, redisClient: RedisClient)(implicit scalaCache: ScalaCache[NoSerialization], executionContext: ExecutionContext) extends StrictLogging {
+class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfig, redisClient: RedisDurationRecorder)(implicit scalaCache: ScalaCache[NoSerialization], executionContext: ExecutionContext) extends StrictLogging {
 
   type ArrivalTimestamp = Long
   type LastIndexPersisted = Int

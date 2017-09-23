@@ -1,7 +1,7 @@
 package lbt.scripts
 
 import lbt.ConfigLoader
-import lbt.db.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
+import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.BusRoute
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
