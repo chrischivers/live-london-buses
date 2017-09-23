@@ -21,7 +21,7 @@ object BusRouteDefinitionsUpdater extends App with StrictLogging {
 
   val updater = new BusRouteDefinitionsUpdater(defConfig, routeDefinitionsTable)
   logger.info("Starting definitions update")
-  Await.result(updater.start(limitUpdateTo = Some(List(BusRoute("3", "outbound")))), 120 minutes)
+  Await.result(updater.start(limitUpdateTo = None), 120 minutes)
   logger.info("Finished updating definitions")
 }
 

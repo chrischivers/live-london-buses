@@ -22,9 +22,9 @@
                 <tbody>
                     @for(rec <- recordList.dropRight(1)) {
                         <tr>
-                            <td>@rec._1</td>
+                            <td>@(rec._1 + 1)</td>
                             <td>@rec._2</td>
-                            <td>@rec._3</td>
+                            <td>@rec._3.toInt</td>
                         </tr>
                     }
                     <tr>

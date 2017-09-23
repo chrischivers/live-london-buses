@@ -2,6 +2,7 @@ package lbt.db
 
 import com.github.mauricio.async.db.QueryResult
 import com.github.mauricio.async.db.postgresql.PostgreSQLConnection
+import lbt.common.Commons.BusPolyLine
 import lbt.models.{BusRoute, BusStop}
 
 import scala.concurrent.duration._
@@ -35,6 +36,7 @@ class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: Rou
            |    ${schema.stopName} varchar,
            |    ${schema.lat} real NOT NULL,
            |    ${schema.lng} real NOT NULL,
+           |    ${schema.polyline_to_next} varchar,
            |    ${schema.lastUpdated} timestamp NOT NULL,
            |    PRIMARY KEY(${schema.primaryKey.mkString(",")})
            |);
@@ -61,7 +63,19 @@ class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: Rou
         stop.stopID, stop.stopName, stop.latitude, stop.longitude))
   }
 
-  def getStopSequenceFor(route: BusRoute): Future[List[(Int, BusStop)]] = {
+  def updatePolyLine(route: BusRoute, stopSeqNo: Int, polyLine: String): Future[QueryResult] = {
+    val statement =
+      s"UPDATE ${schema.tableName} " +
+      s"SET ${schema.polyline_to_next} = ?, ${schema.lastUpdated} = 'now' " +
+      s"WHERE ${schema.routeId} = ? " +
+      s"AND ${schema.direction} = ? " +
+      s"AND ${schema.sequence} = ?"
+
+    db.connectionPool.sendPreparedStatement(statement,
+      List(polyLine, route.id, route.direction, stopSeqNo))
+  }
+
+  def getStopSequenceFor(route: BusRoute): Future[List[(Int, BusStop, Option[BusPolyLine])]] = {
     val query =
       s"SELECT * " +
         s"FROM ${schema.tableName} " +
@@ -79,14 +93,15 @@ class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: Rou
           val lat = res(schema.lat).asInstanceOf[Float].toDouble
           val lng = res(schema.lng).asInstanceOf[Float].toDouble
           val sequenceNo = res(schema.sequence).asInstanceOf[Int]
-          (sequenceNo, BusStop(id, name, lat, lng))
+          val polyLine = Option(res(schema.polyline_to_next).asInstanceOf[String])
+          (sequenceNo, BusStop(id, name, lat, lng), polyLine)
         }).toList
         case None => List.empty
       }
     }
   }
 
-  def getAllRouteDefinitions: Future[Map[BusRoute, List[(Int, BusStop)]]] = {
+  def getAllRouteDefinitions: Future[Map[BusRoute, List[(Int, BusStop, Option[BusPolyLine])]]] = {
     val query =
       s"SELECT * " +
         s"FROM ${schema.tableName} " +
@@ -104,7 +119,8 @@ class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: Rou
           val lat = res(schema.lat).asInstanceOf[Float].toDouble
           val lng = res(schema.lng).asInstanceOf[Float].toDouble
           val sequenceNo = res(schema.sequence).asInstanceOf[Int]
-          (BusRoute(routeId, direction), (sequenceNo, BusStop(id, name, lat, lng)))
+          val polyLine = Option(res(schema.polyline_to_next).asInstanceOf[String])
+          (BusRoute(routeId, direction), (sequenceNo, BusStop(id, name, lat, lng), polyLine))
         }).toList
         case None => List.empty
       }

@@ -92,4 +92,22 @@ class RouteDefinitionsDBTest extends fixture.FunSuite with ScalaFutures with Opt
     busRouteBResults(1) shouldBe((1, busStop5))
 
   }
+
+  test("Polylines can be updated to existing records in the DB") { f =>
+
+    val busRoute = BusRoute("3", "outbound")
+    val busStop1 = BusStop("Id1", "Name1", 51.5076, -0.129804)
+    val busStop2 = BusStop("Id2", "Name2", 51.5065, -0.127142)
+    val polyLine =  "TESTPOLYLINE"
+
+    f.definitionsTable.insertRouteDefinitions(busRoute, List(busStop1, busStop2).zipWithIndex).futureValue
+
+    f.definitionsTable.updatePolyLine(busRoute, 0, polyLine).futureValue
+
+    val returnedRecords = f.definitionsTable.getStopSequenceFor(busRoute).futureValue
+    returnedRecords should have size 2
+    returnedRecords.head._3 shouldBe Some(polyLine)
+    returnedRecords(1)._3 shouldBe None
+
+  }
 }

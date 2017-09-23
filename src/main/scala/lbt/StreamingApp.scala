@@ -6,8 +6,7 @@ import lbt.common.Definitions
 import lbt.db.{PostgresDB, RedisClient, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.streaming._
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.ExecutionContext
 import scalacache.ScalaCache
 import scalacache.guava.GuavaCache
 
@@ -34,7 +33,7 @@ object StreamingApp extends App with StrictLogging {
 
   def processSourceLine(rawSourceLine: String): Unit = {
     SourceLine.fromRawLine(rawSourceLine).fold(throw new RuntimeException(s"Unable to parse raw source line: $rawSourceLine")) { line =>
-      if (line.validate(definitions)) sourceLineHandler.handle(line)
+      if (line.validate(definitions)) sourceLineHandler.handle(line).value
     }
   }
 

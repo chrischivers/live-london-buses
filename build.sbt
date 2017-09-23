@@ -3,8 +3,8 @@ name := "live-london-buses"
 version := "0.1"
 
 scalaVersion := "2.12.3"
-val circeVersion = "0.8.0"
-val Http4sVersion = "0.17.0-M3"
+val circeVersion = "0.9.0-M1"
+val Http4sVersion = "0.18.0-M1"
 
 resolvers += Resolver.sonatypeRepo("snapshots")
 

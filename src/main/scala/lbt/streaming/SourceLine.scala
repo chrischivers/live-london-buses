@@ -63,7 +63,7 @@ object SourceLine extends StrictLogging {
 
     def isTooFarInFuture() = ???
 
-    (validRoute() |@| validStop() |@| notOnIgnoreList() |@| isInPast()).map(_ + _ + _ + _) match {
+    (validRoute(), validStop(), notOnIgnoreList(), isInPast()).mapN[String]{case (a, b, c, d) => a + b + c + d} match {
       case Valid(_) => true
       case Invalid(iv) =>
         logger.debug(s"Unable to validate sourceLine $sourceLine, errors: ${iv.toString()}")

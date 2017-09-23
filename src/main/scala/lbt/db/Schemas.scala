@@ -13,6 +13,7 @@ case class RouteDefinitionSchema(
                              stopName: String = "stop_name",
                              lat: String = "lat",
                              lng: String = "lng",
+                             polyline_to_next: String = "polyline_to_next",
                              lastUpdated: String = "last_updated") extends Schema {
   override val primaryKey: List[String] = List(routeId, direction, sequence)
 }

@@ -1,37 +1,41 @@
 package lbt.scripts
 
 import com.typesafe.scalalogging.StrictLogging
+import lbt.common.Commons.BusPolyLine
 import lbt.common.Definitions
 import lbt.db.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
+import lbt.models.BusStop
 import lbt.{ConfigLoader, DefinitionsConfig}
-import lbt.models.{BusRoute, BusStop}
-import lbt.scripts.BusRouteDefinitionsUpdater.config
 import org.joda.time.DateTime
-
-import scala.io.Source
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 import scala.util.Random
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.xml.XML
 
-object BusRoutePolyLineUpdater extends App {
+object BusRoutePolyLineUpdater extends App with StrictLogging{
+  implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   val config = ConfigLoader.defaultConfig
   val db = new PostgresDB(config.postgresDbConfig)
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = false)
-  val definitions = new Definitions(routeDefinitionsTable)
 
-  val route = definitions.routeDefinitions(BusRoute("3", "outbound"))
-  val updater = new BusRoutePolyLineUpdater(config.definitionsConfig)
-  val polyLine = updater.getPolyLineFor(route(3)._2, route(4)._2)
-  println(polyLine)
-
+  val busRoutePolyLineUpdater = new BusRoutePolyLineUpdater(config.definitionsConfig, routeDefinitionsTable)
+  busRoutePolyLineUpdater.start
 }
 
-class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig) extends StrictLogging {
+class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig, routeDefinitionsTable: RouteDefinitionsTable) extends StrictLogging {
 
-  type BusPolyLine = String
+  val definitions = new Definitions(routeDefinitionsTable)
 
-  def start = {
-
+  def start: Unit = {
+    definitions.routeDefinitions.foreach { routeDef =>
+      val stopsWithNoPolyLines = routeDef._2.filter(_._3.isEmpty)
+      stopsWithNoPolyLines.foreach { fromStop =>
+        for {
+          toStop <- routeDef._2.find(_._1 == fromStop._1 + 1)
+          polyLine <- getPolyLineFor(fromStop._2, toStop._2)
+        } yield Await.result(routeDefinitionsTable.updatePolyLine(routeDef._1, fromStop._1, polyLine), 5 minutes)
+      }
+    }
   }
 
 
@@ -64,7 +68,5 @@ class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig) extends Stri
         getPolyLineFor(fromStop, toStop)
       case unknown => throw new RuntimeException(s"Unknown error retrieving polyline from URL $polyLineUrl, status code: $unknown")
     }
-
   }
-
 }

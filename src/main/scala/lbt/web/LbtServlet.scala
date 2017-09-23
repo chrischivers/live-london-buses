@@ -1,5 +1,6 @@
 package lbt.web
 
+import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
 import lbt.db.RedisClient
@@ -7,8 +8,8 @@ import lbt.models.BusRoute
 import org.http4s._
 import org.http4s.dsl._
 import org.http4s.twirl._
-import scala.concurrent.ExecutionContext.Implicits.global
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 object RouteIdParamMatcher extends QueryParamDecoderMatcher[String]("bounds")
@@ -17,8 +18,8 @@ object CategoryQueryParamMatcher extends QueryParamDecoderMatcher[String]("categ
 
 class LbtServlet(redisClient: RedisClient, definitions: Definitions) extends StrictLogging {
 
-  val service = HttpService {
-    case _@GET -> Root / "lbt" / routeId / direction =>
+  val service = HttpService[IO] {
+    case GET -> Root / "lbt" / routeId / direction =>
 
       val busRoute = BusRoute(routeId, direction)
       logger.debug(s"Http request received for $busRoute")
