@@ -42,36 +42,38 @@ object SourceLine extends StrictLogging {
 
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
 
-    def validRoute(): Validated[NEL[String], String] = {
+    def validRoute(): ValidatedNel[String, String] = {
       definitions.routeDefinitions.get(busRoute) match {
         case None => invalid(NEL.of(s"Bus route $busRoute does not exist in definitions"))
         case Some(_) => valid(s"Bus Route $busRoute is valid")
       }
     }
 
-    def validStop(): Validated[NEL[String], String] = {
+    def validStop(): ValidatedNel[String, String] = {
       definitions.routeDefinitions.get(busRoute) match {
         case Some(list) if list.exists(_._2.stopID == sourceLine.stopID) => valid("Bus stop is valid")
         case _ => invalid(NEL.of(s"Bus stop not found for bus route $busRoute in definitions"))
       }
     }
 
-    def notOnIgnoreList(): Validated[NEL[String], String] = {
+    def notOnIgnoreList(): ValidatedNel[String, String] = {
       //TODO
       valid(s"Bus route $busRoute is not on the ignore list")
     }
 
-    def isInPast(): Validated[NEL[String], String] = {
+    def isInPast(): ValidatedNel[String, String] = {
       if (sourceLine.arrival_TimeStamp - System.currentTimeMillis() > 0) valid("Event is not in the past")
       else invalid(NEL.of("Event is in the past"))
     }
 
 //    def isTooFarInFuture() = ???
 
-    (validRoute() |@| validStop() |@| notOnIgnoreList() |@| isInPast()).map(_ + _ + _ + _) match {
-      case Valid(_) => true
-      case Invalid(iv) =>
-        logger.debug(s"Unable to validate sourceLine $sourceLine, errors: ${iv.toString()}")
+
+    (validRoute(), validStop(), notOnIgnoreList(),isInPast()) match {
+      case (Valid(_), Valid(_), Valid(_), Valid(_)) => true
+      case _ =>
+        //TODO do this properly once Cats mapN is working
+        logger.debug(s"Unable to validate sourceLine $sourceLine, errors: To be implemented")
         false
     }
   }

@@ -29,7 +29,6 @@ object WebServer extends StreamApp[IO] with StrictLogging {
   val redisClient = new RedisDurationRecorder(config.redisDBConfig)
 
   val lbtServlet = new LbtServlet(redisClient, definitions)
-  val webSocketServlet = new WebSocketServlet()
 
 
   override def stream(args: List[String], requestShutdown: IO[Unit]) = {

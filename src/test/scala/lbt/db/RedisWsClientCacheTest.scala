@@ -58,10 +58,11 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     f.redisClient.storeVehicleActivity(uuid, busPosData3).futureValue
 
     val results = f.redisClient.getVehicleActivityFor(uuid).futureValue
-    results should have size 3
-    parseToBusPositionDataForTransmission(results.head) shouldBe busPosData3
-    parseToBusPositionDataForTransmission(results(1)) shouldBe busPosData1
-    parseToBusPositionDataForTransmission(results(2)) shouldBe busPosData2
+    val parsedResults: List[BusPositionDataForTransmission] = parseRedisResult(results)
+    parsedResults should have size 3
+    parsedResults.head shouldBe busPosData3
+    parsedResults(1)  shouldBe busPosData1
+    parsedResults(2) shouldBe busPosData2
   }
 
   test("When vehicle activity retrieved from Redis, it is purged") { f =>
@@ -73,12 +74,13 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     f.redisClient.storeVehicleActivity(uuid, busPosData2).futureValue
 
     val results = f.redisClient.getVehicleActivityFor(uuid).futureValue
-    results should have size 2
-    parseToBusPositionDataForTransmission(results.head) shouldBe busPosData2
-    parseToBusPositionDataForTransmission(results(1)) shouldBe busPosData1
+    val parsedResults: List[BusPositionDataForTransmission] = parseRedisResult(results)
+    parsedResults should have size 2
+    parsedResults.head shouldBe busPosData2
+    parsedResults(1) shouldBe busPosData1
 
     val resultsAgain = f.redisClient.getVehicleActivityFor(uuid).futureValue
-    resultsAgain should have size 0
+    parseRedisResult(resultsAgain) should have size 0
   }
 
   test("When no vehicle activity in Redis for uuid, an empty result set is retrieved)") { f =>
@@ -86,7 +88,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     val uuid = UUID.randomUUID().toString
 
     val results = f.redisClient.getVehicleActivityFor(uuid).futureValue
-    results should have size 0
+    parseRedisResult(results) should have size 0
   }
 
   test("Results coming back from Redis for uuid are limited to 100 per request") { f =>
@@ -96,9 +98,10 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
       f.redisClient.storeVehicleActivity(uuid, createBusPositionData(timeStamp = System.currentTimeMillis() + Random.nextInt(60000)))
     }).futureValue
 
-    f.redisClient.getVehicleActivityFor(uuid).futureValue should have size 100
-    f.redisClient.getVehicleActivityFor(uuid).futureValue should have size 1
-    f.redisClient.getVehicleActivityFor(uuid).futureValue should have size 0
+
+    parseRedisResult(f.redisClient.getVehicleActivityFor(uuid).futureValue) should have size 100
+    parseRedisResult(f.redisClient.getVehicleActivityFor(uuid).futureValue) should have size 1
+    parseRedisResult(f.redisClient.getVehicleActivityFor(uuid).futureValue) should have size 0
   }
 
 
@@ -111,7 +114,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     f.redisClient.storeVehicleActivity(uuid, busPos1).futureValue
     f.redisClient.storeVehicleActivity(uuid, busPos2).futureValue
     Thread.sleep(5500)
-    f.redisClient.getVehicleActivityFor(uuid).futureValue should have size 0
+    parseRedisResult(f.redisClient.getVehicleActivityFor(uuid).futureValue) should have size 0
   }
 
   test("Vehicle activity for a uuid in Redis expires if no get requests received in in TTL period") { f =>
@@ -124,7 +127,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     Thread.sleep(3000)
     f.redisClient.storeVehicleActivity(uuid, busPos2).futureValue
     Thread.sleep(3000)
-    f.redisClient.getVehicleActivityFor(uuid).futureValue should have size 0
+    parseRedisResult(f.redisClient.getVehicleActivityFor(uuid).futureValue) should have size 0
   }
 
   private def createBusPositionData(vehicleId: String = Random.nextString(10),
@@ -136,7 +139,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     BusPositionDataForTransmission(vehicleId, busRoute, lat, lng, nextStopName, timeStamp)
   }
 
-  private def parseToBusPositionDataForTransmission(str: String): BusPositionDataForTransmission = {
-    parse(str).right.value.as[BusPositionDataForTransmission].right.value
+  private def parseRedisResult(str: String): List[BusPositionDataForTransmission] = {
+    parse(str).right.value.as[List[BusPositionDataForTransmission]].right.value
   }
 }

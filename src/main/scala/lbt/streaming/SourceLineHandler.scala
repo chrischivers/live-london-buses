@@ -1,14 +1,12 @@
 package lbt.streaming
 
-import cats._
 import cats.data.OptionT
+import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import lbt.SourceLineHandlerConfig
 import lbt.common.{Commons, Definitions}
-import lbt.models.BusRoute
-import cats.data._
-import cats.implicits._
 import lbt.db.caching.RedisDurationRecorder
+import lbt.models.BusRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 import scalacache.{NoSerialization, ScalaCache, put, _}
