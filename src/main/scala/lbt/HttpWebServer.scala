@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
 import lbt.db.caching.RedisDurationRecorder
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.web.{LbtServlet, WebSocketServlet}
+import lbt.web.LbtServlet
 import org.http4s.server.blaze.BlazeBuilder
 import org.http4s.util.StreamApp
 
@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Properties.envOrNone
 
-object WebServer extends StreamApp[IO] with StrictLogging {
+object HttpWebServer extends StreamApp[IO] with StrictLogging {
 
   val port: Int = envOrNone("HTTP_PORT") map (_.toInt) getOrElse 8080
   val ip: String = "0.0.0.0"
@@ -28,7 +28,7 @@ object WebServer extends StreamApp[IO] with StrictLogging {
 
   val redisClient = new RedisDurationRecorder(config.redisDBConfig)
 
-  val lbtServlet = new LbtServlet(redisClient, definitions)
+  val lbtService = new LbtServlet(redisClient, definitions)
 
 
   override def stream(args: List[String], requestShutdown: IO[Unit]) = {
@@ -37,7 +37,7 @@ object WebServer extends StreamApp[IO] with StrictLogging {
       .bindHttp(port, ip)
       .withIdleTimeout(3.minutes)
       .withWebSockets(true)
-      .mountService(lbtServlet.service, "/lbt")
+      .mountService(lbtService.service, "/stats")
       .serve
   }
 }

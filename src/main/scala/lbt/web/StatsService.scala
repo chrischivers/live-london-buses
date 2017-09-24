@@ -19,7 +19,7 @@ object CategoryQueryParamMatcher extends QueryParamDecoderMatcher[String]("categ
 class LbtServlet(redisClient: RedisDurationRecorder, definitions: Definitions) extends StrictLogging {
 
   def service = HttpService[IO] {
-    case GET -> Root / routeId / direction =>
+    case GET -> Root / "averages" / routeId / direction =>
 
       val busRoute = BusRoute(routeId, direction)
       logger.debug(s"Http request received for $busRoute")

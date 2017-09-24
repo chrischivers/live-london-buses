@@ -2,15 +2,13 @@ package lbt.web
 
 import akka.actor.ActorSystem
 import cats.effect.{IO, _}
-import fs2._
+import fs2.{Scheduler, Sink, Stream}
 import lbt.ConfigLoader
 import lbt.db.caching.{RedisSubscriberCache, RedisWsClientCache}
-import org.http4s._
-import org.http4s.dsl.{Http4sDsl, Root, _}
-import org.http4s.server.blaze.BlazeBuilder
-import org.http4s.server.websocket._
-import org.http4s.util.StreamApp
-import org.http4s.websocket.WebsocketBits._
+import org.http4s.HttpService
+import org.http4s.dsl.{->, :?, Http4sDsl, Root, _}
+import org.http4s.server.websocket.WS
+import org.http4s.websocket.WebsocketBits.{Text, WebSocketFrame}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,15 +16,7 @@ import scala.concurrent.duration._
 
 object UUIDQueryParameter extends QueryParamDecoderMatcher[String]("uuid")
 
-object WebSocketServletApp extends WebSocketServlet
-
-class WebSocketServlet(implicit F: Effect[IO]) extends StreamApp[IO] with Http4sDsl[IO] {
-
-  implicit val actorSystem = ActorSystem()
-  val config = ConfigLoader.defaultConfig
-  val redisSubscriberCache = new RedisSubscriberCache(config.redisDBConfig)
-  val redisWsClientCache = new RedisWsClientCache(config.redisDBConfig)
-  val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
+class WebSocketService(webSocketClientHandler: WebSocketClientHandler)(implicit F: Effect[IO]) extends Http4sDsl[IO] {
 
   def service(scheduler: Scheduler): HttpService[IO] = HttpService[IO] {
 
@@ -46,14 +36,5 @@ class WebSocketServlet(implicit F: Effect[IO]) extends StreamApp[IO] with Http4s
       }
       WS(toClient, fromClient)
   }
-
-  def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, Nothing] =
-    Scheduler[IO](corePoolSize = 2).flatMap { scheduler =>
-      BlazeBuilder[IO]
-        .bindHttp(8080)
-        .withWebSockets(true)
-        .mountService(service(scheduler), "/ws")
-        .serve
-    }
 
 }
