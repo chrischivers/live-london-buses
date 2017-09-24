@@ -2,6 +2,7 @@ package lbt.web
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.ActorSystem
 import cats.effect.IO
 import cats.implicits._
@@ -15,7 +16,7 @@ import io.circe.parser.parse
 import lbt.common.Definitions
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.models.BusRoute
+import lbt.models.{BusRoute, LatLng, LatLngBounds}
 import lbt.scripts.BusRouteDefinitionsUpdater
 import lbt.{ConfigLoader, LBTConfig}
 import org.http4s.dsl.Http4sDsl
@@ -29,6 +30,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
+import io.circe.generic.auto._
+import io.circe.syntax._
 
 class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll with EitherValues with StrictLogging with Eventually {
 
@@ -62,7 +65,7 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     (websocketClient, wsReceivedBuffer)
   }
 
-  case class FixtureParam(redisWsClientCache: RedisWsClientCache, wsPort: Int)
+  case class FixtureParam(redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache, wsPort: Int)
 
   def withFixture(test: OneArgTest) = {
 
@@ -92,7 +95,7 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     Future(TestWebSocketsServer.main(Array.empty))
     Thread.sleep(2000)
 
-    val testFixture = FixtureParam(redisWsClientCache, wsPort)
+    val testFixture = FixtureParam(redisWsClientCache, redisSubscriberCache, wsPort)
     try {
       redisSubscriberCache.flushDB.futureValue
       redisWsClientCache.flushDB.futureValue
@@ -104,13 +107,16 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     }
   }
 
-  test("Websocket should stream data when opened, returning empty responses if user uuid is not subscribed") { f =>
+  test("Websocket should stream data when opened, returning an empty response if not date has been stored for that UUID") { f =>
 
     val uuid = UUID.randomUUID().toString
     val (websocketClient, receivedBuffer) = setUpTestWebSocketClient(uuid, f.wsPort)
-
+    f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe List.empty
     receivedBuffer should have size 0
+
     websocketClient.open()
+    f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe List(uuid)
+
     f.redisWsClientCache.storeVehicleActivity("ANOTHER_UUID", createBusPositionData()).futureValue
 
     eventually {
@@ -143,7 +149,26 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     websocketClient.shutdownSync()
   }
 
+  test("Client is able to send filtering parameters and these are updated in the cache") { f =>
 
+    val uuid = UUID.randomUUID().toString
+    val (websocketClient, packagesReceivedBuffer) = setUpTestWebSocketClient(uuid, f.wsPort)
+    val params = createFilteringParams()
+
+    val openedSocket = websocketClient.open()
+    f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe List(uuid)
+    f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue should not be defined
+
+    openedSocket ! createJsonStringFromFilteringParams(params)
+
+    eventually {
+      val paramsFromCache = f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue
+      paramsFromCache shouldBe defined
+        paramsFromCache.value shouldBe params
+    }
+
+    websocketClient.shutdownSync()
+  }
 
 
   private def createBusPositionData(vehicleId: String = Random.nextString(10),
@@ -155,10 +180,19 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     BusPositionDataForTransmission(vehicleId, busRoute, lat, lng, nextStopName, timeStamp)
   }
 
+  private def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),
+                                    latLngBounds: LatLngBounds = LatLngBounds(LatLng(51,52), LatLng(52,53))) = {
+    FilteringParams(busRoutes, latLngBounds)
+  }
+
   private def parsePacketsReceived(msgs: ListBuffer[String]): List[BusPositionDataForTransmission] = {
     msgs.flatMap { msg =>
       parse(msg).right.value.as[List[BusPositionDataForTransmission]].right.value
     }.toList
+  }
+
+  private def createJsonStringFromFilteringParams(filteringParams: FilteringParams): String = {
+    filteringParams.asJson.noSpaces
   }
 }
 

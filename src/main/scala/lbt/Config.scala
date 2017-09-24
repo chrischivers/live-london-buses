@@ -40,7 +40,6 @@ object ConfigLoader {
 
   val defaultConfig: LBTConfig = {
     val dataSourceStreamingParamsPrefix = "dataSource.streaming-parameters."
-    val dataBaseParamsPrefix = "database."
     val definitionsParamsPrefix = "dataSource.definitions."
     val postgresDBParamsPrefix = "db.postgres."
     val redisDBParamsPrefix = "db.redis."
@@ -57,10 +56,6 @@ object ConfigLoader {
         defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "cache-time-to-live-seconds"),
         defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "time-window-to-accept-lines"),
         defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "number-empty-iterator-cases-before-restart")
-//        defaultConfigFactory.getStringList(dataSourceStreamingParamsPrefix + "get-only-routes").toList.map(rec => parse(rec).extract[BusRoute]) match {
-//          case Nil => None
-//          case x => Some(x)
-//        }
       ),
       PostgresDBConfig(
         defaultConfigFactory.getString(postgresDBParamsPrefix + "host"),

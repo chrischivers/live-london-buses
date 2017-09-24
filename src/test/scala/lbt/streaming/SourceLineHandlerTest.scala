@@ -141,7 +141,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
 
   test("Stops at beginning of route are handled correctly") { f =>
     val timestamp1 = System.currentTimeMillis() + 10000
-    val stop1 = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value(0)
+    val stop1 = definitions.routeDefinitions.get(BusRoute("25", "outbound")).value.head
     val sourceLine1 = generateSourceLine(timeStamp = timestamp1, stopId = stop1._2.stopID)
 
     f.sourceLineHandler.handle(sourceLine1).value.futureValue
@@ -270,7 +270,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
 
     val recordFromRedis = f.redisClient.getStopToStopTimes(BusRoute("25", "outbound"), 9, 10).futureValue
     recordFromRedis should have size 2
-    recordFromRedis(0) shouldBe ((timestamp4 - timestamp3) / 1000)
+    recordFromRedis.head shouldBe ((timestamp4 - timestamp3) / 1000)
     recordFromRedis(1) shouldBe ((timestamp2 - timestamp1) / 1000)
   }
 

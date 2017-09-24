@@ -3,9 +3,10 @@ package lbt.db
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import lbt.ConfigLoader
+import lbt.{ConfigLoader, LBTConfig}
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
-import lbt.models.BusRoute
+import lbt.models.{BusRoute, LatLng, LatLngBounds}
+import lbt.web.FilteringParams
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{EitherValues, OptionValues, fixture}
@@ -16,7 +17,7 @@ import scala.util.Random
 
 class RedisSubscriberCacheTest extends fixture.FunSuite with ScalaFutures with OptionValues with EitherValues {
 
-  val config = ConfigLoader.defaultConfig
+  val config: LBTConfig = ConfigLoader.defaultConfig
 
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(
     timeout = scaled(30 seconds),
@@ -48,8 +49,8 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with ScalaFutures with O
 
     val uuid1 = UUID.randomUUID().toString
     val uuid2 = UUID.randomUUID().toString
-    f.redisSubscriberCache.subscribe(uuid1, "params1").futureValue
-    f.redisSubscriberCache.subscribe(uuid2, "params2").futureValue
+    f.redisSubscriberCache.subscribe(uuid1, None).futureValue
+    f.redisSubscriberCache.subscribe(uuid2, None).futureValue
 
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1, uuid2)
   }
@@ -57,18 +58,32 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with ScalaFutures with O
   test("A new subscriber is added to the cache and their parameters are obtainable") { f =>
 
     val uuid1 = UUID.randomUUID().toString
-    val params1 = "params1"
-    f.redisSubscriberCache.subscribe(uuid1,params1).futureValue
+    val params1 = createFilteringParams()
+    f.redisSubscriberCache.subscribe(uuid1, Some(params1)).futureValue
 
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)
   }
 
+  test("A new subscriber is added to the cache and parameters are updated") { f =>
+
+    val uuid1 = UUID.randomUUID().toString
+    val params1 = createFilteringParams()
+    f.redisSubscriberCache.subscribe(uuid1, None).futureValue
+    f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
+    f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue should not be defined
+
+    f.redisSubscriberCache.updateFilteringParameters(uuid1, params1).futureValue
+
+    f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)
+    f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
+  }
+
   test("Clean Up Subscribers removes subscribers from cache if no retrieval activity") { f =>
 
     val uuid1 = UUID.randomUUID().toString
-    val params1 = "params1"
-    f.redisSubscriberCache.subscribe(uuid1,params1).futureValue
+    val params1 = createFilteringParams()
+    f.redisSubscriberCache.subscribe(uuid1, Some(params1)).futureValue
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)
     f.redisWsClientCache.storeVehicleActivity(uuid1, createBusPositionData()).futureValue
@@ -82,8 +97,8 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with ScalaFutures with O
   test("Clean Up Subscribers does not remove subscribers from cache if there has been retrieval activity") { f =>
 
     val uuid1 = UUID.randomUUID().toString
-    val params1 = "params1"
-    f.redisSubscriberCache.subscribe(uuid1, params1).futureValue
+    val params1 = createFilteringParams()
+    f.redisSubscriberCache.subscribe(uuid1, Some(params1)).futureValue
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)
     f.redisWsClientCache.storeVehicleActivity(uuid1, createBusPositionData()).futureValue
@@ -102,5 +117,10 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with ScalaFutures with O
                                     nextStopName: String = "NextStop",
                                     timeStamp: Long = System.currentTimeMillis()) = {
     BusPositionDataForTransmission(vehicleId, busRoute, lat, lng, nextStopName, timeStamp)
+  }
+
+  private def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),
+                                 latLngBounds: LatLngBounds = LatLngBounds(LatLng(51,52), LatLng(52,53))) = {
+    FilteringParams(busRoutes, latLngBounds)
   }
 }

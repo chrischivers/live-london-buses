@@ -24,7 +24,7 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
     val indexOfStop = stopList.find(_._2.stopID == sourceLine.stopID).map(_._1).getOrElse(throw new RuntimeException(s"Unable to find stopID ${sourceLine.stopID} in stop list for route $busRoute"))
 
 
-    def updateStop: OptionT[Future, Unit] = {
+    def updateStop(): OptionT[Future, Unit] = {
       logger.debug("Updating stop cache")
       for {
         _ <- OptionT.liftF(put(sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfStop)(sourceLine.arrival_TimeStamp, ttl = Some(config.cacheTtl)))

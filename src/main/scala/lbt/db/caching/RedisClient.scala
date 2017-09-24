@@ -10,7 +10,7 @@ trait RedisClient extends StrictLogging {
   implicit val executionContext: ExecutionContext
   implicit val actorSystem: ActorSystem
   val redisConfig: RedisConfig
-  lazy val client = {
+  lazy val client: redis.RedisClient = {
     val cl = redis.RedisClient(host = redisConfig.host, port = redisConfig.port)
     cl.select(redisConfig.dbIndex)
     cl

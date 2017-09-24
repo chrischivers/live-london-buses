@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser._
-import lbt.ConfigLoader
+import lbt.{ConfigLoader, LBTConfig}
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
 import lbt.models.BusRoute
 import org.scalatest.Matchers._
@@ -20,7 +20,7 @@ import scala.util.Random
 
 class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with OptionValues with EitherValues {
 
-  val config = ConfigLoader.defaultConfig
+  val config: LBTConfig = ConfigLoader.defaultConfig
 
   implicit val busRouteDecoder: Decoder[BusRoute] = deriveDecoder[BusRoute]
   implicit val busPosDataDecoder: Decoder[BusPositionDataForTransmission] = deriveDecoder[BusPositionDataForTransmission]
@@ -96,7 +96,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
   test("Results coming back from Redis for uuid are limited to 100 per request") { f =>
 
     val uuid = UUID.randomUUID().toString
-    Future.sequence((0 to 100).map { int =>
+    Future.sequence((0 to 100).map { _ =>
       f.redisWSClientCache.storeVehicleActivity(uuid, createBusPositionData(timeStamp = System.currentTimeMillis() + Random.nextInt(60000)))
     }).futureValue
 

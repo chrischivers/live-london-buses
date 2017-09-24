@@ -1,11 +1,17 @@
 package lbt.db.caching
 
 import akka.actor.ActorSystem
+import cats.data.OptionT
 import io.circe.generic.auto._
 import io.circe.syntax._
 import lbt.RedisConfig
-import lbt.models.BusRoute
+import lbt.models.{BusRoute, LatLngBounds}
+import lbt.web.FilteringParams
 import redis.api.Limit
+import io.circe.generic.auto._
+import io.circe.parser.{parse, _}
+import io.circe.syntax._
+import cats.implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -13,13 +19,11 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
 
   val subscribersKey = "SUBSCRIBERS"
 
-  def subscribe(clientUUID: String, params: String): Future[Unit] = {
-    val paramsKey = getParamsKey(clientUUID)
+  def subscribe(clientUUID: String, params: Option[FilteringParams]): Future[Unit] = {
     for {
       _ <- client.select(redisConfig.dbIndex)
       _ <- client.zadd(subscribersKey, (System.currentTimeMillis(), clientUUID))
-      _ <- client.set(paramsKey, params) //todo include filtering logic as parameters
-      _ <- client.pexpire(paramsKey, redisConfig.clientInactiveTime.toMillis)
+      _ <- params.fold(Future.successful(true))( p => updateFilteringParameters(clientUUID, p))
     } yield ()
   }
 
@@ -27,12 +31,18 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
     client.zrange[String](subscribersKey, 0, Long.MaxValue)
   }
 
-  def getParamsForSubscriber(uuid: String): Future[Option[String]] = {
+  def getParamsForSubscriber(uuid: String): Future[Option[FilteringParams]] = {
     val paramsKey = getParamsKey(uuid)
     for {
       _ <- client.pexpire(paramsKey, redisConfig.clientInactiveTime.toMillis)
-      params <- client.get[String](paramsKey)
-    } yield params
+      params <- client.hmget[String](paramsKey, "busRoutes", "latLngBounds")
+    } yield parseFilteringParamsJson(params)
+  }
+
+  def updateFilteringParameters(uuid: String, filteringParams: FilteringParams): Future[Boolean] = {
+    val paramsKey = getParamsKey(uuid)
+    client.hmset(paramsKey, filteringParamsToJsonMap(filteringParams))
+    client.pexpire(paramsKey, redisConfig.clientInactiveTime.toMillis)
   }
 
   def updateSubscriberAliveTime(uuid: String) = {
@@ -49,5 +59,22 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
    client.zremrangebyscore(subscribersKey, Limit(0), Limit(System.currentTimeMillis() - redisConfig.clientInactiveTime.toMillis))
   }
 
+
   private def getParamsKey(uuid: String) = s"params-$uuid"
+
+  private def filteringParamsToJsonMap(filteringParams: FilteringParams): Map[String, String] = {
+    Map("busRoutes" -> filteringParams.busRoutes.asJson.noSpaces,
+      "latLngBounds" -> filteringParams.latLngBounds.asJson.noSpaces)
+  }
+
+  private def parseFilteringParamsJson(input: Seq[Option[String]]): Option[FilteringParams] = {
+    val flatList = input.flatten
+    if (flatList.size != 2) None
+    else for {
+      busRoutes <- parse(flatList.head).flatMap(x => x.as[List[BusRoute]]).toOption
+      latLngBounds <- parse(flatList(1)).flatMap(x => x.as[LatLngBounds]).toOption
+    } yield {
+      FilteringParams(busRoutes, latLngBounds)
+    }
+  }
 }

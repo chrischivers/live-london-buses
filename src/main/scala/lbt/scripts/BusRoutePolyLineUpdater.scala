@@ -27,7 +27,7 @@ class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig, routeDefinit
 
   val definitions = new Definitions(routeDefinitionsTable)
 
-  def start: Unit = {
+  def start(): Unit = {
     definitions.routeDefinitions.foreach { routeDef =>
       val stopsWithNoPolyLines = routeDef._2.filter(_._3.isEmpty)
       stopsWithNoPolyLines.foreach { fromStop =>

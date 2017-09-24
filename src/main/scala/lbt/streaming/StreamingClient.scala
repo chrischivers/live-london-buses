@@ -45,7 +45,7 @@ class StreamingClient(busDataSourceClient: BusDataSourceClient, action: (String 
     }
   }
 
-  def close = busDataSourceClient.closeDataSource()
+  def close() = busDataSourceClient.closeDataSource()
 }
 
 
