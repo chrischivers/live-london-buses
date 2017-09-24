@@ -2,6 +2,7 @@ package lbt.web
 
 import akka.actor.ActorSystem
 import cats.effect.IO
+import com.typesafe.scalalogging.StrictLogging
 import lbt.ConfigLoader
 import lbt.common.Definitions
 import lbt.db.caching.RedisDurationRecorder
@@ -18,7 +19,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Properties.envOrNone
 
-class LbtServletTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll {
+class StatsServiceTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll with StrictLogging {
 
   val config = ConfigLoader.defaultConfig
   val httpTimeout = 30.seconds
@@ -47,15 +48,16 @@ class LbtServletTest extends fixture.FunSuite with ScalaFutures with OptionValue
   def withFixture(test: OneArgTest) = {
 
     implicit val actorSystem: ActorSystem = ActorSystem()
-    val redisClient = new RedisDurationRecorder(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
-    val lbtServlet = new LbtServlet(redisClient, definitions)
+    val redisDurationRecorder = new RedisDurationRecorder(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
+    val statsService = new StatsService(redisDurationRecorder, definitions)
     val httpClient = PooledHttp1Client[IO]()
 
-    println(s"Starting up servlet using port $port bound to ip $ip")
+    logger.info(s"Starting up stats service using port $port bound to ip $ip")
+
     val server = BlazeBuilder[IO]
       .bindHttp(port, ip)
       .withIdleTimeout(3.minutes)
-      .mountService(lbtServlet.service)
+      .mountService(statsService.service, "/stats")
       .start
       .unsafeRunSync()
 
@@ -70,12 +72,12 @@ class LbtServletTest extends fixture.FunSuite with ScalaFutures with OptionValue
   }
 
   test("Endpoint returns status 200 for known route") { f =>
-    f.httpClient.expect[String]("http://localhost:8080/lbt/25/outbound").unsafeRunTimed(httpTimeout)
+    f.httpClient.expect[String]("http://localhost:8080/stats/averages/25/outbound").unsafeRunTimed(httpTimeout)
   }
 
   test("Endpoint returns status 404 for unknown route") { f =>
     assertThrows[UnexpectedStatus] {
-      f.httpClient.expect[String]("http://localhost:8080/lbt/999/outbound").unsafeRunTimed(httpTimeout)
+      f.httpClient.expect[String]("http://localhost:8080/stats/averages/999/outbound").unsafeRunTimed(httpTimeout)
     }
   }
 }

@@ -16,7 +16,7 @@ object RouteIdParamMatcher extends QueryParamDecoderMatcher[String]("bounds")
 
 object CategoryQueryParamMatcher extends QueryParamDecoderMatcher[String]("category")
 
-class LbtServlet(redisClient: RedisDurationRecorder, definitions: Definitions) extends StrictLogging {
+class StatsService(redisClient: RedisDurationRecorder, definitions: Definitions) extends StrictLogging {
 
   def service = HttpService[IO] {
     case GET -> Root / "averages" / routeId / direction =>

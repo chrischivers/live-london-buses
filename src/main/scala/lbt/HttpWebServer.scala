@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
 import lbt.db.caching.RedisDurationRecorder
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.web.LbtServlet
+import lbt.web.StatsService
 import org.http4s.server.blaze.BlazeBuilder
 import org.http4s.util.StreamApp
 
@@ -28,7 +28,7 @@ object HttpWebServer extends StreamApp[IO] with StrictLogging {
 
   val redisClient = new RedisDurationRecorder(config.redisDBConfig)
 
-  val lbtService = new LbtServlet(redisClient, definitions)
+  val lbtService = new StatsService(redisClient, definitions)
 
 
   override def stream(args: List[String], requestShutdown: IO[Unit]) = {
