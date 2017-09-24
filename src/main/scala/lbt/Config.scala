@@ -20,7 +20,7 @@ sealed trait DBConfig {
 
 case class PostgresDBConfig(host: String, port: Int, username: String, password: String, dbName: String) extends DBConfig
 
-case class RedisConfig(host: String, port: Int, dbIndex: Int, durationRecordTTL: Duration, durationMaxListLength: Int, wsClientCacheTTL: Duration, wsClientCacheMaxResultsReturned: Int)
+case class RedisConfig(host: String, port: Int, dbIndex: Int, durationRecordTTL: Duration, durationMaxListLength: Int, wsClientCacheMaxResultsReturned: Int, clientInactiveTime: Duration)
 
 case class SourceLineHandlerConfig(cacheTtl: Duration, minimumTimeDifferenceToPersist: Duration)
 
@@ -75,8 +75,8 @@ object ConfigLoader {
         defaultConfigFactory.getInt(redisDBParamsPrefix + "dbIndex"),
         defaultConfigFactory.getDuration(redisDBParamsPrefix + "durationRecordTTL"),
         defaultConfigFactory.getInt(redisDBParamsPrefix + "durationMaxListLength"),
-        defaultConfigFactory.getDuration(redisDBParamsPrefix + "wsClientCacheTTL"),
-        defaultConfigFactory.getInt(redisDBParamsPrefix + "wsClientCacheMaxResultsReturned")
+        defaultConfigFactory.getInt(redisDBParamsPrefix + "wsClientCacheMaxResultsReturned"),
+        defaultConfigFactory.getDuration(redisDBParamsPrefix + "clientInactiveTime")
       ),
       DefinitionsConfig(
         defaultConfigFactory.getString(definitionsParamsPrefix + "definitions-all-url"),

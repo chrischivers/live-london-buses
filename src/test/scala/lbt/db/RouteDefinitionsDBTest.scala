@@ -47,9 +47,9 @@ class RouteDefinitionsDBTest extends fixture.FunSuite with ScalaFutures with Opt
 
     val stopList = f.definitionsTable.getStopSequenceFor(busRoute).futureValue
     stopList should have size 3
-    stopList(0) shouldBe ((0, busStop1))
-    stopList(1) shouldBe ((1, busStop2))
-    stopList(2) shouldBe ((2, busStop3))
+    stopList(0) shouldBe ((0, busStop1, None))
+    stopList(1) shouldBe ((1, busStop2, None))
+    stopList(2) shouldBe ((2, busStop3, None))
   }
 
   test("Error is thrown if attempt is made to insert route that already exists") { f =>
@@ -83,14 +83,14 @@ class RouteDefinitionsDBTest extends fixture.FunSuite with ScalaFutures with Opt
 
     val busRouteAResults = stopList.get(busRouteA).value
     busRouteAResults should have size 3
-    busRouteAResults(0) shouldBe((0, busStop1))
-    busRouteAResults(1) shouldBe((1, busStop2))
-    busRouteAResults(2) shouldBe((2, busStop3))
+    busRouteAResults(0) shouldBe((0, busStop1, None))
+    busRouteAResults(1) shouldBe((1, busStop2, None))
+    busRouteAResults(2) shouldBe((2, busStop3, None))
 
     val busRouteBResults = stopList.get(busRouteB).value
     busRouteBResults should have size 2
-    busRouteBResults(0) shouldBe((0, busStop4))
-    busRouteBResults(1) shouldBe((1, busStop5))
+    busRouteBResults(0) shouldBe((0, busStop4, None))
+    busRouteBResults(1) shouldBe((1, busStop5, None))
 
   }
 

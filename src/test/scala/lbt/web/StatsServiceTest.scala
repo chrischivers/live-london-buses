@@ -64,9 +64,11 @@ class StatsServiceTest extends fixture.FunSuite with ScalaFutures with OptionVal
     val testFixture = FixtureParam(httpClient)
 
     try {
+      redisDurationRecorder.flushDB.futureValue
       withFixture(test.toNoArgTest(testFixture))
     }
     finally {
+      redisDurationRecorder.flushDB.futureValue
      server.shutdownNow()
     }
   }

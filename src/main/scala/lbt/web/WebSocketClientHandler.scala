@@ -9,10 +9,15 @@ class WebSocketClientHandler(redisSubscriberCache: RedisSubscriberCache, redisWs
 
   def subscribe(uuid: String) = {
     logger.info(s"Subscribing client $uuid")
-    redisSubscriberCache.addNewSubscriber(uuid)
+    redisSubscriberCache.subscribe(uuid, "")
   }
 
   def getDataForClient(uuid: String): Future[String] = {
     redisWsClientCache.getVehicleActivityFor(uuid)
+  }
+
+  def persistData(busPositionDataForTransmission: BusPositionDataForTransmission) = {
+    //todo logic here to determine which clients to push to
+    redisSubscriberCache.getListOfSubscribers
   }
 }

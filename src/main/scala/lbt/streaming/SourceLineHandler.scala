@@ -11,7 +11,7 @@ import lbt.models.BusRoute
 import scala.concurrent.{ExecutionContext, Future}
 import scalacache.{NoSerialization, ScalaCache, put, _}
 
-class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfig, redisClient: RedisDurationRecorder)(implicit scalaCache: ScalaCache[NoSerialization], executionContext: ExecutionContext) extends StrictLogging {
+class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfig, redisDurationRecorder: RedisDurationRecorder)(implicit scalaCache: ScalaCache[NoSerialization], executionContext: ExecutionContext) extends StrictLogging {
 
   type ArrivalTimestamp = Long
   type LastIndexPersisted = Int
@@ -37,14 +37,14 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
 
     def persistTimeDifference(previousStopArrivalTime: Long, timeDiff: Long) = {
       for {
-        _ <- OptionT.liftF(redisClient.persistStopToStopTime(busRoute, indexOfStop - 1, indexOfStop, previousStopArrivalTime, (timeDiff / 1000).toInt))
+        _ <- OptionT.liftF(redisDurationRecorder.persistStopToStopTime(busRoute, indexOfStop - 1, indexOfStop, previousStopArrivalTime, (timeDiff / 1000).toInt))
         _ <- OptionT.liftF(remove(sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfStop - 1))
         _ <- OptionT.liftF(put(sourceLine.vehicleID, sourceLine.route, sourceLine.direction)(indexOfStop, ttl = Some(config.cacheTtl)))
       } yield ()
     }
 
     OptionT.liftF(get[LastIndexPersisted, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction)).flatMap {
-      case Some(lastIndexCached) if indexOfStop <= lastIndexCached => OptionT.liftF(Future.successful(())) //disregarding
+      case Some(lastIndexCached) if indexOfStop <= lastIndexCached => OptionT.liftF(Future.successful(())) //disregard
       case _ => updateStop
     }
 

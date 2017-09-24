@@ -19,7 +19,6 @@ class RedisDurationRecorder(val redisConfig: RedisConfig)(implicit val execution
     //TODO do something with start time?
     val key = generateKey(route, fromStopSeq, toStopSeq)
     for {
-      _ <- client.select(redisConfig.dbIndex)
       _ <- client.lpush[Int](key, duration)
       _ <- client.ltrim(key, 0, redisConfig.durationMaxListLength - 1)
       _ <- client.pexpire(key, redisConfig.durationRecordTTL.toMillis)
@@ -28,10 +27,7 @@ class RedisDurationRecorder(val redisConfig: RedisConfig)(implicit val execution
 
   def getStopToStopTimes(route: BusRoute, fromStopSeq: Int, toStopSeq: Int): Future[Seq[Int]] = {
     val key = generateKey(route, fromStopSeq, toStopSeq)
-    for {
-      _ <- client.select(redisConfig.dbIndex)
-      res <- client.lrange[Int](key, 0, redisConfig.durationMaxListLength - 1)
-    } yield res
+    client.lrange[Int](key, 0, redisConfig.durationMaxListLength - 1)
   }
 
   private def generateKey(route: BusRoute, fromStopSeq: Int, toStopSeq: Int): String = {

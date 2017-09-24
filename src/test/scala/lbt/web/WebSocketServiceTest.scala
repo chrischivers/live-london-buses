@@ -1,39 +1,46 @@
 package lbt.web
 
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.ActorSystem
 import cats.effect.IO
+import cats.implicits._
 import com.github.andyglow.websocket.WebsocketClient
 import com.typesafe.scalalogging.StrictLogging
+import fs2.Stream._
 import fs2.{Scheduler, Stream}
-import lbt.{ConfigLoader, WebSocketsServer}
+import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.parser.parse
 import lbt.common.Definitions
-import lbt.db.caching.{RedisSubscriberCache, RedisWsClientCache}
+import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.BusRoute
 import lbt.scripts.BusRouteDefinitionsUpdater
+import lbt.{ConfigLoader, LBTConfig}
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.blaze.BlazeBuilder
 import org.http4s.util.StreamApp
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{BeforeAndAfterAll, OptionValues, fixture}
 import org.scalatest.Matchers._
-
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.Properties.envOrNone
+import scala.util.Random
 
-class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll with StrictLogging {
+class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll with EitherValues with StrictLogging with Eventually {
 
-  val config = ConfigLoader.defaultConfig
+  val config: LBTConfig = ConfigLoader.defaultConfig
+  val portIncrementer = new AtomicInteger(8000)
 
-  override implicit val patienceConfig = PatienceConfig(
-    timeout = scaled(5 minutes),
-    interval = scaled(1 second)
-  )
+  implicit val busRouteDecoder: Decoder[BusRoute] = deriveDecoder[BusRoute]
+  implicit val busPosDataDecoder: Decoder[BusPositionDataForTransmission] = deriveDecoder[BusPositionDataForTransmission]
 
-  val port: Int = envOrNone("HTTP_PORT") map (_.toInt) getOrElse 8080
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(
+    timeout = scaled(15 seconds),
+    interval = scaled(1 second))
 
   val db = new PostgresDB(config.postgresDbConfig)
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(tableName = "lbttest"), createNewTable = true)
@@ -47,29 +54,35 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     db.disconnect.futureValue
   }
 
-  case class FixtureParam(webSocketReceivedBuffer: ListBuffer[String], websocketClient: WebsocketClient[String])
+  def setUpTestWebSocketClient(uuid: String, port: Int): (WebsocketClient[String], ListBuffer[String]) = {
+    var wsReceivedBuffer = new ListBuffer[String]()
+    val websocketClient = WebsocketClient[String](s"ws://localhost:$port/ws?uuid=$uuid") {
+      case msg => wsReceivedBuffer += msg
+    }
+    (websocketClient, wsReceivedBuffer)
+  }
+
+  case class FixtureParam(redisWsClientCache: RedisWsClientCache, wsPort: Int)
 
   def withFixture(test: OneArgTest) = {
+
+    val wsPort: Int = portIncrementer.incrementAndGet()
 
     implicit val actorSystem: ActorSystem = ActorSystem()
     val redisConfig = config.redisDBConfig.copy(dbIndex = 1)
     val redisSubscriberCache = new RedisSubscriberCache(redisConfig) // 1 = test, 0 = main
-    val redisWsClientCache = new RedisWsClientCache(redisConfig)
+    val redisWsClientCache = new RedisWsClientCache(redisConfig, redisSubscriberCache)
     val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
     val webSocketService: WebSocketService = new WebSocketService(webSocketClientHandler)
 
-    var wsReceivedBuffer = new ListBuffer[String]()
-
-    def addToWsResponseBuffer(msg: String) = wsReceivedBuffer += msg
 
     object TestWebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
-
-      logger.info(s"Starting up web socket service using port $port")
+      logger.info(s"Starting up web socket service using port $wsPort")
 
       def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, Nothing] =
         Scheduler[IO](corePoolSize = 2).flatMap { scheduler =>
           BlazeBuilder[IO]
-            .bindHttp(port)
+            .bindHttp(wsPort)
             .withWebSockets(true)
             .mountService(webSocketService.service(scheduler), "/ws")
             .serve
@@ -77,29 +90,75 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     }
 
     Future(TestWebSocketsServer.main(Array.empty))
-    Thread.sleep(5000)
+    Thread.sleep(2000)
 
-    val websocketClient = WebsocketClient[String]("ws://localhost:8080/ws?uuid=1000") {
-      case str => addToWsResponseBuffer(str)
-    }
-
-    val testFixture = FixtureParam(wsReceivedBuffer, websocketClient)
-
+    val testFixture = FixtureParam(redisWsClientCache, wsPort)
     try {
+      redisSubscriberCache.flushDB.futureValue
+      redisWsClientCache.flushDB.futureValue
       withFixture(test.toNoArgTest(testFixture))
     }
     finally {
-      websocketClient.shutdownSync()
+      redisSubscriberCache.flushDB.futureValue
+      redisWsClientCache.flushDB.futureValue
     }
   }
 
-  test("Websocket should stream data when opened") { f =>
-    f.webSocketReceivedBuffer should have size 0
-    f.websocketClient.open()
-    Thread.sleep(2000)
-    f.webSocketReceivedBuffer.size should be > 0
+  test("Websocket should stream data when opened, returning empty responses if user uuid is not subscribed") { f =>
 
+    val uuid = UUID.randomUUID().toString
+    val (websocketClient, receivedBuffer) = setUpTestWebSocketClient(uuid, f.wsPort)
+
+    receivedBuffer should have size 0
+    websocketClient.open()
+    f.redisWsClientCache.storeVehicleActivity("ANOTHER_UUID", createBusPositionData()).futureValue
+
+    eventually {
+      receivedBuffer.size should be > 0
+      parsePacketsReceived(receivedBuffer) should have size 0
+    }
+    websocketClient.shutdownSync()
   }
 
+  test("Websocket returns data if user uuid has been subscribed, with earliest timestamps first") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    val (websocketClient, packagesReceivedBuffer) = setUpTestWebSocketClient(uuid, f.wsPort)
+
+    packagesReceivedBuffer should have size 0
+    websocketClient.open()
+
+    val posData1 = createBusPositionData(timeStamp = System.currentTimeMillis() - 10000)
+    val posData2 = createBusPositionData(timeStamp = System.currentTimeMillis())
+
+    f.redisWsClientCache.storeVehicleActivity(uuid, posData1).futureValue
+    f.redisWsClientCache.storeVehicleActivity(uuid, posData2).futureValue
+
+    eventually {
+      val messagesReceived = parsePacketsReceived(packagesReceivedBuffer)
+      messagesReceived should have size 2
+      messagesReceived.head shouldBe posData1
+      messagesReceived(1) shouldBe posData2
+    }
+    websocketClient.shutdownSync()
+  }
+
+
+
+
+  private def createBusPositionData(vehicleId: String = Random.nextString(10),
+                                    busRoute: BusRoute = BusRoute("3", "outbound"),
+                                    lat: Double = 51.4217,
+                                    lng: Double = -0.077507,
+                                    nextStopName: String = "NextStop",
+                                    timeStamp: Long = System.currentTimeMillis()) = {
+    BusPositionDataForTransmission(vehicleId, busRoute, lat, lng, nextStopName, timeStamp)
+  }
+
+  private def parsePacketsReceived(msgs: ListBuffer[String]): List[BusPositionDataForTransmission] = {
+    msgs.flatMap { msg =>
+      parse(msg).right.value.as[List[BusPositionDataForTransmission]].right.value
+    }.toList
+  }
 }
 

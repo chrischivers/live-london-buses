@@ -3,7 +3,7 @@ package lbt.streaming
 import java.util.concurrent.TimeoutException
 
 import akka.actor.ActorSystem
-import lbt.ConfigLoader
+import lbt.{ConfigLoader, LBTConfig}
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{OptionValues, fixture}
@@ -14,9 +14,9 @@ import scala.concurrent.duration._
 
 class StreamingClientIntegrationTest extends fixture.FunSuite with ScalaFutures with OptionValues {
 
-  val config = ConfigLoader.defaultConfig
+  val config: LBTConfig = ConfigLoader.defaultConfig
 
-  override implicit val patienceConfig = PatienceConfig(
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(
     timeout = scaled(5 minutes),
     interval = scaled(1 second)
   )
