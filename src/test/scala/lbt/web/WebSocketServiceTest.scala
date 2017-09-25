@@ -2,7 +2,6 @@ package lbt.web
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.ActorSystem
 import cats.effect.IO
 import cats.implicits._
@@ -14,7 +13,7 @@ import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser.parse
 import lbt.common.Definitions
-import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
+import lbt.db.caching.{BusPositionDataForTransmission, RedisDurationRecorder, RedisSubscriberCache, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.{BusRoute, LatLng, LatLngBounds}
 import lbt.scripts.BusRouteDefinitionsUpdater
@@ -26,14 +25,19 @@ import org.scalatest.Matchers._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest._
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.Random
 import io.circe.generic.auto._
 import io.circe.syntax._
+import lbt.streaming.{SourceLine, SourceLineHandler}
+
+import scalacache.ScalaCache
+import scalacache.guava.GuavaCache
 
 class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll with EitherValues with StrictLogging with Eventually {
+
+  implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
   val config: LBTConfig = ConfigLoader.defaultConfig
   val portIncrementer = new AtomicInteger(8000)
@@ -48,7 +52,7 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
   val db = new PostgresDB(config.postgresDbConfig)
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(tableName = "lbttest"), createNewTable = true)
   val updater = new BusRouteDefinitionsUpdater(config.definitionsConfig, routeDefinitionsTable)
-  updater.start(limitUpdateTo = Some(List(BusRoute("25", "outbound")))).futureValue
+  updater.start(limitUpdateTo = Some(List(BusRoute("25", "outbound"), BusRoute("3", "inbound")))).futureValue
   val definitions = new Definitions(routeDefinitionsTable)
 
 
@@ -65,18 +69,22 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     (websocketClient, wsReceivedBuffer)
   }
 
-  case class FixtureParam(redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache, wsPort: Int)
+  case class FixtureParam(redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache, sourceLineHandler: SourceLineHandler, wsPort: Int)
 
   def withFixture(test: OneArgTest) = {
 
+    val cache = ScalaCache(GuavaCache())
     val wsPort: Int = portIncrementer.incrementAndGet()
 
     implicit val actorSystem: ActorSystem = ActorSystem()
     val redisConfig = config.redisDBConfig.copy(dbIndex = 1)
+    val redisDurationRecorder = new RedisDurationRecorder(redisConfig)
     val redisSubscriberCache = new RedisSubscriberCache(redisConfig) // 1 = test, 0 = main
     val redisWsClientCache = new RedisWsClientCache(redisConfig, redisSubscriberCache)
     val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
     val webSocketService: WebSocketService = new WebSocketService(webSocketClientHandler)
+
+    val sourceLineHandler = new SourceLineHandler(definitions,config.sourceLineHandlerConfig,redisDurationRecorder, webSocketClientHandler)(cache, ec)
 
 
     object TestWebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
@@ -95,7 +103,7 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     Future(TestWebSocketsServer.main(Array.empty))
     Thread.sleep(2000)
 
-    val testFixture = FixtureParam(redisWsClientCache, redisSubscriberCache, wsPort)
+    val testFixture = FixtureParam(redisWsClientCache, redisSubscriberCache, sourceLineHandler, wsPort)
     try {
       redisSubscriberCache.flushDB.futureValue
       redisWsClientCache.flushDB.futureValue
@@ -149,10 +157,10 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     websocketClient.shutdownSync()
   }
 
-  test("Client is able to send filtering parameters and these are updated in the cache") { f =>
+  test("Client is able to send filtering parameters, which are updated in the cache") { f =>
 
     val uuid = UUID.randomUUID().toString
-    val (websocketClient, packagesReceivedBuffer) = setUpTestWebSocketClient(uuid, f.wsPort)
+    val (websocketClient, _) = setUpTestWebSocketClient(uuid, f.wsPort)
     val params = createFilteringParams()
 
     val openedSocket = websocketClient.open()
@@ -165,6 +173,32 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
       val paramsFromCache = f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue
       paramsFromCache shouldBe defined
         paramsFromCache.value shouldBe params
+    }
+
+    websocketClient.shutdownSync()
+  }
+
+  test("Client receives data only for routes they are subscribed to") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    val subscribedBusRoute = BusRoute("25", "outbound")
+    val (websocketClient, packagesReceivedBuffer) = setUpTestWebSocketClient(uuid, f.wsPort)
+    val params = createFilteringParams(busRoutes = List(subscribedBusRoute))
+
+    val openedSocket = websocketClient.open()
+    openedSocket ! createJsonStringFromFilteringParams(params)
+    parsePacketsReceived(packagesReceivedBuffer) should have size 0
+
+    val subscribedSourceLine = generateSourceLine(route = "25", direction = 1, stopId = "490007497E")
+    val nonSubscribedSourceLine = generateSourceLine(route = "3", direction = 2, stopId = "490007190W")
+    f.sourceLineHandler.handle(subscribedSourceLine).value.futureValue
+    f.sourceLineHandler.handle(nonSubscribedSourceLine).value.futureValue
+
+    eventually {
+      val received = parsePacketsReceived(packagesReceivedBuffer)
+      received should have size 1
+      received.head.vehicleId shouldBe subscribedSourceLine.vehicleID
+      received.head.busRoute shouldBe subscribedBusRoute
     }
 
     websocketClient.shutdownSync()
@@ -194,5 +228,16 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
   private def createJsonStringFromFilteringParams(filteringParams: FilteringParams): String = {
     filteringParams.asJson.noSpaces
   }
+
+  private def generateSourceLine(
+                          route: String = "25",
+                          direction: Int = 1,
+                          stopId: String = "490007497E",
+                          destination: String = "Ilford",
+                          vehicleId: String = "BJ11DUV",
+                          timeStamp: Long = System.currentTimeMillis() + 30000) = {
+    SourceLine(route, direction, stopId, destination, vehicleId, timeStamp)
+  }
+
 }
 

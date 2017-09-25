@@ -3,9 +3,10 @@ package lbt
 import akka.actor.ActorSystem
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
-import lbt.db.caching.RedisDurationRecorder
+import lbt.db.caching.{RedisDurationRecorder, RedisSubscriberCache, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.streaming._
+import lbt.web.WebSocketClientHandler
 
 import scala.concurrent.ExecutionContext
 import scalacache.ScalaCache
@@ -22,13 +23,15 @@ object StreamingApp extends App with StrictLogging {
   val definitions = new Definitions(routeDefinitionsTable)
 
   val dataSourceClient = new BusDataSourceClient(config.dataSourceConfig)
-
-  val redisClient = new RedisDurationRecorder(config.redisDBConfig)
+  val redisDurationRecorder = new RedisDurationRecorder(config.redisDBConfig)
+  val redisSubscriberCache = new RedisSubscriberCache(config.redisDBConfig)
+  val redisWsClientCache = new RedisWsClientCache(config.redisDBConfig, redisSubscriberCache)
 
   val streamingClient = new StreamingClient(dataSourceClient, processSourceLine)
+  val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
 
   val cache = ScalaCache(GuavaCache())
-  val sourceLineHandler = new SourceLineHandler(definitions, config.sourceLineHandlerConfig, redisClient)(cache, ec)
+  val sourceLineHandler = new SourceLineHandler(definitions, config.sourceLineHandlerConfig, redisDurationRecorder, webSocketClientHandler)(cache, ec)
 
   streamingClient.start().map(_ => ())
 

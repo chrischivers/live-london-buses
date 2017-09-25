@@ -21,9 +21,8 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
 
   def subscribe(clientUUID: String, params: Option[FilteringParams]): Future[Unit] = {
     for {
-      _ <- client.select(redisConfig.dbIndex)
       _ <- client.zadd(subscribersKey, (System.currentTimeMillis(), clientUUID))
-      _ <- params.fold(Future.successful(true))( p => updateFilteringParameters(clientUUID, p))
+      _ <- params.fold(Future.successful(()))( p => updateFilteringParameters(clientUUID, p))
     } yield ()
   }
 
@@ -33,24 +32,23 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
 
   def getParamsForSubscriber(uuid: String): Future[Option[FilteringParams]] = {
     val paramsKey = getParamsKey(uuid)
-    for {
-      _ <- client.pexpire(paramsKey, redisConfig.clientInactiveTime.toMillis)
-      params <- client.hmget[String](paramsKey, "busRoutes", "latLngBounds")
-    } yield parseFilteringParamsJson(params)
+    client.hmget[String](paramsKey, "busRoutes", "latLngBounds").map(params => parseFilteringParamsJson(params))
   }
 
-  def updateFilteringParameters(uuid: String, filteringParams: FilteringParams): Future[Boolean] = {
+  def updateFilteringParameters(uuid: String, filteringParams: FilteringParams): Future[Unit] = {
     val paramsKey = getParamsKey(uuid)
-    client.hmset(paramsKey, filteringParamsToJsonMap(filteringParams))
-    client.pexpire(paramsKey, redisConfig.clientInactiveTime.toMillis)
+    for {
+      _ <- client.hmset(paramsKey, filteringParamsToJsonMap(filteringParams))
+      _ <- updateSubscriberAliveTime(uuid)
+    } yield ()
   }
 
   def updateSubscriberAliveTime(uuid: String) = {
     println("Updating subscriber alive time")
-    val setTTL = client.pexpire(getParamsKey(uuid), redisConfig.clientInactiveTime.toMillis)
+    val setParamsTTL = client.pexpire(getParamsKey(uuid), redisConfig.clientInactiveTime.toMillis)
     val updateSubscribersSet = client.zadd(subscribersKey, (System.currentTimeMillis(), uuid))
     for {
-      _ <- setTTL
+      _ <- setParamsTTL
       _ <- updateSubscribersSet
     } yield ()
   }

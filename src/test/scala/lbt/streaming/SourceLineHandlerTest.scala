@@ -1,22 +1,28 @@
 package lbt.streaming
 
+import java.util.UUID
+
 import akka.actor.ActorSystem
+import io.circe.Decoder
+import io.circe.generic.semiauto.deriveDecoder
+import io.circe.parser.parse
 import lbt.common.{Commons, Definitions}
-import lbt.db.caching.RedisDurationRecorder
+import lbt.db.caching.{BusPositionDataForTransmission, RedisDurationRecorder, RedisSubscriberCache, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.BusRoute
 import lbt.scripts.BusRouteDefinitionsUpdater
+import lbt.web.WebSocketClientHandler
 import lbt.{ConfigLoader, LBTConfig}
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{BeforeAndAfterAll, OptionValues, fixture}
+import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues, fixture}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scalacache.guava.GuavaCache
 import scalacache.{NoSerialization, ScalaCache, _}
 
-class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll {
+class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with OptionValues with EitherValues with BeforeAndAfterAll {
 
   val config: LBTConfig = ConfigLoader.defaultConfig
   val configWithShortTtl: LBTConfig = config.copy(sourceLineHandlerConfig = config.sourceLineHandlerConfig.copy(cacheTtl = 5 seconds))
@@ -39,21 +45,33 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     db.disconnect.futureValue
   }
 
-  case class FixtureParam(sourceLineHandler: SourceLineHandler, cache: ScalaCache[NoSerialization], redisClient: RedisDurationRecorder)
+  case class FixtureParam(sourceLineHandler: SourceLineHandler, cache: ScalaCache[NoSerialization], redisDurationRecorder: RedisDurationRecorder, redisSubscriberCache: RedisSubscriberCache, redisWsClientCache: RedisWsClientCache)
 
   def withFixture(test: OneArgTest) = {
 
     val cache = ScalaCache(GuavaCache())
     implicit val actorSystem: ActorSystem = ActorSystem()
-    val redisClient = new RedisDurationRecorder(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
-    val sourceLineHandler = new SourceLineHandler(definitions, configWithShortTtl.sourceLineHandlerConfig, redisClient)(cache, ec)
-    val testFixture = FixtureParam(sourceLineHandler, cache, redisClient)
+    val modifiedConfig = config.redisDBConfig.copy(dbIndex = 1) // 1 = test, 0 = main
+
+    val redisDurationRecorder = new RedisDurationRecorder(modifiedConfig)
+    val redisSubscriberCache = new RedisSubscriberCache(modifiedConfig)
+    val redisWsClientCache = new RedisWsClientCache(modifiedConfig, redisSubscriberCache)
+
+    val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
+
+
+    val sourceLineHandler = new SourceLineHandler(definitions, configWithShortTtl.sourceLineHandlerConfig, redisDurationRecorder, webSocketClientHandler)(cache, ec)
+    val testFixture = FixtureParam(sourceLineHandler, cache, redisDurationRecorder, redisSubscriberCache, redisWsClientCache)
 
     try {
-      redisClient.flushDB.futureValue
+      redisDurationRecorder.flushDB.futureValue
+      redisSubscriberCache.flushDB.futureValue
+      redisWsClientCache.flushDB.futureValue
       withFixture(test.toNoArgTest(testFixture))
     } finally {
-      redisClient.flushDB.futureValue
+      redisDurationRecorder.flushDB.futureValue
+      redisSubscriberCache.flushDB.futureValue
+      redisWsClientCache.flushDB.futureValue
     }
   }
 
@@ -63,6 +81,26 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     f.sourceLineHandler.handle(sourceLine).value.futureValue
     val timeStampFromCache = getArrivalTimestampFromCache(sourceLine, f.cache).futureValue.value
     timeStampFromCache shouldBe timestamp
+  }
+
+  test("Source Line handled is persisted to websocket cache") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    f.redisSubscriberCache.subscribe(uuid, None).futureValue //todo set parameters correctly
+
+    val timestamp = System.currentTimeMillis() + 10000
+    val sourceLine = generateSourceLine(timeStamp = timestamp)
+    val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
+    f.sourceLineHandler.handle(sourceLine).value.futureValue
+
+    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue)
+    dataForTransmission should have size 1
+    dataForTransmission.head.vehicleId shouldBe sourceLine.vehicleID
+    dataForTransmission.head.busRoute shouldBe busRoute
+    dataForTransmission.head.timeStamp shouldBe timestamp
+    dataForTransmission.head.lat shouldBe definitions.routeDefinitions.get(busRoute).value.find(_._2.stopID == sourceLine.stopID).value._2.latitude
+    dataForTransmission.head.lng shouldBe definitions.routeDefinitions.get(busRoute).value.find(_._2.stopID == sourceLine.stopID).value._2.longitude
+    //TODO test for addition data (next stop name etc)
   }
 
   test("When another source line arrives for a record already in cache, cache is updated with the most recent") { f =>
@@ -240,7 +278,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
 
     getLastIndexPersistedFromCache(sourceLine1, f.cache).futureValue.value shouldBe 10
 
-   val recordFromRedis = f.redisClient.getStopToStopTimes(BusRoute("25", "outbound"), 9, 10).futureValue
+   val recordFromRedis = f.redisDurationRecorder.getStopToStopTimes(BusRoute("25", "outbound"), 9, 10).futureValue
     recordFromRedis should have size 1
     recordFromRedis.head shouldBe ((timestamp2 - timestamp1) / 1000)
   }
@@ -268,7 +306,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
 
     getLastIndexPersistedFromCache(sourceLine3, f.cache).futureValue.value shouldBe 10
 
-    val recordFromRedis = f.redisClient.getStopToStopTimes(BusRoute("25", "outbound"), 9, 10).futureValue
+    val recordFromRedis = f.redisDurationRecorder.getStopToStopTimes(BusRoute("25", "outbound"), 9, 10).futureValue
     recordFromRedis should have size 2
     recordFromRedis.head shouldBe ((timestamp4 - timestamp3) / 1000)
     recordFromRedis(1) shouldBe ((timestamp2 - timestamp1) / 1000)
@@ -297,4 +335,10 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     implicit val c: ScalaCache[NoSerialization] = cache
     get[Int, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction)
   }
+  private def parseWebsocketCacheResult(str: String): List[BusPositionDataForTransmission] = {
+    implicit val busRouteDecoder: Decoder[BusRoute] = deriveDecoder[BusRoute]
+    implicit val busPosDataDecoder: Decoder[BusPositionDataForTransmission] = deriveDecoder[BusPositionDataForTransmission]
+    parse(str).right.value.as[List[BusPositionDataForTransmission]].right.value
+  }
+
 }
