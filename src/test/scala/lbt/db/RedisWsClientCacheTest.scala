@@ -8,7 +8,7 @@ import io.circe.generic.semiauto._
 import io.circe.parser._
 import lbt.{ConfigLoader, LBTConfig}
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
-import lbt.models.BusRoute
+import lbt.models.{BusRoute, BusStop}
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{EitherValues, OptionValues, fixture}
@@ -49,9 +49,9 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
   test("Vehicle activity persisted to Redis sorted set and retrieved ordered by timestamp (oldest first)") { f =>
 
     val uuid = UUID.randomUUID().toString
-    val busPosData1 = createBusPositionData(timeStamp = System.currentTimeMillis())
-    val busPosData2 = createBusPositionData(timeStamp = System.currentTimeMillis() + 60000)
-    val busPosData3 = createBusPositionData(timeStamp = System.currentTimeMillis() - 60000)
+    val busPosData1 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis())
+    val busPosData2 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() + 60000)
+    val busPosData3 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() - 60000)
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData1).futureValue
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData2).futureValue
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData3).futureValue
@@ -67,8 +67,8 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
   test("When vehicle activity retrieved from Redis, the records are purged") { f =>
 
     val uuid = UUID.randomUUID().toString
-    val busPosData1 = createBusPositionData(timeStamp = System.currentTimeMillis() + 60000)
-    val busPosData2 = createBusPositionData(timeStamp = System.currentTimeMillis())
+    val busPosData1 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() + 60000)
+    val busPosData2 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis())
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData1).futureValue
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData2).futureValue
 
@@ -94,7 +94,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
 
     val uuid = UUID.randomUUID().toString
     Future.sequence((0 to 100).map { _ =>
-      f.redisWSClientCache.storeVehicleActivity(uuid, createBusPositionData(timeStamp = System.currentTimeMillis() + Random.nextInt(60000)))
+      f.redisWSClientCache.storeVehicleActivity(uuid, createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() + Random.nextInt(60000)))
     }).futureValue
 
 
@@ -131,15 +131,16 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
 
   private def createBusPositionData(vehicleId: String = Random.nextString(10),
                                     busRoute: BusRoute = BusRoute("3", "outbound"),
-                                    lat: Double = 51.4217,
-                                    lng: Double = -0.077507,
+                                    busStop: BusStop = BusStop("490003059E", "Abingdon Street", 51.49759, -0.125605),
                                     nextStopName: String = "NextStop",
-                                    timeStamp: Long = System.currentTimeMillis()) = {
-    BusPositionDataForTransmission(vehicleId, busRoute, lat, lng, nextStopName, timeStamp)
+                                    arrivalTimeStamp: Long = System.currentTimeMillis(),
+                                    durationToNextStopOpt: Option[Int] = Some(100)) = {
+    BusPositionDataForTransmission(vehicleId, busRoute, busStop, arrivalTimeStamp, nextStopName, durationToNextStopOpt)
   }
 
   private def parseWebsocketCacheResult(str: String): List[BusPositionDataForTransmission] = {
     implicit val busRouteDecoder: Decoder[BusRoute] = deriveDecoder[BusRoute]
+    implicit val busStopDecoder: Decoder[BusStop] = deriveDecoder[BusStop]
     implicit val busPosDataDecoder: Decoder[BusPositionDataForTransmission] = deriveDecoder[BusPositionDataForTransmission]
     parse(str).right.value.as[List[BusPositionDataForTransmission]].right.value
   }

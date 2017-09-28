@@ -1,5 +1,7 @@
 package lbt.scripts
 
+import java.text.DecimalFormat
+
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Commons.BusPolyLine
 import lbt.common.Definitions
@@ -17,7 +19,7 @@ object BusRoutePolyLineUpdater extends App with StrictLogging{
   implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   val config = ConfigLoader.defaultConfig
   val db = new PostgresDB(config.postgresDbConfig)
-  val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = false)
+  val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema())
 
   val busRoutePolyLineUpdater = new BusRoutePolyLineUpdater(config.definitionsConfig, routeDefinitionsTable)
   busRoutePolyLineUpdater.start
@@ -29,6 +31,7 @@ class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig, routeDefinit
 
   def start(): Unit = {
     definitions.routeDefinitions.foreach { routeDef =>
+      logger.info(s"Updating polyline for ${routeDef._1}")
       val stopsWithNoPolyLines = routeDef._2.filter(_._3.isEmpty)
       stopsWithNoPolyLines.foreach { fromStop =>
         for {
@@ -37,6 +40,7 @@ class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig, routeDefinit
         } yield Await.result(routeDefinitionsTable.updatePolyLine(routeDef._1, fromStop._1, polyLine), 5 minutes)
       }
     }
+    logger.info("Finished updating polyines")
   }
 
 
@@ -44,13 +48,17 @@ class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig, routeDefinit
 
     //TODO throttle requests
 
+    val decimalFormatter = new DecimalFormat()
+    decimalFormatter.setMaximumFractionDigits(Integer.MAX_VALUE)
+    decimalFormatter.setMinimumFractionDigits(1)
+
     val now = DateTime.now()
     val todayAt10am = new DateTime(now.year().get(), now.monthOfYear().get(), now.dayOfMonth().get(), 10, 0)
     val apiKey = Random.shuffle(definitionsConfig.directionsApiKeys).head
 
     val polyLineUrl = s"https://maps.googleapis.com/maps/api/directions/xml?" +
-      s"origin=${fromStop.latitude},${fromStop.longitude}" +
-      s"&destination=${toStop.latitude},${toStop.longitude}" +
+      s"origin=${decimalFormatter.format(fromStop.latitude)},${decimalFormatter.format(fromStop.longitude)}" +
+      s"&destination=${decimalFormatter.format(toStop.latitude)},${decimalFormatter.format(toStop.longitude)}" +
       s"&key=$apiKey" +
       s"&mode=transit" +
       s"&transit_mode=bus" +

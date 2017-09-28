@@ -65,6 +65,11 @@ class SourceLineTest extends fixture.FunSuite with ScalaFutures with OptionValue
     SourceLine.validate(sourceLinePast, f.definitions) shouldBe false
   }
 
+  test("Source Line validation fails if time is in too far in the future") { f =>
+    val sourceLinePast = generateSourceLine(timeStamp = System.currentTimeMillis() + 305000)
+    SourceLine.validate(sourceLinePast, f.definitions) shouldBe false
+  }
+
   test("Source Line validation fails if route is not in the definitions ") { f =>
     val sourceLineInvalidRoute = generateSourceLine(route = "999", direction = 1)
     SourceLine.validate(sourceLineInvalidRoute, f.definitions) shouldBe false

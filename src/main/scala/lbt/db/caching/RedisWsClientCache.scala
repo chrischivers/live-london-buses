@@ -6,11 +6,11 @@ import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
 import lbt.RedisConfig
-import lbt.models.BusRoute
+import lbt.models.{BusRoute, BusStop}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class BusPositionDataForTransmission(vehicleId: String, busRoute: BusRoute, lat: Double, lng: Double, nextStopName: String, timeStamp: Long)
+case class BusPositionDataForTransmission(vehicleId: String, busRoute: BusRoute, busStop: BusStop, arrivalTimestamp: Long, nextStopName: String, avgTimeToNextStop: Option[Int])
 
 class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: RedisSubscriberCache)(implicit val executionContext: ExecutionContext, val actorSystem: ActorSystem) extends RedisClient {
 
@@ -18,8 +18,8 @@ class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: Red
     val jsonToStore = busPositionData.asJson.noSpaces
     for {
       existsAlready <- client.exists(clientUUID)
-      _ <- client.zadd(clientUUID, (busPositionData.timeStamp, jsonToStore))
-      _ = logger.info("Adding json " + jsonToStore + s" for client $clientUUID")
+      _ <- client.zadd(clientUUID, (busPositionData.arrivalTimestamp, jsonToStore))
+      _ = logger.debug("Adding json " + jsonToStore + s" for client $clientUUID")
       _ <- if (!existsAlready) client.pexpire(clientUUID, redisConfig.clientInactiveTime.toMillis) else Future.successful(())
         // The above updates the ttl only on first persistence. Going forward the expiry is updated when requests are made.
     } yield ()
@@ -27,17 +27,14 @@ class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: Red
 
   def getVehicleActivityFor(clientUUID: String): Future[String] = {
 
-    val updateAliveTime = redisSubscriberCache.updateSubscriberAliveTime(clientUUID)
-    val updateTTL = client.pexpire(clientUUID, redisConfig.clientInactiveTime.toMillis)
-
-    for {
+    val updateClientAliveTime = redisSubscriberCache.updateSubscriberAliveTime(clientUUID)
+      for {
       results <- client.zrange[String](clientUUID, 0, redisConfig.wsClientCacheMaxResultsReturned - 1)
       _ <- client.zremrangebyrank(clientUUID, 0, results.size - 1)
-      _ <- updateAliveTime
-      _ <- updateTTL
+      _ <- updateClientAliveTime
     } yield {
       val (parsingFailures, json) = results.map(res => parse(res)).toList.separate
-      //todo do something with failures
+      parsingFailures.foldLeft()((_, pf) => logger.error(s"Error parsing Bus Position Transmission Data json. $pf"))
       json.asJson.noSpaces
     }
   }

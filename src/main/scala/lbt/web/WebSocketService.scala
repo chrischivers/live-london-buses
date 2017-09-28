@@ -16,13 +16,14 @@ import scala.concurrent.duration._
 import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
+import lbt.WebsocketConfig
 
 
 case class FilteringParams(busRoutes: List[BusRoute], latLngBounds: LatLngBounds)
 
 object UUIDQueryParameter extends QueryParamDecoderMatcher[String]("uuid")
 
-class WebSocketService(webSocketClientHandler: WebSocketClientHandler)(implicit F: Effect[IO]) extends Http4sDsl[IO] with StrictLogging {
+class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocketConfig: WebsocketConfig)(implicit F: Effect[IO]) extends Http4sDsl[IO] with StrictLogging {
 
   def service(scheduler: Scheduler): HttpService[IO] = HttpService[IO] {
 
@@ -31,8 +32,8 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler)(implicit 
       webSocketClientHandler.subscribe(uuid)
 
       val toClient: Stream[IO, WebSocketFrame] =
-        scheduler.awakeEvery[IO](1.seconds).map { _ =>
-          Text(Await.result(webSocketClientHandler.getDataForClient(uuid), 10 seconds)) //todo is this await the only option?
+        scheduler.awakeEvery[IO](websocketConfig.clientSendInterval).map { _ =>
+          Text(Await.result(webSocketClientHandler.retrieveTransmissionDataForClient(uuid), 10 seconds)) //todo is this await the only option?
         }
       val fromClient: Sink[IO, WebSocketFrame] = _.evalMap { (ws: WebSocketFrame) =>
         ws match {
@@ -45,7 +46,9 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler)(implicit 
 
   private def handleIncomingFilterParams(clientUUID: String, params: String): Unit = {
     decodeIncomingFilterParams(params) match {
-      case Right(filteringParams) => webSocketClientHandler.updateFilteringParamsForClient(clientUUID, filteringParams)
+      case Right(filteringParams) =>
+        logger.info(s"Successfully decoded filtering parameters for $clientUUID, filtering params: $filteringParams")
+        webSocketClientHandler.updateFilteringParamsForClient(clientUUID, filteringParams)
       case Left(e) => logger.error(s"Error parsing/decoding filter params: $params", e)
     }
   }

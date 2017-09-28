@@ -5,7 +5,7 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import lbt.{ConfigLoader, LBTConfig}
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
-import lbt.models.{BusRoute, LatLng, LatLngBounds}
+import lbt.models.{BusRoute, BusStop, LatLng, LatLngBounds}
 import lbt.web.FilteringParams
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
@@ -112,11 +112,11 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with ScalaFutures with O
 
   private def createBusPositionData(vehicleId: String = Random.nextString(10),
                                     busRoute: BusRoute = BusRoute("3", "outbound"),
-                                    lat: Double = 51.4217,
-                                    lng: Double = -0.077507,
+                                    busStop: BusStop = BusStop("490003059E", "Abingdon Street", 51.49759, -0.125605),
                                     nextStopName: String = "NextStop",
-                                    timeStamp: Long = System.currentTimeMillis()) = {
-    BusPositionDataForTransmission(vehicleId, busRoute, lat, lng, nextStopName, timeStamp)
+                                    arrivalTimeStamp: Long = System.currentTimeMillis(),
+                                    durationToNextStopOpt: Option[Int] = Some(100)) = {
+    BusPositionDataForTransmission(vehicleId, busRoute, busStop, arrivalTimeStamp, nextStopName, durationToNextStopOpt)
   }
 
   private def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),

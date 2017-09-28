@@ -44,12 +44,13 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
   }
 
   def updateSubscriberAliveTime(uuid: String) = {
-    println("Updating subscriber alive time")
-    val setParamsTTL = client.pexpire(getParamsKey(uuid), redisConfig.clientInactiveTime.toMillis)
-    val updateSubscribersSet = client.zadd(subscribersKey, (System.currentTimeMillis(), uuid))
+    val setClientParamsTTL = client.pexpire(getParamsKey(uuid), redisConfig.clientInactiveTime.toMillis)
+    val updateSubscribersSetScore = client.zadd(subscribersKey, (System.currentTimeMillis(), uuid))
+    val updateClientDataTTL = client.pexpire(uuid, redisConfig.clientInactiveTime.toMillis)
     for {
-      _ <- setParamsTTL
-      _ <- updateSubscribersSet
+      _ <- setClientParamsTTL
+      _ <- updateSubscribersSetScore
+      _ <- updateClientDataTTL
     } yield ()
   }
 

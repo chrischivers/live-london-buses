@@ -9,12 +9,12 @@ import io.circe.parser.parse
 import lbt.common.{Commons, Definitions}
 import lbt.db.caching.{BusPositionDataForTransmission, RedisDurationRecorder, RedisSubscriberCache, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.models.BusRoute
+import lbt.models.{BusRoute, BusStop, LatLng, LatLngBounds}
 import lbt.scripts.BusRouteDefinitionsUpdater
-import lbt.web.WebSocketClientHandler
+import lbt.web.{FilteringParams, WebSocketClientHandler}
 import lbt.{ConfigLoader, LBTConfig}
 import org.scalatest.Matchers._
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues, fixture}
 
 import scala.concurrent.duration._
@@ -29,8 +29,8 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
   implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(
-    timeout = scaled(5 minutes),
-    interval = scaled(500 millis)
+    timeout = scaled(1 minutes),
+    interval = scaled(1 second)
   )
 
   //These are set outside the fixture so that definitions db does not need to be repopulated before each test
@@ -83,10 +83,11 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     timeStampFromCache shouldBe timestamp
   }
 
-  test("Source Line handled is persisted to websocket cache") { f =>
+  test("Source Line handled is persisted to websocket cache (when user is subscribed") { f =>
 
     val uuid = UUID.randomUUID().toString
-    f.redisSubscriberCache.subscribe(uuid, None).futureValue //todo set parameters correctly
+    val params = FilteringParams(List(BusRoute("25", "outbound")),LatLngBounds(LatLng(51,52), LatLng(52,53)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
 
     val timestamp = System.currentTimeMillis() + 10000
     val sourceLine = generateSourceLine(timeStamp = timestamp)
@@ -97,10 +98,56 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     dataForTransmission should have size 1
     dataForTransmission.head.vehicleId shouldBe sourceLine.vehicleID
     dataForTransmission.head.busRoute shouldBe busRoute
-    dataForTransmission.head.timeStamp shouldBe timestamp
-    dataForTransmission.head.lat shouldBe definitions.routeDefinitions.get(busRoute).value.find(_._2.stopID == sourceLine.stopID).value._2.latitude
-    dataForTransmission.head.lng shouldBe definitions.routeDefinitions.get(busRoute).value.find(_._2.stopID == sourceLine.stopID).value._2.longitude
-    //TODO test for addition data (next stop name etc)
+    dataForTransmission.head.arrivalTimestamp shouldBe timestamp
+    dataForTransmission.head.busStop shouldBe definitions.routeDefinitions.get(busRoute).value.find(_._2.stopID == sourceLine.stopID).value._2
+    dataForTransmission.head.avgTimeToNextStop.value shouldBe 0
+    //TODO test for additional data (next stop name etc)
+
+  }
+
+  test("Source Lines are persisted to websocket cache and average is obtained") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    val params = FilteringParams(List(BusRoute("25", "outbound")),LatLngBounds(LatLng(51,52), LatLng(52,53)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
+
+    val busRoute = BusRoute("25", "outbound")
+    val fromStop = definitions.routeDefinitions(busRoute)(3)._2
+    val toStop = definitions.routeDefinitions(busRoute)(4)._2
+    val fromTimestamp = System.currentTimeMillis() + 10000
+    val sourceLine1 = generateSourceLine(vehicleId = "VEHICLEREG1", timeStamp = fromTimestamp, stopId = fromStop.stopID)
+    val sourceLine2 = generateSourceLine(vehicleId = "VEHICLEREG1", timeStamp = fromTimestamp + 60000, stopId = toStop.stopID)
+    val sourceLine3 = generateSourceLine(vehicleId = "VEHICLEREG2", timeStamp = fromTimestamp + 120000, stopId = fromStop.stopID)
+    val sourceLine4 = generateSourceLine(vehicleId = "VEHICLEREG2", timeStamp = fromTimestamp + 160000, stopId = toStop.stopID)
+    val sourceLine5 = generateSourceLine(vehicleId = "VEHICLEREG3", timeStamp = fromTimestamp + 180000, stopId = fromStop.stopID)
+
+    f.sourceLineHandler.handle(sourceLine1).value.futureValue
+    f.sourceLineHandler.handle(sourceLine2).value.futureValue
+    f.sourceLineHandler.handle(sourceLine3).value.futureValue
+    f.sourceLineHandler.handle(sourceLine4).value.futureValue
+    f.sourceLineHandler.handle(sourceLine5).value.futureValue
+
+    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue)
+    dataForTransmission should have size 5
+    println(dataForTransmission)
+    dataForTransmission(0).avgTimeToNextStop.value shouldBe 0
+    dataForTransmission(1).avgTimeToNextStop.value shouldBe 0
+    dataForTransmission(2).avgTimeToNextStop.value shouldBe 60
+    dataForTransmission(3).avgTimeToNextStop.value shouldBe 0
+    dataForTransmission(4).avgTimeToNextStop.value shouldBe 50
+  }
+
+  test("Source Line handled is not persisted to websocket cache (when user not subscribed") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    f.redisSubscriberCache.subscribe(uuid, None).futureValue
+
+    val sourceLine = generateSourceLine()
+    val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
+    f.sourceLineHandler.handle(sourceLine).value.futureValue
+
+    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue)
+    dataForTransmission should have size 0
   }
 
   test("When another source line arrives for a record already in cache, cache is updated with the most recent") { f =>
@@ -196,7 +243,6 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     f.sourceLineHandler.handle(sourceLine1).value.futureValue //try persisting previous index again
     getLastIndexPersistedFromCache(sourceLine2, f.cache).futureValue.value shouldBe 1
     getArrivalTimestampFromCache(sourceLine1, f.cache).futureValue should not be defined
-
   }
 
   test("Stops at end of route are handled correctly") { f =>
@@ -337,6 +383,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
   }
   private def parseWebsocketCacheResult(str: String): List[BusPositionDataForTransmission] = {
     implicit val busRouteDecoder: Decoder[BusRoute] = deriveDecoder[BusRoute]
+    implicit val busStopDecoder: Decoder[BusStop] = deriveDecoder[BusStop]
     implicit val busPosDataDecoder: Decoder[BusPositionDataForTransmission] = deriveDecoder[BusPositionDataForTransmission]
     parse(str).right.value.as[List[BusPositionDataForTransmission]].right.value
   }

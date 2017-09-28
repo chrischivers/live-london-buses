@@ -2,6 +2,7 @@ package lbt.web
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.ActorSystem
 import cats.effect.IO
 import cats.implicits._
@@ -15,7 +16,7 @@ import io.circe.parser.parse
 import lbt.common.Definitions
 import lbt.db.caching.{BusPositionDataForTransmission, RedisDurationRecorder, RedisSubscriberCache, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.models.{BusRoute, LatLng, LatLngBounds}
+import lbt.models.{BusRoute, BusStop, LatLng, LatLngBounds}
 import lbt.scripts.BusRouteDefinitionsUpdater
 import lbt.{ConfigLoader, LBTConfig}
 import org.http4s.dsl.Http4sDsl
@@ -24,6 +25,7 @@ import org.http4s.util.StreamApp
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest._
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -82,7 +84,7 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     val redisSubscriberCache = new RedisSubscriberCache(redisConfig) // 1 = test, 0 = main
     val redisWsClientCache = new RedisWsClientCache(redisConfig, redisSubscriberCache)
     val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
-    val webSocketService: WebSocketService = new WebSocketService(webSocketClientHandler)
+    val webSocketService: WebSocketService = new WebSocketService(webSocketClientHandler, config.websocketConfig)
 
     val sourceLineHandler = new SourceLineHandler(definitions,config.sourceLineHandlerConfig,redisDurationRecorder, webSocketClientHandler)(cache, ec)
 
@@ -142,8 +144,8 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     packagesReceivedBuffer should have size 0
     websocketClient.open()
 
-    val posData1 = createBusPositionData(timeStamp = System.currentTimeMillis() - 10000)
-    val posData2 = createBusPositionData(timeStamp = System.currentTimeMillis())
+    val posData1 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() - 10000)
+    val posData2 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis())
 
     f.redisWsClientCache.storeVehicleActivity(uuid, posData1).futureValue
     f.redisWsClientCache.storeVehicleActivity(uuid, posData2).futureValue
@@ -207,11 +209,11 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
 
   private def createBusPositionData(vehicleId: String = Random.nextString(10),
                                     busRoute: BusRoute = BusRoute("3", "outbound"),
-                                    lat: Double = 51.4217,
-                                    lng: Double = -0.077507,
+                                    busStop: BusStop = BusStop("490003059E", "Abingdon Street", 51.49759, -0.125605),
                                     nextStopName: String = "NextStop",
-                                    timeStamp: Long = System.currentTimeMillis()) = {
-    BusPositionDataForTransmission(vehicleId, busRoute, lat, lng, nextStopName, timeStamp)
+                                    arrivalTimeStamp: Long = System.currentTimeMillis(),
+                                    durationToNextStopOpt: Option[Int] = Some(100)) = {
+    BusPositionDataForTransmission(vehicleId, busRoute, busStop, arrivalTimeStamp, nextStopName, durationToNextStopOpt)
   }
 
   private def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),

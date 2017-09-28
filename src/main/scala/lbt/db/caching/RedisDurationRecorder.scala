@@ -27,11 +27,21 @@ class RedisDurationRecorder(val redisConfig: RedisConfig)(implicit val execution
 
   def getStopToStopTimes(route: BusRoute, fromStopSeq: Int, toStopSeq: Int): Future[Seq[Int]] = {
     val key = generateKey(route, fromStopSeq, toStopSeq)
+
     client.lrange[Int](key, 0, redisConfig.durationMaxListLength - 1)
+  }
+
+  def getStopToStopAverageTime(route: BusRoute, fromStopSeq: Int, toStopSeq: Int): Future[Double] = {
+    getStopToStopTimes(route, fromStopSeq, toStopSeq).map(list=> calculateAverageTimes(list))
   }
 
   private def generateKey(route: BusRoute, fromStopSeq: Int, toStopSeq: Int): String = {
     s"${route.id}_${route.direction}_${fromStopSeq.toString}_${toStopSeq.toString}"
+  }
+
+  private def calculateAverageTimes(timeDiffs: Seq[Int]): Double = {
+    if (timeDiffs.isEmpty) 0.0
+    else timeDiffs.sum.toDouble / timeDiffs.size.toDouble
   }
 
 }

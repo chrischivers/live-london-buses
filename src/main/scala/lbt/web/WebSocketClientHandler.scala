@@ -8,17 +8,17 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class WebSocketClientHandler(redisSubscriberCache: RedisSubscriberCache, redisWsClientCache: RedisWsClientCache)(implicit executionContext: ExecutionContext) extends StrictLogging {
 
-  def subscribe(uuid: String) = {
-    logger.info(s"Subscribing client $uuid")
-    redisSubscriberCache.subscribe(uuid, None)
+  def subscribe(clientUuid: String) = {
+    logger.info(s"Subscribing client $clientUuid")
+    redisSubscriberCache.subscribe(clientUuid, None)
   }
 
-  def getDataForClient(uuid: String): Future[String] = {
+  def retrieveTransmissionDataForClient(uuid: String): Future[String] = {
     redisWsClientCache.getVehicleActivityFor(uuid)
   }
 
-  def persistData(busPositionDataForTransmission: BusPositionDataForTransmission) = {
-    //todo logic here to determine which clients to push to. Currently pushing to all.
+  def queueTransmissionDataToClients(busPositionDataForTransmission: BusPositionDataForTransmission) = {
+    //todo logic here to determine latlngbounds filtering parameters.
     for {
       subscribers <- redisSubscriberCache.getListOfSubscribers
       subscribersToBusRoute <- filterSubscribersForRoute(subscribers, busPositionDataForTransmission.busRoute)
@@ -26,11 +26,11 @@ class WebSocketClientHandler(redisSubscriberCache: RedisSubscriberCache, redisWs
     } yield ()
   }
 
-  def updateFilteringParamsForClient(uuid: String, filteringParams: FilteringParams): Future[Unit] = {
-      redisSubscriberCache.updateFilteringParameters(uuid, filteringParams)
+  def updateFilteringParamsForClient(clientUuid: String, filteringParams: FilteringParams): Future[Unit] = {
+      redisSubscriberCache.updateFilteringParameters(clientUuid, filteringParams)
   }
 
-  def filterSubscribersForRoute(subscribers: Seq[String], busRoute: BusRoute): Future[Seq[String]] = {
+  private def filterSubscribersForRoute(subscribers: Seq[String], busRoute: BusRoute): Future[Seq[String]] = {
     Future.sequence(subscribers
       .map(subscriber => redisSubscriberCache.getParamsForSubscriber(subscriber)
         .map(_.flatMap(

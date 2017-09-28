@@ -17,7 +17,7 @@ object WebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
   val redisSubscriberCache = new RedisSubscriberCache(config.redisDBConfig)
   val redisWsClientCache = new RedisWsClientCache(config.redisDBConfig, redisSubscriberCache)
   val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
-  val webSocketService = new WebSocketService(webSocketClientHandler)
+  val webSocketService = new WebSocketService(webSocketClientHandler, config.websocketConfig)
 
   def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, Nothing] =
     Scheduler[IO](corePoolSize = 2).flatMap { scheduler =>

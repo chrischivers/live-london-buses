@@ -25,9 +25,10 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
     val stopList = definitions.routeDefinitions.getOrElse(busRoute, throw new RuntimeException(s"Unable to find route $busRoute in definitions after validation passed"))
     val indexOfStop = stopList.find(_._2.stopID == sourceLine.stopID).map(_._1).getOrElse(throw new RuntimeException(s"Unable to find stopID ${sourceLine.stopID} in stop list for route $busRoute"))
     val stop: (Int, BusStop, Option[BusPolyLine]) = stopList(indexOfStop)
+    val lastStop: Boolean = indexOfStop == stopList.size - 1
 
-    def updateStop(): OptionT[Future, Unit] = {
-      logger.debug("Updating stop cache")
+    def updateTimeDifferenceForStop(): OptionT[Future, Unit] = {
+      logger.debug(s"Updating stop cache for $sourceLine")
       for {
         _ <- OptionT.liftF(put(sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfStop)(sourceLine.arrival_TimeStamp, ttl = Some(config.cacheTtl)))
         previousStopTime <- OptionT(get[ArrivalTimestamp, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfStop - 1))
@@ -46,24 +47,29 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
     }
 
     def sendToWebSocketHandler(busPositionDataForTransmission: BusPositionDataForTransmission) = {
-      OptionT.liftF(webSocketClientHandler.persistData(busPositionDataForTransmission))
+      OptionT.liftF(webSocketClientHandler.queueTransmissionDataToClients(busPositionDataForTransmission))
     }
 
-    def toTransmissionData(sourceLine: SourceLine): BusPositionDataForTransmission = {
-      BusPositionDataForTransmission(sourceLine.vehicleID, busRoute, stop._2.latitude, stop._2.longitude, "placeholder", sourceLine.arrival_TimeStamp)
+    def toTransmissionData(sourceLine: SourceLine, averageTimeToNextStopOpt: Option[Int]): BusPositionDataForTransmission = {
+      BusPositionDataForTransmission(sourceLine.vehicleID, busRoute, stop._2, sourceLine.arrival_TimeStamp, "placeholder", averageTimeToNextStopOpt) //todo change placeholder
     }
 
+    def getAverageTimeToNextStop: Future[Option[Double]] = {
+      if (!lastStop) redisDurationRecorder.getStopToStopAverageTime(busRoute, indexOfStop, indexOfStop + 1).map(Some(_))
+      //TODO handle empty list coming back (i.e. no duration data in db)
+      else Future.successful(None)
+    }
 
     OptionT.liftF(get[LastIndexPersisted, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction)).flatMap {
       case Some(lastIndexCached) if indexOfStop <= lastIndexCached => OptionT.liftF(Future.successful(())) //disregard
-      case _ => {
-        val updateRecord = updateStop()
-        val sendToWebSockets = sendToWebSocketHandler(toTransmissionData(sourceLine))
+      case _ =>
         for {
-          _ <- updateRecord
-          _ <- sendToWebSockets
+          _ <- updateTimeDifferenceForStop().orElse(OptionT.liftF(Future.successful()))
+          avg <- OptionT.liftF(getAverageTimeToNextStop)
+          _ <- sendToWebSocketHandler(toTransmissionData(sourceLine, avg.map(_.toInt)))
         } yield ()
-      }
     }
+
+
   }
 }

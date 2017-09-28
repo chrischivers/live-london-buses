@@ -1,5 +1,7 @@
 package lbt
 
+import java.util.concurrent.TimeUnit
+
 import com.typesafe.config.ConfigFactory
 import lbt.ConfigLoader.defaultConfigFactory
 
@@ -24,12 +26,15 @@ case class RedisConfig(host: String, port: Int, dbIndex: Int, durationRecordTTL:
 
 case class SourceLineHandlerConfig(cacheTtl: Duration, minimumTimeDifferenceToPersist: Duration)
 
+case class WebsocketConfig(clientSendInterval: FiniteDuration)
+
 case class LBTConfig(
                       dataSourceConfig: DataSourceConfig,
                       postgresDbConfig: PostgresDBConfig,
                       redisDBConfig: RedisConfig,
                       definitionsConfig: DefinitionsConfig,
-                      sourceLineHandlerConfig: SourceLineHandlerConfig)
+                      sourceLineHandlerConfig: SourceLineHandlerConfig,
+                      websocketConfig: WebsocketConfig)
 
 object ConfigLoader {
 
@@ -82,6 +87,9 @@ object ConfigLoader {
       SourceLineHandlerConfig(
         defaultConfigFactory.getDuration(sourceLineHandlerParamsPrefix + "cache-ttl"),
         defaultConfigFactory.getDuration(sourceLineHandlerParamsPrefix + "minimum-time-difference")
+      ),
+      WebsocketConfig(
+        FiniteDuration(defaultConfigFactory.getDuration("websockets.clientSendInterval").toMillis, TimeUnit.MILLISECONDS),
       )
     )
 

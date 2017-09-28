@@ -66,14 +66,17 @@ object SourceLine extends StrictLogging {
       else invalid(NEL.of("Event is in the past"))
     }
 
-//    def isTooFarInFuture() = ???
+    def isTooFarInFuture(): ValidatedNel[String, String]  = {
+      if (sourceLine.arrival_TimeStamp - System.currentTimeMillis() < 45000) valid("Event is not too far in future") //todo put in config
+      else invalid(NEL.of("Event is too far in the future"))
+    }
 
 
-    (validRoute(), validStop(), notOnIgnoreList(),isInPast()) match {
-      case (Valid(_), Valid(_), Valid(_), Valid(_)) => true
-      case _ =>
+    (validRoute(), validStop(), notOnIgnoreList(),isInPast(), isTooFarInFuture()) match {
+      case (Valid(_), Valid(_), Valid(_), Valid(_), Valid(_)) => true
+      case result =>
         //TODO do this properly once Cats mapN is working
-        logger.debug(s"Unable to validate sourceLine $sourceLine, errors: To be implemented")
+        logger.debug(s"Unable to validate sourceLine $sourceLine, errors: To be implemented: $result")
         false
     }
   }
