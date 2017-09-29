@@ -1,6 +1,6 @@
 package lbt.streaming
 
-import lbt.ConfigLoader
+import lbt.{ConfigLoader, SharedTestFeatures}
 import lbt.common.Definitions
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.BusRoute
@@ -12,7 +12,7 @@ import org.scalatest.{BeforeAndAfterAll, OptionValues, fixture}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class SourceLineTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll {
+class SourceLineTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll {
 
 
   val config = ConfigLoader.defaultConfig
@@ -80,15 +80,4 @@ class SourceLineTest extends fixture.FunSuite with ScalaFutures with OptionValue
     SourceLine.validate(sourceLineInvalidStop, f.definitions) shouldBe false
   }
 
-
-  def generateSourceLine(
-          route: String = "25",
-          direction: Int = 1,
-          stopId: String = "490007497E",
-          destination: String = "Ilford",
-          vehicleId: String = "BJ11DUV",
-          timeStamp: Long = System.currentTimeMillis() + 30000) =
-  {
-    SourceLine(route, direction, stopId, destination, vehicleId, timeStamp)
-  }
 }

@@ -46,8 +46,6 @@ class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig, routeDefinit
 
   def getPolyLineFor(fromStop: BusStop, toStop: BusStop): Option[BusPolyLine] = {
 
-    //TODO throttle requests
-
     val decimalFormatter = new DecimalFormat()
     decimalFormatter.setMaximumFractionDigits(Integer.MAX_VALUE)
     decimalFormatter.setMinimumFractionDigits(1)

@@ -10,7 +10,7 @@ import lbt.models.{BusRoute, BusStop}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class BusPositionDataForTransmission(vehicleId: String, busRoute: BusRoute, busStop: BusStop, arrivalTimestamp: Long, nextStopName: String, avgTimeToNextStop: Option[Int])
+case class BusPositionDataForTransmission(vehicleId: String, busRoute: BusRoute, busStop: BusStop, arrivalTimestamp: Long, nextStopName: Option[String], avgTimeToNextStop: Option[Int])
 
 class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: RedisSubscriberCache)(implicit val executionContext: ExecutionContext, val actorSystem: ActorSystem) extends RedisClient {
 

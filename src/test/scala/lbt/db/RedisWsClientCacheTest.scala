@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser._
-import lbt.{ConfigLoader, LBTConfig}
+import lbt.{ConfigLoader, LBTConfig, SharedTestFeatures}
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
 import lbt.models.{BusRoute, BusStop}
 import org.scalatest.Matchers._
@@ -18,7 +18,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
 
-class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with OptionValues with EitherValues {
+class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with EitherValues {
 
   val config: LBTConfig = ConfigLoader.defaultConfig
 
@@ -57,7 +57,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData3).futureValue
 
     val results = f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue
-    val parsedResults: List[BusPositionDataForTransmission] = parseWebsocketCacheResult(results)
+    val parsedResults: List[BusPositionDataForTransmission] = parseWebsocketCacheResult(results).value
     parsedResults should have size 3
     parsedResults.head shouldBe busPosData3
     parsedResults(1)  shouldBe busPosData1
@@ -73,13 +73,13 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData2).futureValue
 
     val results = f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue
-    val parsedResults: List[BusPositionDataForTransmission] = parseWebsocketCacheResult(results)
+    val parsedResults: List[BusPositionDataForTransmission] = parseWebsocketCacheResult(results).value
     parsedResults should have size 2
     parsedResults.head shouldBe busPosData2
     parsedResults(1) shouldBe busPosData1
 
     val resultsAgain = f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue
-    parseWebsocketCacheResult(resultsAgain) should have size 0
+    parseWebsocketCacheResult(resultsAgain).value should have size 0
   }
 
   test("When no vehicle activity in Redis for uuid, an empty result set is retrieved)") { f =>
@@ -87,7 +87,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     val uuid = UUID.randomUUID().toString
 
     val results = f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue
-    parseWebsocketCacheResult(results) should have size 0
+    parseWebsocketCacheResult(results).value should have size 0
   }
 
   test("Results coming back from Redis for uuid are limited to 100 per request") { f =>
@@ -98,9 +98,9 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     }).futureValue
 
 
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue) should have size 100
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue) should have size 1
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue) should have size 0
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue).value should have size 100
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue).value should have size 1
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue).value should have size 0
   }
 
 
@@ -113,7 +113,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     f.redisWSClientCache.storeVehicleActivity(uuid, busPos1).futureValue
     f.redisWSClientCache.storeVehicleActivity(uuid, busPos2).futureValue
     Thread.sleep(5500)
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue) should have size 0
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue).value should have size 0
   }
 
   test("Vehicle activity for a uuid in Redis expires if no get requests received in in TTL period") { f =>
@@ -126,22 +126,6 @@ class RedisWsClientCacheTest extends fixture.FunSuite with ScalaFutures with Opt
     Thread.sleep(3000)
     f.redisWSClientCache.storeVehicleActivity(uuid, busPos2).futureValue
     Thread.sleep(3000)
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue) should have size 0
-  }
-
-  private def createBusPositionData(vehicleId: String = Random.nextString(10),
-                                    busRoute: BusRoute = BusRoute("3", "outbound"),
-                                    busStop: BusStop = BusStop("490003059E", "Abingdon Street", 51.49759, -0.125605),
-                                    nextStopName: String = "NextStop",
-                                    arrivalTimeStamp: Long = System.currentTimeMillis(),
-                                    durationToNextStopOpt: Option[Int] = Some(100)) = {
-    BusPositionDataForTransmission(vehicleId, busRoute, busStop, arrivalTimeStamp, nextStopName, durationToNextStopOpt)
-  }
-
-  private def parseWebsocketCacheResult(str: String): List[BusPositionDataForTransmission] = {
-    implicit val busRouteDecoder: Decoder[BusRoute] = deriveDecoder[BusRoute]
-    implicit val busStopDecoder: Decoder[BusStop] = deriveDecoder[BusStop]
-    implicit val busPosDataDecoder: Decoder[BusPositionDataForTransmission] = deriveDecoder[BusPositionDataForTransmission]
-    parse(str).right.value.as[List[BusPositionDataForTransmission]].right.value
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue).value should have size 0
   }
 }

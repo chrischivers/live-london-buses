@@ -24,8 +24,9 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
     val stopList = definitions.routeDefinitions.getOrElse(busRoute, throw new RuntimeException(s"Unable to find route $busRoute in definitions after validation passed"))
     val indexOfStop = stopList.find(_._2.stopID == sourceLine.stopID).map(_._1).getOrElse(throw new RuntimeException(s"Unable to find stopID ${sourceLine.stopID} in stop list for route $busRoute"))
-    val stop: (Int, BusStop, Option[BusPolyLine]) = stopList(indexOfStop)
-    val lastStop: Boolean = indexOfStop == stopList.size - 1
+    val thisStop: (Int, BusStop, Option[BusPolyLine]) = stopList(indexOfStop)
+    val isLastStop: Boolean = indexOfStop == stopList.size - 1
+    val nextStopOpt = if (isLastStop) None else Some(stopList(indexOfStop + 1))
 
     def updateTimeDifferenceForStop(): OptionT[Future, Unit] = {
       logger.debug(s"Updating stop cache for $sourceLine")
@@ -51,11 +52,17 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
     }
 
     def toTransmissionData(sourceLine: SourceLine, averageTimeToNextStopOpt: Option[Int]): BusPositionDataForTransmission = {
-      BusPositionDataForTransmission(sourceLine.vehicleID, busRoute, stop._2, sourceLine.arrival_TimeStamp, "placeholder", averageTimeToNextStopOpt) //todo change placeholder
+      BusPositionDataForTransmission(
+        sourceLine.vehicleID,
+        busRoute,
+        thisStop._2,
+        sourceLine.arrival_TimeStamp,
+        nextStopOpt.map(_._2.stopName),
+        averageTimeToNextStopOpt)
     }
 
     def getAverageTimeToNextStop: Future[Option[Double]] = {
-      if (!lastStop) redisDurationRecorder.getStopToStopAverageTime(busRoute, indexOfStop, indexOfStop + 1).map(Some(_))
+      if (!isLastStop) redisDurationRecorder.getStopToStopAverageTime(busRoute, indexOfStop, indexOfStop + 1).map(Some(_))
       //TODO handle empty list coming back (i.e. no duration data in db)
       else Future.successful(None)
     }

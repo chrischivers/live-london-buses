@@ -12,7 +12,7 @@ import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.{BusRoute, BusStop, LatLng, LatLngBounds}
 import lbt.scripts.BusRouteDefinitionsUpdater
 import lbt.web.{FilteringParams, WebSocketClientHandler}
-import lbt.{ConfigLoader, LBTConfig}
+import lbt.{ConfigLoader, LBTConfig, SharedTestFeatures}
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues, fixture}
@@ -22,7 +22,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scalacache.guava.GuavaCache
 import scalacache.{NoSerialization, ScalaCache, _}
 
-class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with OptionValues with EitherValues with BeforeAndAfterAll {
+class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with EitherValues with BeforeAndAfterAll {
 
   val config: LBTConfig = ConfigLoader.defaultConfig
   val configWithShortTtl: LBTConfig = config.copy(sourceLineHandlerConfig = config.sourceLineHandlerConfig.copy(cacheTtl = 5 seconds))
@@ -94,7 +94,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
     f.sourceLineHandler.handle(sourceLine).value.futureValue
 
-    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue)
+    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue).value
     dataForTransmission should have size 1
     dataForTransmission.head.vehicleId shouldBe sourceLine.vehicleID
     dataForTransmission.head.busRoute shouldBe busRoute
@@ -102,7 +102,6 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     dataForTransmission.head.busStop shouldBe definitions.routeDefinitions.get(busRoute).value.find(_._2.stopID == sourceLine.stopID).value._2
     dataForTransmission.head.avgTimeToNextStop.value shouldBe 0
     //TODO test for additional data (next stop name etc)
-
   }
 
   test("Source Lines are persisted to websocket cache and average is obtained") { f =>
@@ -127,14 +126,32 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     f.sourceLineHandler.handle(sourceLine4).value.futureValue
     f.sourceLineHandler.handle(sourceLine5).value.futureValue
 
-    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue)
+    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue).value
     dataForTransmission should have size 5
-    println(dataForTransmission)
     dataForTransmission(0).avgTimeToNextStop.value shouldBe 0
     dataForTransmission(1).avgTimeToNextStop.value shouldBe 0
     dataForTransmission(2).avgTimeToNextStop.value shouldBe 60
     dataForTransmission(3).avgTimeToNextStop.value shouldBe 0
     dataForTransmission(4).avgTimeToNextStop.value shouldBe 50
+  }
+
+  test("Where the stop is the last one, the 'time to next stop' and 'next stop name' field are null in the json") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    val params = FilteringParams(List(BusRoute("25", "outbound")),LatLngBounds(LatLng(51,52), LatLng(52,53)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
+
+    val busRoute = BusRoute("25", "outbound")
+    val fromStop = definitions.routeDefinitions(busRoute).last._2
+    val fromTimestamp = System.currentTimeMillis() + 10000
+    val sourceLine = generateSourceLine(vehicleId = "VEHICLEREG1", timeStamp = fromTimestamp, stopId = fromStop.stopID)
+    f.sourceLineHandler.handle(sourceLine).value.futureValue
+
+    val json = f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue
+    parseWebsocketCacheResult(json).value should have size 1
+    println(json)
+    val jsoncursor = parse(json).right.value.hcursor
+//    jsoncursor.downField("avgTimeToNextStop").get[Int] shouldBe null
   }
 
   test("Source Line handled is not persisted to websocket cache (when user not subscribed") { f =>
@@ -146,7 +163,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
     f.sourceLineHandler.handle(sourceLine).value.futureValue
 
-    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue)
+    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue).value
     dataForTransmission should have size 0
   }
 
@@ -358,17 +375,6 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     recordFromRedis(1) shouldBe ((timestamp2 - timestamp1) / 1000)
   }
 
-
-  def generateSourceLine(
-                          route: String = "25",
-                          direction: Int = 1,
-                          stopId: String = "490007497E",
-                          destination: String = "Ilford",
-                          vehicleId: String = "BJ11DUV",
-                          timeStamp: Long = System.currentTimeMillis() + 30000) = {
-    SourceLine(route, direction, stopId, destination, vehicleId, timeStamp)
-  }
-
   def getArrivalTimestampFromCache(sourceLine: SourceLine, cache: ScalaCache[NoSerialization]): Future[Option[Long]] = {
     implicit val c: ScalaCache[NoSerialization] = cache
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
@@ -381,11 +387,6 @@ class SourceLineHandlerTest extends fixture.FunSuite with ScalaFutures with Opti
     implicit val c: ScalaCache[NoSerialization] = cache
     get[Int, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction)
   }
-  private def parseWebsocketCacheResult(str: String): List[BusPositionDataForTransmission] = {
-    implicit val busRouteDecoder: Decoder[BusRoute] = deriveDecoder[BusRoute]
-    implicit val busStopDecoder: Decoder[BusStop] = deriveDecoder[BusStop]
-    implicit val busPosDataDecoder: Decoder[BusPositionDataForTransmission] = deriveDecoder[BusPositionDataForTransmission]
-    parse(str).right.value.as[List[BusPositionDataForTransmission]].right.value
-  }
+
 
 }

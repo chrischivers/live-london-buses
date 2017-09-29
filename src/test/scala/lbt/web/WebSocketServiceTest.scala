@@ -18,7 +18,7 @@ import lbt.db.caching.{BusPositionDataForTransmission, RedisDurationRecorder, Re
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.models.{BusRoute, BusStop, LatLng, LatLngBounds}
 import lbt.scripts.BusRouteDefinitionsUpdater
-import lbt.{ConfigLoader, LBTConfig}
+import lbt.{ConfigLoader, LBTConfig, SharedTestFeatures}
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.blaze.BlazeBuilder
 import org.http4s.util.StreamApp
@@ -37,7 +37,7 @@ import lbt.streaming.{SourceLine, SourceLineHandler}
 import scalacache.ScalaCache
 import scalacache.guava.GuavaCache
 
-class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with OptionValues with BeforeAndAfterAll with EitherValues with StrictLogging with Eventually {
+class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll with EitherValues with StrictLogging with Eventually {
 
   implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
@@ -204,41 +204,6 @@ class WebSocketServiceTest extends fixture.FunSuite with ScalaFutures with Optio
     }
 
     websocketClient.shutdownSync()
-  }
-
-
-  private def createBusPositionData(vehicleId: String = Random.nextString(10),
-                                    busRoute: BusRoute = BusRoute("3", "outbound"),
-                                    busStop: BusStop = BusStop("490003059E", "Abingdon Street", 51.49759, -0.125605),
-                                    nextStopName: String = "NextStop",
-                                    arrivalTimeStamp: Long = System.currentTimeMillis(),
-                                    durationToNextStopOpt: Option[Int] = Some(100)) = {
-    BusPositionDataForTransmission(vehicleId, busRoute, busStop, arrivalTimeStamp, nextStopName, durationToNextStopOpt)
-  }
-
-  private def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),
-                                    latLngBounds: LatLngBounds = LatLngBounds(LatLng(51,52), LatLng(52,53))) = {
-    FilteringParams(busRoutes, latLngBounds)
-  }
-
-  private def parsePacketsReceived(msgs: ListBuffer[String]): List[BusPositionDataForTransmission] = {
-    msgs.flatMap { msg =>
-      parse(msg).right.value.as[List[BusPositionDataForTransmission]].right.value
-    }.toList
-  }
-
-  private def createJsonStringFromFilteringParams(filteringParams: FilteringParams): String = {
-    filteringParams.asJson.noSpaces
-  }
-
-  private def generateSourceLine(
-                          route: String = "25",
-                          direction: Int = 1,
-                          stopId: String = "490007497E",
-                          destination: String = "Ilford",
-                          vehicleId: String = "BJ11DUV",
-                          timeStamp: Long = System.currentTimeMillis() + 30000) = {
-    SourceLine(route, direction, stopId, destination, vehicleId, timeStamp)
   }
 
 }

@@ -3,7 +3,7 @@ package lbt.db
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import lbt.{ConfigLoader, LBTConfig}
+import lbt.{ConfigLoader, LBTConfig, SharedTestFeatures}
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
 import lbt.models.{BusRoute, BusStop, LatLng, LatLngBounds}
 import lbt.web.FilteringParams
@@ -15,7 +15,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Random
 
-class RedisSubscriberCacheTest extends fixture.FunSuite with ScalaFutures with OptionValues with EitherValues {
+class RedisSubscriberCacheTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with EitherValues {
 
   val config: LBTConfig = ConfigLoader.defaultConfig
 
@@ -108,19 +108,5 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with ScalaFutures with O
     Thread.sleep(6000)
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)
-  }
-
-  private def createBusPositionData(vehicleId: String = Random.nextString(10),
-                                    busRoute: BusRoute = BusRoute("3", "outbound"),
-                                    busStop: BusStop = BusStop("490003059E", "Abingdon Street", 51.49759, -0.125605),
-                                    nextStopName: String = "NextStop",
-                                    arrivalTimeStamp: Long = System.currentTimeMillis(),
-                                    durationToNextStopOpt: Option[Int] = Some(100)) = {
-    BusPositionDataForTransmission(vehicleId, busRoute, busStop, arrivalTimeStamp, nextStopName, durationToNextStopOpt)
-  }
-
-  private def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),
-                                 latLngBounds: LatLngBounds = LatLngBounds(LatLng(51,52), LatLng(52,53))) = {
-    FilteringParams(busRoutes, latLngBounds)
   }
 }
