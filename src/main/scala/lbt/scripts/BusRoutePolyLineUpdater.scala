@@ -3,10 +3,9 @@ package lbt.scripts
 import java.text.DecimalFormat
 
 import com.typesafe.scalalogging.StrictLogging
-import lbt.common.Commons.BusPolyLine
 import lbt.common.Definitions
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.models.BusStop
+import lbt.models.{BusPolyLine, BusStop}
 import lbt.{ConfigLoader, DefinitionsConfig}
 import org.joda.time.DateTime
 
@@ -55,8 +54,8 @@ class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig, routeDefinit
     val apiKey = Random.shuffle(definitionsConfig.directionsApiKeys).head
 
     val polyLineUrl = s"https://maps.googleapis.com/maps/api/directions/xml?" +
-      s"origin=${decimalFormatter.format(fromStop.latitude)},${decimalFormatter.format(fromStop.longitude)}" +
-      s"&destination=${decimalFormatter.format(toStop.latitude)},${decimalFormatter.format(toStop.longitude)}" +
+      s"origin=${decimalFormatter.format(fromStop.latLng.lat)},${decimalFormatter.format(fromStop.latLng.lng)}" +
+      s"&destination=${decimalFormatter.format(toStop.latLng.lat)},${decimalFormatter.format(toStop.latLng.lng)}" +
       s"&key=$apiKey" +
       s"&mode=transit" +
       s"&transit_mode=bus" +
@@ -69,7 +68,7 @@ class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig, routeDefinit
     (xml \\ "DirectionsResponse" \ "status").text match {
       case "OK" =>
         val polyLine = (xml \\ "DirectionsResponse" \\ "route" \\ "overview_polyline" \ "points").text
-        if (polyLine.length > 0) Some(polyLine) else None
+        if (polyLine.length > 0) Some(BusPolyLine(polyLine)) else None
       case "OVER_QUERY_LIMIT" =>
         Thread.sleep(5000)
         getPolyLineFor(fromStop, toStop)

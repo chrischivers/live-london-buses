@@ -3,18 +3,16 @@ package lbt.streaming
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import io.circe.Decoder
-import io.circe.generic.semiauto.deriveDecoder
 import io.circe.parser.parse
 import lbt.common.{Commons, Definitions}
-import lbt.db.caching.{BusPositionDataForTransmission, RedisDurationRecorder, RedisSubscriberCache, RedisWsClientCache}
+import lbt.db.caching.{RedisDurationRecorder, RedisSubscriberCache, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.models.{BusRoute, BusStop, LatLng, LatLngBounds}
+import lbt.models.{BusPolyLine, BusRoute, LatLng, LatLngBounds}
 import lbt.scripts.BusRouteDefinitionsUpdater
 import lbt.web.{FilteringParams, WebSocketClientHandler}
 import lbt.{ConfigLoader, LBTConfig, SharedTestFeatures}
 import org.scalatest.Matchers._
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues, fixture}
 
 import scala.concurrent.duration._
@@ -38,6 +36,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(tableName = "lbttest"), createNewTable = true)
   val updater = new BusRouteDefinitionsUpdater(configWithShortTtl.definitionsConfig, routeDefinitionsTable)
   updater.start(limitUpdateTo = Some(List(BusRoute("25", "outbound")))).futureValue
+  routeDefinitionsTable.updatePolyLine(BusRoute("25", "outbound"), 45, BusPolyLine("kxryHsfEeCe\\")).futureValue
   val definitions = new Definitions(routeDefinitionsTable)
 
   override protected def afterAll(): Unit = {
@@ -101,7 +100,13 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     dataForTransmission.head.arrivalTimestamp shouldBe timestamp
     dataForTransmission.head.busStop shouldBe definitions.routeDefinitions.get(busRoute).value.find(_._2.stopID == sourceLine.stopID).value._2
     dataForTransmission.head.avgTimeToNextStop.value shouldBe 0
-    //TODO test for additional data (next stop name etc)
+    dataForTransmission.head.nextStopName.value shouldBe "Katherine Road"
+
+    val movementInstructions = dataForTransmission.head.movementInstructionsToNext.value
+    movementInstructions should have size 1
+    movementInstructions.head.proportionalDistance shouldBe 1
+    movementInstructions.head.from shouldBe LatLng(51.54710000000001,0.03194)
+    movementInstructions.head.to shouldBe LatLng(51.54777000000001, 0.036610000000000004)
   }
 
   test("Source Lines are persisted to websocket cache and average is obtained") { f =>
@@ -151,7 +156,8 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     parseWebsocketCacheResult(json).value should have size 1
     println(json)
     val jsoncursor = parse(json).right.value.hcursor
-//    jsoncursor.downField("avgTimeToNextStop").get[Int] shouldBe null
+    jsoncursor.downField("avgTimeToNextStop").values should not be defined
+    jsoncursor.downField("nextStopName").values should not be defined
   }
 
   test("Source Line handled is not persisted to websocket cache (when user not subscribed") { f =>

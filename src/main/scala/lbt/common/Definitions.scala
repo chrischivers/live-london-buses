@@ -1,9 +1,8 @@
 package lbt.common
 
 import com.typesafe.scalalogging.StrictLogging
-import lbt.common.Commons.BusPolyLine
 import lbt.db.sql.RouteDefinitionsTable
-import lbt.models.{BusRoute, BusStop}
+import lbt.models.{BusPolyLine, BusRoute, BusStop}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

@@ -25,7 +25,6 @@ import org.http4s.util.StreamApp
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest._
-
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -43,9 +42,6 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
 
   val config: LBTConfig = ConfigLoader.defaultConfig
   val portIncrementer = new AtomicInteger(8000)
-
-  implicit val busRouteDecoder: Decoder[BusRoute] = deriveDecoder[BusRoute]
-  implicit val busPosDataDecoder: Decoder[BusPositionDataForTransmission] = deriveDecoder[BusPositionDataForTransmission]
 
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(
     timeout = scaled(15 seconds),

@@ -2,7 +2,7 @@ package lbt.common
 
 import io.circe.generic.semiauto._
 import io.circe.{Decoder, HCursor}
-import lbt.models.BusStop
+import lbt.models.{BusStop, LatLng}
 
 object JsonCodecs {
 
@@ -32,7 +32,7 @@ object JsonCodecs {
         lat <- c.downField("lat").as[Double]
         lng <- c.downField("lon").as[Double]
       } yield {
-        BusStop(id, name, lat, lng)
+        BusStop(id, name, LatLng(lat, lng))
       }
   }
 

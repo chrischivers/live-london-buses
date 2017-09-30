@@ -1,10 +1,9 @@
 package lbt.common
 
+import lbt.models.LatLng
 import org.joda.time.DateTime
 
 object Commons {
-
-  type BusPolyLine = String
 
   def toDirection(directionInt: Int): String = {
     directionInt match {

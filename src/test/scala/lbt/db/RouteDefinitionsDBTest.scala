@@ -2,7 +2,7 @@ package lbt.db
 
 import lbt.ConfigLoader
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.models.{BusRoute, BusStop}
+import lbt.models.{BusPolyLine, BusRoute, BusStop, LatLng}
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{OptionValues, fixture}
@@ -39,9 +39,9 @@ class RouteDefinitionsDBTest extends fixture.FunSuite with ScalaFutures with Opt
   test("Routes persisted to DB should match those retrieved for a given route") { f =>
 
     val busRoute = BusRoute("3", "outbound")
-    val busStop1 = BusStop("Id1", "Name1", 51, 41)
-    val busStop2 = BusStop("Id2", "Name2", 52, 42)
-    val busStop3 = BusStop("Id3", "Name3", 53, 43)
+    val busStop1 = BusStop("Id1", "Name1", LatLng(51, 41))
+    val busStop2 = BusStop("Id2", "Name2", LatLng(52, 42))
+    val busStop3 = BusStop("Id3", "Name3", LatLng(53, 43))
 
     f.definitionsTable.insertRouteDefinitions(busRoute, List(busStop1, busStop2, busStop3).zipWithIndex).futureValue
 
@@ -55,7 +55,7 @@ class RouteDefinitionsDBTest extends fixture.FunSuite with ScalaFutures with Opt
   test("Error is thrown if attempt is made to insert route that already exists") { f =>
 
     val busRoute = BusRoute("3", "outbound")
-    val busStop1 = BusStop("Id1", "Name1", 51, 41)
+    val busStop1 = BusStop("Id1", "Name1", LatLng(51, 41))
 
     f.definitionsTable.insertRouteDefinitions(busRoute, List(busStop1).zipWithIndex).futureValue
 
@@ -67,13 +67,13 @@ class RouteDefinitionsDBTest extends fixture.FunSuite with ScalaFutures with Opt
   test("Routes persisted to DB should match those retrieved when all definitions are retrieved") { f =>
 
     val busRouteA = BusRoute("3", "outbound")
-    val busStop1 = BusStop("Id1", "Name1", 51, 41)
-    val busStop2 = BusStop("Id2", "Name2", 52, 42)
-    val busStop3 = BusStop("Id3", "Name3", 53, 43)
+    val busStop1 = BusStop("Id1", "Name1", LatLng(51, 41))
+    val busStop2 = BusStop("Id2", "Name2", LatLng(52, 42))
+    val busStop3 = BusStop("Id3", "Name3", LatLng(53, 43))
 
     val busRouteB = BusRoute("4", "inbound")
-    val busStop4 = BusStop("Id4", "Name4", 54, 44)
-    val busStop5 = BusStop("Id5", "Name5", 55, 45)
+    val busStop4 = BusStop("Id4", "Name4", LatLng(54, 44))
+    val busStop5 = BusStop("Id5", "Name5", LatLng(55, 45))
 
     f.definitionsTable.insertRouteDefinitions(busRouteA, List(busStop1, busStop2, busStop3).zipWithIndex).futureValue
     f.definitionsTable.insertRouteDefinitions(busRouteB, List(busStop4, busStop5).zipWithIndex).futureValue
@@ -97,9 +97,9 @@ class RouteDefinitionsDBTest extends fixture.FunSuite with ScalaFutures with Opt
   test("Polylines can be updated to existing records in the DB") { f =>
 
     val busRoute = BusRoute("3", "outbound")
-    val busStop1 = BusStop("Id1", "Name1", 51.5076, -0.129804)
-    val busStop2 = BusStop("Id2", "Name2", 51.5065, -0.127142)
-    val polyLine =  "TESTPOLYLINE"
+    val busStop1 = BusStop("Id1", "Name1", LatLng(51.5076, -0.129804))
+    val busStop2 = BusStop("Id2", "Name2", LatLng(51.5065, -0.127142))
+    val polyLine =  BusPolyLine("TESTPOLYLINE")
 
     f.definitionsTable.insertRouteDefinitions(busRoute, List(busStop1, busStop2).zipWithIndex).futureValue
 
@@ -109,6 +109,20 @@ class RouteDefinitionsDBTest extends fixture.FunSuite with ScalaFutures with Opt
     returnedRecords should have size 2
     returnedRecords.head._3 shouldBe Some(polyLine)
     returnedRecords(1)._3 shouldBe None
+
+  }
+
+  test("LatLng values persisted to the DB should be retrieved with matching precision") { f =>
+
+    val busRoute = BusRoute("3", "outbound")
+    val latLng = LatLng(51.5076, -0.129804)
+    val busStop = BusStop("Id1", "Name1", latLng)
+
+    f.definitionsTable.insertRouteDefinitions(busRoute, List(busStop).zipWithIndex).futureValue
+
+    val returnedRecords = f.definitionsTable.getStopSequenceFor(busRoute).futureValue
+    returnedRecords should have size 1
+    returnedRecords.head._2.latLng shouldBe latLng
 
   }
 }

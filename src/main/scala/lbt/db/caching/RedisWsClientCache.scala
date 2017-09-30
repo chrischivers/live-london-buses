@@ -6,11 +6,11 @@ import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
 import lbt.RedisConfig
-import lbt.models.{BusRoute, BusStop}
+import lbt.models.{BusRoute, BusStop, LatLng, MovementInstruction}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class BusPositionDataForTransmission(vehicleId: String, busRoute: BusRoute, busStop: BusStop, arrivalTimestamp: Long, nextStopName: Option[String], avgTimeToNextStop: Option[Int])
+case class BusPositionDataForTransmission(vehicleId: String, busRoute: BusRoute, busStop: BusStop, arrivalTimestamp: Long, nextStopName: Option[String], avgTimeToNextStop: Option[Int], movementInstructionsToNext: Option[List[MovementInstruction]])
 
 class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: RedisSubscriberCache)(implicit val executionContext: ExecutionContext, val actorSystem: ActorSystem) extends RedisClient {
 

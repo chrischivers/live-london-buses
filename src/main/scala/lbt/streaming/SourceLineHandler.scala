@@ -4,10 +4,9 @@ import cats.data.OptionT
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import lbt.SourceLineHandlerConfig
-import lbt.common.Commons.BusPolyLine
 import lbt.common.{Commons, Definitions}
 import lbt.db.caching.{BusPositionDataForTransmission, RedisDurationRecorder}
-import lbt.models.{BusRoute, BusStop}
+import lbt.models.{BusPolyLine, BusRoute, BusStop, LatLng}
 import lbt.web.WebSocketClientHandler
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -23,16 +22,16 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
 
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
     val stopList = definitions.routeDefinitions.getOrElse(busRoute, throw new RuntimeException(s"Unable to find route $busRoute in definitions after validation passed"))
-    val indexOfStop = stopList.find(_._2.stopID == sourceLine.stopID).map(_._1).getOrElse(throw new RuntimeException(s"Unable to find stopID ${sourceLine.stopID} in stop list for route $busRoute"))
-    val thisStop: (Int, BusStop, Option[BusPolyLine]) = stopList(indexOfStop)
-    val isLastStop: Boolean = indexOfStop == stopList.size - 1
-    val nextStopOpt = if (isLastStop) None else Some(stopList(indexOfStop + 1))
+    val indexOfThisStop = stopList.find(_._2.stopID == sourceLine.stopID).map(_._1).getOrElse(throw new RuntimeException(s"Unable to find stopID ${sourceLine.stopID} in stop list for route $busRoute"))
+    val thisStop: (Int, BusStop, Option[BusPolyLine]) = stopList(indexOfThisStop)
+    val isLastStop: Boolean = indexOfThisStop == stopList.size - 1
+    val nextStopOpt = if (isLastStop) None else Some(stopList(indexOfThisStop + 1))
 
     def updateTimeDifferenceForStop(): OptionT[Future, Unit] = {
       logger.debug(s"Updating stop cache for $sourceLine")
       for {
-        _ <- OptionT.liftF(put(sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfStop)(sourceLine.arrival_TimeStamp, ttl = Some(config.cacheTtl)))
-        previousStopTime <- OptionT(get[ArrivalTimestamp, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfStop - 1))
+        _ <- OptionT.liftF(put(sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfThisStop)(sourceLine.arrival_TimeStamp, ttl = Some(config.cacheTtl)))
+        previousStopTime <- OptionT(get[ArrivalTimestamp, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfThisStop - 1))
         timeDiff = sourceLine.arrival_TimeStamp - previousStopTime
         _ <- if (timeDiff >= config.minimumTimeDifferenceToPersist.toMillis)  persistTimeDifference(previousStopTime, timeDiff)
             else OptionT.liftF(Future.successful(())) //ignored if time difference below threshold
@@ -41,9 +40,9 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
 
     def persistTimeDifference(previousStopArrivalTime: Long, timeDiff: Long) = {
       for {
-        _ <- OptionT.liftF(redisDurationRecorder.persistStopToStopTime(busRoute, indexOfStop - 1, indexOfStop, previousStopArrivalTime, (timeDiff / 1000).toInt))
-        _ <- OptionT.liftF(remove(sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfStop - 1))
-        _ <- OptionT.liftF(put(sourceLine.vehicleID, sourceLine.route, sourceLine.direction)(indexOfStop, ttl = Some(config.cacheTtl)))
+        _ <- OptionT.liftF(redisDurationRecorder.persistStopToStopTime(busRoute, indexOfThisStop - 1, indexOfThisStop, previousStopArrivalTime, (timeDiff / 1000).toInt))
+        _ <- OptionT.liftF(remove(sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfThisStop - 1))
+        _ <- OptionT.liftF(put(sourceLine.vehicleID, sourceLine.route, sourceLine.direction)(indexOfThisStop, ttl = Some(config.cacheTtl)))
       } yield ()
     }
 
@@ -58,17 +57,18 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
         thisStop._2,
         sourceLine.arrival_TimeStamp,
         nextStopOpt.map(_._2.stopName),
-        averageTimeToNextStopOpt)
+        averageTimeToNextStopOpt,
+        thisStop._3.map(_.toMovementInstructions))
     }
 
     def getAverageTimeToNextStop: Future[Option[Double]] = {
-      if (!isLastStop) redisDurationRecorder.getStopToStopAverageTime(busRoute, indexOfStop, indexOfStop + 1).map(Some(_))
+      if (!isLastStop) redisDurationRecorder.getStopToStopAverageTime(busRoute, indexOfThisStop, indexOfThisStop + 1).map(Some(_))
       //TODO handle empty list coming back (i.e. no duration data in db)
       else Future.successful(None)
     }
 
     OptionT.liftF(get[LastIndexPersisted, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction)).flatMap {
-      case Some(lastIndexCached) if indexOfStop <= lastIndexCached => OptionT.liftF(Future.successful(())) //disregard
+      case Some(lastIndexCached) if indexOfThisStop <= lastIndexCached => OptionT.liftF(Future.successful(())) //disregard
       case _ =>
         for {
           _ <- updateTimeDifferenceForStop().orElse(OptionT.liftF(Future.successful()))
