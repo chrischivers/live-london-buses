@@ -9,6 +9,10 @@ case class LatLng(lat: Double, lng: Double) {
   def angleTo(latLng: LatLng) = {
     LatLng.getAngleBetween(this, latLng)
   }
+
+  def truncate(decimalPrecision: Int = 6): LatLng = {
+    LatLng.truncateLatLng(this, decimalPrecision)
+  }
 }
 
 case class LatLngBounds(southwest: LatLng, northeast: LatLng) {
@@ -26,6 +30,12 @@ object LatLng {
   private def truncateAt(n: Double, p: Int): Double = {
     val s = math pow(10, p)
     (math floor n * s) / s
+  }
+
+  def truncateLatLng(latLng: LatLng, decimalPrecision: Int): LatLng = {
+    val truncatedLat = truncateAt(latLng.lat, decimalPrecision)
+    val truncatedLng = truncateAt(latLng.lng, decimalPrecision)
+    LatLng(truncatedLat, truncatedLng)
   }
 
   // This function was adapted from code at : http://stackoverflow.com/questions/1502590/calculate-distance-between-two-points-in-google-maps-v3

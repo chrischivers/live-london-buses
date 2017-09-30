@@ -82,10 +82,10 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     timeStampFromCache shouldBe timestamp
   }
 
-  test("Source Line handled is persisted to websocket cache (when user is subscribed") { f =>
+  test("Source Line handled is persisted to websocket cache (where user is subscribed to route and within bounds)") { f =>
 
     val uuid = UUID.randomUUID().toString
-    val params = FilteringParams(List(BusRoute("25", "outbound")),LatLngBounds(LatLng(51,52), LatLng(52,53)))
+    val params = FilteringParams(List(BusRoute("25", "outbound")), LatLngBounds(LatLng(51,0), LatLng(52,1)))
     f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
 
     val timestamp = System.currentTimeMillis() + 10000
@@ -105,14 +105,53 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     val movementInstructions = dataForTransmission.head.movementInstructionsToNext.value
     movementInstructions should have size 1
     movementInstructions.head.proportionalDistance shouldBe 1
-    movementInstructions.head.from shouldBe LatLng(51.54710000000001,0.03194)
-    movementInstructions.head.to shouldBe LatLng(51.54777000000001, 0.036610000000000004)
+    println(movementInstructions)
+    movementInstructions.head.from shouldBe LatLng(51.5471,0.03194)
+    movementInstructions.head.to shouldBe LatLng(51.54777,0.03661)
+  }
+
+  test("Source Line handled is NOT persisted to websocket cache (when user not subscribed to that route but within bounds)") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    val params = FilteringParams(List(BusRoute("100", "inbound")), LatLngBounds(LatLng(51,0), LatLng(52,1)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
+
+    val sourceLine = generateSourceLine(route = "25", direction = 1)
+    f.sourceLineHandler.handle(sourceLine).value.futureValue
+
+    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue).value
+    dataForTransmission should have size 0
+  }
+
+  test("Source Line handled is NOT persisted to websocket cache (when user is subscribed to that route but not within bounds)") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    val params = FilteringParams(List(BusRoute("25", "outbound")), LatLngBounds(LatLng(52,0), LatLng(53,1)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
+
+    val sourceLine = generateSourceLine(route = "25", direction = 1)
+    f.sourceLineHandler.handle(sourceLine).value.futureValue
+
+    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue).value
+    dataForTransmission should have size 0
+  }
+
+  test("Source Line handled is NOT persisted to websocket cache (when user is subscribed but filtering params are not yet defined)") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    f.redisSubscriberCache.subscribe(uuid, None).futureValue
+
+    val sourceLine = generateSourceLine(route = "25", direction = 1)
+    f.sourceLineHandler.handle(sourceLine).value.futureValue
+
+    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue).value
+    dataForTransmission should have size 0
   }
 
   test("Source Lines are persisted to websocket cache and average is obtained") { f =>
 
     val uuid = UUID.randomUUID().toString
-    val params = FilteringParams(List(BusRoute("25", "outbound")),LatLngBounds(LatLng(51,52), LatLng(52,53)))
+    val params = FilteringParams(List(BusRoute("25", "outbound")), LatLngBounds(LatLng(51,-1), LatLng(52,1)))
     f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
 
     val busRoute = BusRoute("25", "outbound")
@@ -143,7 +182,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
   test("Where the stop is the last one, the 'time to next stop' and 'next stop name' field are null in the json") { f =>
 
     val uuid = UUID.randomUUID().toString
-    val params = FilteringParams(List(BusRoute("25", "outbound")),LatLngBounds(LatLng(51,52), LatLng(52,53)))
+    val params = FilteringParams(List(BusRoute("25", "outbound")), LatLngBounds(LatLng(51,0), LatLng(52,1)))
     f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
 
     val busRoute = BusRoute("25", "outbound")
@@ -154,24 +193,12 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
 
     val json = f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue
     parseWebsocketCacheResult(json).value should have size 1
-    println(json)
     val jsoncursor = parse(json).right.value.hcursor
     jsoncursor.downField("avgTimeToNextStop").values should not be defined
     jsoncursor.downField("nextStopName").values should not be defined
   }
 
-  test("Source Line handled is not persisted to websocket cache (when user not subscribed") { f =>
 
-    val uuid = UUID.randomUUID().toString
-    f.redisSubscriberCache.subscribe(uuid, None).futureValue
-
-    val sourceLine = generateSourceLine()
-    val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
-    f.sourceLineHandler.handle(sourceLine).value.futureValue
-
-    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue).value
-    dataForTransmission should have size 0
-  }
 
   test("When another source line arrives for a record already in cache, cache is updated with the most recent") { f =>
     val timeStamp1 = System.currentTimeMillis() + 10000
@@ -393,6 +420,4 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     implicit val c: ScalaCache[NoSerialization] = cache
     get[Int, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction)
   }
-
-
 }

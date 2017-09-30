@@ -41,3 +41,5 @@ libraryDependencies ++= Seq(
 ).map(_ % Http4sVersion)
 
 lazy val root = (project in file(".")).enablePlugins(SbtTwirl)
+
+parallelExecution in Test := false

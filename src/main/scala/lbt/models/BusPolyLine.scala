@@ -9,6 +9,11 @@ case class BusPolyLine(encodedPolyLine: String) {
 
 object BusPolyLine {
 
+  private def truncateAt(n: Double, decimalPrecision: Int = 6): Double = {
+    val s = math pow(10, decimalPrecision)
+    (math floor n * s) / s
+  }
+
   /**
     * The code in this method was adapted from the Java Decode Method of Google's PolyUtil Class from Android Map Utils
     * https://github.com/googlemaps/android-maps-utils/blob/master/library/src/com/google/maps/android/PolyUtil.java
@@ -49,7 +54,7 @@ object BusPolyLine {
 
       lng += (if ((result & 1) != 0) ~(result >> 1) else result >> 1)
 
-      val x = LatLng(lat * 1e-5, lng * 1e-5)
+      val x = LatLng(lat * 1e-5, lng * 1e-5).truncate()
       latLngList = latLngList :+ x
     }
     latLngList
@@ -63,15 +68,14 @@ object BusPolyLine {
       remainingToDecode match {
         case Nil => accumulatedInstructions
         case x :: Nil => accumulatedInstructions
-        case from :: to :: tail => {
+        case from :: to :: tail =>
           val acc = accumulatedInstructions :+ (from, to, from.angleTo(to), from.distanceTo(to))
           helper(to :: tail, acc)
-        }
       }
     }
 
     val temporaryResults = helper(decodedPolyLine, List.empty)
     val sumOfAllDistances = temporaryResults.foldLeft(0.0)((acc, x) => acc + x._4)
-    temporaryResults.map(res => MovementInstruction(res._1, res._2, res._3, res._4 / sumOfAllDistances))
+    temporaryResults.map(res => MovementInstruction(res._1, res._2, res._3, truncateAt(res._4 / sumOfAllDistances)))
   }
 }

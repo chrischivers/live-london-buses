@@ -51,8 +51,8 @@ class GeographicalFeaturesTest extends FunSuite with Matchers {
 
   test("Returns list of movement instructions given a polyline consisting of three points") {
 
-    val latLng1 = LatLng(51.51055,-0.12113000000000002)
-    val latLng2 = LatLng(51.509530000000005,-0.12364000000000001)
+    val latLng1 = LatLng(51.51055,-0.121131)
+    val latLng2 = LatLng(51.50953,-0.123641)
     val latLng3 = LatLng(51.50849,-0.12561)
     val encodedPolyLine = BusPolyLine("}skyH`tVjEtNnEhK")
 
@@ -61,12 +61,12 @@ class GeographicalFeaturesTest extends FunSuite with Matchers {
     movementInstructions.head.from shouldBe latLng1
     movementInstructions.head.to shouldBe latLng2
     movementInstructions.head.angle shouldBe 56
-    movementInstructions.head.proportionalDistance shouldBe 0.5371250358192496
+    movementInstructions.head.proportionalDistance shouldBe 0.537198
 
     movementInstructions(1).from shouldBe latLng2
     movementInstructions(1).to shouldBe latLng3
     movementInstructions(1).angle shouldBe 49
-    movementInstructions(1).proportionalDistance shouldBe 0.4628749641807504
+    movementInstructions(1).proportionalDistance shouldBe 0.462801
   }
 
   test("Sum of proportional distances for polyline should be 1") {
