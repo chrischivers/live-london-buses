@@ -5,6 +5,7 @@ import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
 import lbt.db.caching.{RedisDurationRecorder, RedisSubscriberCache, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
+import lbt.metrics.MetricsLogging
 import lbt.streaming._
 import lbt.web.WebSocketClientHandler
 
@@ -36,8 +37,12 @@ object StreamingApp extends App with StrictLogging {
   streamingClient.start().map(_ => ())
 
   def processSourceLine(rawSourceLine: String): Unit = {
+    MetricsLogging.incrSourceLinesReceived
     SourceLine.fromRawLine(rawSourceLine).fold(throw new RuntimeException(s"Unable to parse raw source line: $rawSourceLine")) { line =>
-      if (line.validate(definitions)) sourceLineHandler.handle(line).value
+      if (line.validate(definitions)) {
+        MetricsLogging.incrSourceLinesValidated
+        sourceLineHandler.handle(line).value
+      }
     }
   }
 

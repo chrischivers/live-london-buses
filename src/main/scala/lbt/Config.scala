@@ -28,13 +28,16 @@ case class SourceLineHandlerConfig(cacheTtl: Duration, minimumTimeDifferenceToPe
 
 case class WebsocketConfig(clientSendInterval: FiniteDuration)
 
+case class MetricsConfig(host: String, port: Int, dbName: String, updateInterval: Int, enabled: Boolean)
+
 case class LBTConfig(
                       dataSourceConfig: DataSourceConfig,
                       postgresDbConfig: PostgresDBConfig,
                       redisDBConfig: RedisConfig,
                       definitionsConfig: DefinitionsConfig,
                       sourceLineHandlerConfig: SourceLineHandlerConfig,
-                      websocketConfig: WebsocketConfig)
+                      websocketConfig: WebsocketConfig,
+                      metricsConfig: MetricsConfig)
 
 object ConfigLoader {
 
@@ -90,7 +93,14 @@ object ConfigLoader {
       ),
       WebsocketConfig(
         FiniteDuration(defaultConfigFactory.getDuration("websockets.clientSendInterval").toMillis, TimeUnit.MILLISECONDS),
-      )
+      ),
+      MetricsConfig(
+        defaultConfigFactory.getString("metrics.host"),
+        defaultConfigFactory.getInt("metrics.port"),
+        defaultConfigFactory.getString("metrics.dbName"),
+        defaultConfigFactory.getInt("metrics.updateInterval"),
+        defaultConfigFactory.getBoolean("metrics.enabled")
+      ),
     )
 
   }

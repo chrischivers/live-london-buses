@@ -23,6 +23,8 @@ libraryDependencies += "com.typesafe.akka" % "akka-stream_2.12" % "2.5.4"
 libraryDependencies += "com.typesafe.akka" % "akka-actor_2.12" % "2.5.4"
 libraryDependencies += "com.typesafe.akka" % "akka-http_2.12" % "10.0.10"
 libraryDependencies += "com.github.andyglow" %% "websocket-scala-client" % "0.2.4" % Test
+libraryDependencies += "com.github.davidb" % "metrics-influxdb" % "0.9.3"
+libraryDependencies += "nl.grons" %% "metrics-scala" % "3.5.9_a2.4"
 
 
 

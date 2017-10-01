@@ -3,6 +3,7 @@ package lbt.db.caching
 import akka.actor.ActorSystem
 import akka.util.ByteString
 import lbt.RedisConfig
+import lbt.metrics.MetricsLogging
 import lbt.models.BusRoute
 import redis.ByteStringFormatter
 
@@ -22,6 +23,7 @@ class RedisDurationRecorder(val redisConfig: RedisConfig)(implicit val execution
       _ <- client.lpush[Int](key, duration)
       _ <- client.ltrim(key, 0, redisConfig.durationMaxListLength - 1)
       _ <- client.pexpire(key, redisConfig.durationRecordTTL.toMillis)
+      _ = MetricsLogging.incrTimeDifferencesPersisted
     } yield ()
   }
 
