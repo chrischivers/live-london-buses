@@ -26,7 +26,7 @@ case class RedisConfig(host: String, port: Int, dbIndex: Int, durationRecordTTL:
 
 case class SourceLineHandlerConfig(cacheTtl: Duration, minimumTimeDifferenceToPersist: Duration)
 
-case class WebsocketConfig(clientSendInterval: FiniteDuration)
+case class WebsocketConfig(clientSendInterval: FiniteDuration, websocketPort: Int)
 
 case class MetricsConfig(host: String, port: Int, dbName: String, updateInterval: Int, enabled: Boolean)
 
@@ -93,6 +93,7 @@ object ConfigLoader {
       ),
       WebsocketConfig(
         FiniteDuration(defaultConfigFactory.getDuration("websockets.clientSendInterval").toMillis, TimeUnit.MILLISECONDS),
+        defaultConfigFactory.getInt("websockets.port")
       ),
       MetricsConfig(
         defaultConfigFactory.getString("metrics.host"),

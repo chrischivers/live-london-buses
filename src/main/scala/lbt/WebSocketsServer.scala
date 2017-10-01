@@ -22,7 +22,7 @@ object WebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
   def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, Nothing] =
     Scheduler[IO](corePoolSize = 2).flatMap { scheduler =>
       BlazeBuilder[IO]
-        .bindHttp(8080)
+        .bindHttp(config.websocketConfig.websocketPort)
         .withWebSockets(true)
         .mountService(webSocketService.service(scheduler), "/ws")
         .serve
