@@ -14,7 +14,6 @@ import lbt.{ConfigLoader, LBTConfig, SharedTestFeatures}
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues, fixture}
-
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scalacache.guava.GuavaCache

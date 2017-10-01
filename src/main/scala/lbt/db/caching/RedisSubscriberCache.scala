@@ -38,8 +38,9 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
   def updateFilteringParameters(uuid: String, filteringParams: FilteringParams): Future[Unit] = {
     val paramsKey = getParamsKey(uuid)
     for {
-      _ <- client.hmset(paramsKey, filteringParamsToJsonMap(filteringParams))
-      _ <- updateSubscriberAliveTime(uuid)
+      existing <- client.zscore(subscribersKey, uuid)
+      _ <- if (existing.isDefined) client.hmset(paramsKey, filteringParamsToJsonMap(filteringParams)) else Future.successful()
+      _ <- if (existing.isDefined) updateSubscriberAliveTime(uuid) else Future.successful()
     } yield ()
   }
 

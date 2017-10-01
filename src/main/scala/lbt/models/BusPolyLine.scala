@@ -4,7 +4,9 @@ case class MovementInstruction(from: LatLng, to: LatLng, angle: Int, proportiona
 
 case class BusPolyLine(encodedPolyLine: String) {
   def decode: List[LatLng] = BusPolyLine.decodePolyLine(this)
-  def toMovementInstructions: List[MovementInstruction] = BusPolyLine.toMovementInstructions(decode)
+  def toMovementInstructions: List[MovementInstruction] = {
+    BusPolyLine.toMovementInstructions(decode)
+  }
 }
 
 object BusPolyLine {

@@ -49,17 +49,13 @@ class BusRoutePolyLineUpdater(definitionsConfig: DefinitionsConfig, routeDefinit
     decimalFormatter.setMaximumFractionDigits(Integer.MAX_VALUE)
     decimalFormatter.setMinimumFractionDigits(1)
 
-    val now = DateTime.now()
-    val todayAt10am = new DateTime(now.year().get(), now.monthOfYear().get(), now.dayOfMonth().get(), 10, 0)
     val apiKey = Random.shuffle(definitionsConfig.directionsApiKeys).head
 
     val polyLineUrl = s"https://maps.googleapis.com/maps/api/directions/xml?" +
       s"origin=${decimalFormatter.format(fromStop.latLng.lat)},${decimalFormatter.format(fromStop.latLng.lng)}" +
       s"&destination=${decimalFormatter.format(toStop.latLng.lat)},${decimalFormatter.format(toStop.latLng.lng)}" +
       s"&key=$apiKey" +
-      s"&mode=transit" +
-      s"&transit_mode=bus" +
-      s"&departure_time=${todayAt10am.getMillis / 1000}"
+      s"&mode=driving"
 
     logger.info(s"Using URL: $polyLineUrl")
 

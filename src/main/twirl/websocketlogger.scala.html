@@ -1,0 +1,83 @@
+<html>
+    <head>
+        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+        <title>LBT - Websocket Logging</title>
+    </head>
+    <body>
+
+        <div class="container">
+            <h2>Websocket Logging</h2>
+            <div class="form-group">
+                <label for="uuid">UUID:</label>
+                <input type="text" class="form-control" id="uuid">
+                <button type="button" class="btn btn-default" id="open-websocket-button">Open websocket</button>
+            </div>
+            <div class="form-group">
+                <label for="busRoute">BusRoute:</label>
+                <input type="text" class="form-control" id="busRoute">
+                <label for="direction">Direction:</label>
+                <input type="text" class="form-control" id="direction">
+                <button type="button" class="btn btn-default" id="submit-params-button">Submit Params</button>
+            </div>
+            <div id="received-json"></div>
+        </div>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAsL6wsuPFovAUq8STgMIp0xrOqMjv3F6A&libraries=visualization&callback=initMap">
+        </script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+        <script>
+
+             var ws;
+
+             $('#open-websocket-button').on('click', function (e) {
+                 var uuid = $('#uuid').val();
+                 openWebsocket(uuid);
+             });
+
+             $('#submit-params-button').on('click', function (e) {
+
+                 var busRouteId = $('#busRoute').val();
+                 var direction = $('#direction').val();
+                 var jsonToSend = '{"busRoutes" : [{"id" : "' + busRouteId + '","direction" : "' + direction + '"}],' +
+                             '"latLngBounds" : {' +
+                                 '"southwest" : { "lat" : 50.0, "lng" : -1.0 },' +
+                                 '"northeast" : { "lat" : 53.0, "lng" : 1.0 }' +
+                             '}' +
+                         '}';
+                 sendToWS(jsonToSend)
+
+                });
+
+             function openWebsocket(uuid) {
+                 if ("WebSocket" in window) {
+                     ws = new WebSocket("ws://localhost:8080/ws?uuid=" + uuid);
+
+                     ws.onmessage = function (evt) {
+                         var received_msg = evt.data;
+                         $('#received-json').append('<br>' + received_msg);
+                     };
+
+                     ws.onclose = function () {
+                         alert("Websocket connection is closed...");
+                     };
+
+                     window.onbeforeunload = function (event) {
+                         socket.close();
+                     };
+                 }
+
+                 else {
+                     alert("WebSockets are NOT supported by your Browser!");
+                 }
+             }
+
+             function sendToWS(message) {
+                 ws.send(message);
+             }
+      </script>
+    </body>
+</html>

@@ -109,4 +109,24 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with SharedTestFeatures 
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)
   }
+
+  test("Parameters are ignored if received before subscriber is in cache") { f =>
+    val uuid1 = UUID.randomUUID().toString
+    val params1 = createFilteringParams()
+    f.redisSubscriberCache.updateFilteringParameters(uuid1, params1).futureValue
+    f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue should not be defined
+    f.redisSubscriberCache.getListOfSubscribers.futureValue should not contain uuid1
+  }
+
+  test("New filtering parameters received replace those already there") { f =>
+    val uuid1 = UUID.randomUUID().toString
+    val params1 = createFilteringParams()
+    f.redisSubscriberCache.subscribe(uuid1, Some(params1)).futureValue
+    f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue.value shouldBe params1
+
+    val params2 = createFilteringParams(busRoutes = List(BusRoute("100", "outbound")))
+    f.redisSubscriberCache.updateFilteringParameters(uuid1, params2).futureValue
+    f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue.value shouldBe params2
+
+  }
 }
