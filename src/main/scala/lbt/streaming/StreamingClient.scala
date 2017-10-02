@@ -31,6 +31,10 @@ class StreamingClient(busDataSourceClient: BusDataSourceClient, action: (String 
       if(total % 10000 == 0) logger.info(s"$total streamed rows processed")
       action(line)
       total + 1
+    }.recover {
+      case e =>
+        logger.error("Exception in stream client", e)
+        throw e
     }
   }
 
