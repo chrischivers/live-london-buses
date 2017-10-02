@@ -4,10 +4,10 @@ import java.io.{BufferedReader, InputStreamReader}
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Framing, Source}
+import akka.stream.scaladsl.{Framing, RestartSource, Source}
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
-import lbt.DataSourceConfig
+import lbt.{ConfigLoader, DataSourceConfig}
 import org.apache.http.HttpStatus
 import org.apache.http.auth.{AuthScope, UsernamePasswordCredentials}
 import org.apache.http.client.CredentialsProvider
@@ -16,25 +16,28 @@ import org.apache.http.client.methods.{CloseableHttpResponse, HttpGet}
 import org.apache.http.impl.client.{BasicCredentialsProvider, CloseableHttpClient, HttpClientBuilder}
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.duration._
 
 
-class StreamingClient(busDataSourceClient: BusDataSourceClient, action: (String => Unit))(implicit actorSystem: ActorSystem) extends StrictLogging {
+class StreamingClient(dataSourceConfig: DataSourceConfig, action: (String => Unit))(implicit actorSystem: ActorSystem) extends StrictLogging {
 
   implicit private val materializer: ActorMaterializer = ActorMaterializer()
   implicit private val ec: ExecutionContextExecutor = actorSystem.dispatcher
 
-  lazy val dataStream: Iterator[String] = getStream(busDataSourceClient.getHttpResponse).iterator
 
   def start(): Future[Long] = {
+    val busDataSourceClient = new BusDataSourceClient(dataSourceConfig)
     logger.info("Starting streaming client")
-    Source.fromIterator(() => dataStream).runFold[Long](0L) { (total, line) =>
+    Source.fromIterator(() => getStream(busDataSourceClient.getHttpResponse).iterator).runFold[Long](0L) { (total, line) =>
       if(total % 10000 == 0) logger.info(s"$total streamed rows processed")
       action(line)
       total + 1
-    }.recover {
+    }.recoverWith {
       case e =>
-        logger.error("Exception in stream client", e)
-        throw e
+        logger.error("Exception in stream client. Restarting....", e)
+        busDataSourceClient.closeDataSource()
+        Thread.sleep(dataSourceConfig.waitTimeBeforeRestart) //todo set in config
+        start()
     }
   }
 
@@ -45,15 +48,14 @@ class StreamingClient(busDataSourceClient: BusDataSourceClient, action: (String 
         Stream.continually(br.readLine()).takeWhile(_ != null).drop(1)
       case otherStatus: Int =>
         logger.error(s"Error getting Stream Iterator. Http Status Code: $otherStatus")
+        Thread.sleep(dataSourceConfig.waitTimeBeforeRestart)
         throw new IllegalStateException("Unable to retrieve input stream")
     }
   }
-
-  def close() = busDataSourceClient.closeDataSource()
 }
 
 
-class BusDataSourceClient(config: DataSourceConfig) extends StrictLogging {
+protected class BusDataSourceClient(config: DataSourceConfig) extends StrictLogging {
 
   private val httpRequestConfig = buildHttpRequestConfig(config.timeout)
   private val httpAuthScope = buildAuthScope(config.authScopeURL, config.authScopePort)

@@ -54,7 +54,7 @@
 
              function openWebsocket(uuid) {
                  if ("WebSocket" in window) {
-                     ws = new WebSocket("ws://???????:80/ws?uuid=" + uuid);
+                     ws = new WebSocket("ws://34.209.127.7:80/ws?uuid=" + uuid);
 
                      ws.onmessage = function (evt) {
                          var received_msg = evt.data;

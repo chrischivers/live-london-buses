@@ -23,12 +23,11 @@ object StreamingApp extends App with StrictLogging {
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema())
   val definitions = new Definitions(routeDefinitionsTable)
 
-  val dataSourceClient = new BusDataSourceClient(config.dataSourceConfig)
   val redisDurationRecorder = new RedisDurationRecorder(config.redisDBConfig)
   val redisSubscriberCache = new RedisSubscriberCache(config.redisDBConfig)
   val redisWsClientCache = new RedisWsClientCache(config.redisDBConfig, redisSubscriberCache)
 
-  val streamingClient = new StreamingClient(dataSourceClient, processSourceLine)
+  val streamingClient = new StreamingClient(config.dataSourceConfig, processSourceLine)
   val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
 
   val cache = ScalaCache(GuavaCache())

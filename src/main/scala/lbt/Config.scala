@@ -8,7 +8,7 @@ import lbt.ConfigLoader.defaultConfigFactory
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-case class DataSourceConfig(sourceUrl: String, username: String, password: String, authScopeURL: String, authScopePort: Int, timeout: Int, waitTimeAfterClose: Int, cacheTimeToLiveSeconds: Int, timeWindowToAcceptLines: Int, numberEmptyIteratorCasesBeforeRestart: Int)
+case class DataSourceConfig(sourceUrl: String, username: String, password: String, authScopeURL: String, authScopePort: Int, timeout: Int, waitTimeBeforeRestart: Int, cacheTimeToLiveSeconds: Int, timeWindowToAcceptLines: Int)
 
 case class DefinitionsConfig(sourceAllUrl: String, sourceSingleUrl: String, definitionsCachedTime: Int, directionsApiKeys: List[String])
 
@@ -60,10 +60,9 @@ object ConfigLoader {
         defaultConfigFactory.getString(dataSourceStreamingParamsPrefix + "authscope-url"),
         defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "authscope-port"),
         defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "connection-timeout"),
-        defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "wait-time-after-close"),
+        defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "wait-time-before-restart"),
         defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "cache-time-to-live-seconds"),
-        defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "time-window-to-accept-lines"),
-        defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "number-empty-iterator-cases-before-restart")
+        defaultConfigFactory.getInt(dataSourceStreamingParamsPrefix + "time-window-to-accept-lines")
       ),
       PostgresDBConfig(
         defaultConfigFactory.getString(postgresDBParamsPrefix + "host"),

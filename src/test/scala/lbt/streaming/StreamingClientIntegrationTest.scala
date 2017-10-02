@@ -33,8 +33,7 @@ class StreamingClientIntegrationTest extends fixture.FunSuite with ScalaFutures 
       linesReceivedBuffer += line
     }
 
-    val busDataSourceClient = new BusDataSourceClient(config.dataSourceConfig)
-    val streamingClient = new StreamingClient(busDataSourceClient, addToBuffer)(actorSystem)
+    val streamingClient = new StreamingClient(config.dataSourceConfig, addToBuffer)(actorSystem)
 
     val testFixture = FixtureParam(streamingClient, linesReceivedBuffer)
 
@@ -42,7 +41,7 @@ class StreamingClientIntegrationTest extends fixture.FunSuite with ScalaFutures 
       withFixture(test.toNoArgTest(testFixture))
     }
     finally {
-      streamingClient.close
+//      streamingClient.close
     }
   }
 
