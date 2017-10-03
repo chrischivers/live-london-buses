@@ -21,18 +21,19 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
   val config = ConfigLoader.defaultConfig
 
   override implicit val patienceConfig = PatienceConfig(
-    timeout = scaled(10 seconds),
+    timeout = scaled(20 seconds),
     interval = scaled(100 milliseconds)
   )
 
-  case class FixtureParam(streamingClient: StreamingClient, dodgyStreamingClient: StreamingClient, slowStreamingClient: StreamingClient, restitoServer: StubServer, linesReceivedBuffer: ListBuffer[String])
+  case class FixtureParam(streamingClient: StreamingClient, dodgyStreamingClient: StreamingClient, restitoServer: StubServer, linesReceivedBuffer: ListBuffer[String])
 
   def withFixture(test: OneArgTest) = {
 
+    StreamingClient.instanceCounter.set(0)
     val restitoPort = 8000 + Random.nextInt(1000)
     val restitoServer = new StubServer(restitoPort)
     val actorSystem = ActorSystem()
-    val modifiedConfig = config.dataSourceConfig.copy(sourceUrl = s"http://localhost:$restitoPort/stream", waitTimeBeforeRestart = 3)
+    val modifiedConfig = config.dataSourceConfig.copy(sourceUrl = s"http://localhost:$restitoPort/stream", waitTimeBeforeRestart = 3000)
     var linesReceivedBuffer = new ListBuffer[String]()
 
     def addToBuffer(line: String) = {
@@ -40,18 +41,12 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
       linesReceivedBuffer += line
     }
 
-    def slowAddToBuffer(line: String) = {
-      println(line)
-      Thread.sleep(500)
-      linesReceivedBuffer += line
-    }
-
     var hasFailed = false
     def addToBufferWithErrors(line: String) = {
       if (!hasFailed) {
-        logger.info("Exception thrown")
+        logger.info("Exception thrown for testing")
         hasFailed = true
-        throw new RuntimeException("Artificial error thrown")
+        throw new RuntimeException("Artificial error thrown for testing")
       }
       else {
         println(line)
@@ -60,10 +55,9 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
     }
 
     val streamingClient = new StreamingClient(modifiedConfig, addToBuffer)(actorSystem)
-    val slowStreamingClient = new StreamingClient(modifiedConfig, slowAddToBuffer)(actorSystem)
     val dodgyStreamingClient = new StreamingClient(modifiedConfig, addToBufferWithErrors)(actorSystem)
 
-    val testFixture = FixtureParam(streamingClient, dodgyStreamingClient, slowStreamingClient, restitoServer, linesReceivedBuffer)
+    val testFixture = FixtureParam(streamingClient, dodgyStreamingClient, restitoServer, linesReceivedBuffer)
 
     try {
       restitoServer.start()
@@ -105,7 +99,7 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
   test("Streaming client should try again if 500 received in stream") { f =>
 
     val fullStreamResponse = generateStreamResponse
-    setStreamResponseError(f.restitoServer)
+    setStreamResponse500Error(f.restitoServer)
     val streamResponseFirstLineDropped = fullStreamResponse.split("\n").drop(1).toList
     f.streamingClient.start()
 
@@ -121,27 +115,29 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
     }
   }
 
-  test("Streaming client should try again if server closes connection") { f =>
+  test("Streaming client should try again if server has not started up") { f =>
 
-    val fullStreamResponse = generateStreamResponse
-    setStreamResponse(f.restitoServer, fullStreamResponse)
-    val streamResponseFirstLineDropped = fullStreamResponse.split("\n").drop(1).toList
-    f.slowStreamingClient.start()
-    Thread.sleep(800)
-    eventually {
-      f.linesReceivedBuffer should have size 1
-      f.restitoServer.getCalls should have size 1
-    }
+    val restitoPort = f.restitoServer.getPort
     f.restitoServer.stop()
 
+    val fullStreamResponse = generateStreamResponse
+    val streamResponseFirstLineDropped = fullStreamResponse.split("\n").drop(1).toList
+    f.streamingClient.start()
     Thread.sleep(1000)
+    eventually {
+      f.linesReceivedBuffer should have size 0
+      f.restitoServer.getCalls should have size 0
+    }
+    val newServer = new StubServer(restitoPort)
+    newServer.start()
+    setStreamResponse(newServer, fullStreamResponse)
 
-    f.restitoServer.start()
+    Thread.sleep(10000)
 
     eventually {
       f.linesReceivedBuffer should have size streamResponseFirstLineDropped.size
       f.linesReceivedBuffer.toList shouldBe streamResponseFirstLineDropped
-      f.restitoServer.getCalls should have size 2
+      newServer.getCalls should have size 1
     }
   }
 
@@ -151,7 +147,7 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
       .`then`(ok(), stringContent(response))
   }
 
-  private def setStreamResponseError(server: StubServer) = {
+  private def setStreamResponse500Error(server: StubServer) = {
     whenHttp(server).`match`(
       get("/stream"))
       .`then`(status(HttpStatus.INTERNAL_SERVER_ERROR_500))

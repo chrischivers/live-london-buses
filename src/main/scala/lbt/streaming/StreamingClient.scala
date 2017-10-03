@@ -1,13 +1,11 @@
 package lbt.streaming
 
 import java.io.{BufferedReader, InputStreamReader}
-
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Framing, RestartSource, Source}
-import akka.util.ByteString
+import akka.stream.scaladsl.Source
 import com.typesafe.scalalogging.StrictLogging
-import lbt.{ConfigLoader, DataSourceConfig}
+import lbt.DataSourceConfig
 import org.apache.http.HttpStatus
 import org.apache.http.auth.{AuthScope, UsernamePasswordCredentials}
 import org.apache.http.client.CredentialsProvider
@@ -15,8 +13,8 @@ import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.methods.{CloseableHttpResponse, HttpGet}
 import org.apache.http.impl.client.{BasicCredentialsProvider, CloseableHttpClient, HttpClientBuilder}
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
-import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.util.Try
 
 
 class StreamingClient(dataSourceConfig: DataSourceConfig, action: (String => Unit))(implicit actorSystem: ActorSystem) extends StrictLogging {
@@ -29,14 +27,14 @@ class StreamingClient(dataSourceConfig: DataSourceConfig, action: (String => Uni
     val busDataSourceClient = new BusDataSourceClient(dataSourceConfig)
     logger.info("Starting streaming client")
     Source.fromIterator(() => getStream(busDataSourceClient.getHttpResponse).iterator).runFold[Long](0L) { (total, line) =>
-      if(total % 10000 == 0) logger.info(s"$total streamed rows processed")
+      if (total % 10000 == 0) logger.info(s"$total streamed rows processed")
       action(line)
       total + 1
     }.recoverWith {
       case e =>
         logger.error("Exception in stream client. Restarting....", e)
         busDataSourceClient.closeDataSource()
-        Thread.sleep(dataSourceConfig.waitTimeBeforeRestart) //todo set in config
+        Thread.sleep(dataSourceConfig.waitTimeBeforeRestart)
         start()
     }
   }
@@ -55,7 +53,9 @@ class StreamingClient(dataSourceConfig: DataSourceConfig, action: (String => Uni
 }
 
 
-protected class BusDataSourceClient(config: DataSourceConfig) extends StrictLogging {
+protected class BusDataSourceClient(config: DataSourceConfig)(implicit val ec: ExecutionContext) extends StrictLogging {
+
+  logger.info("New Bus Data Source client being created")
 
   private val httpRequestConfig = buildHttpRequestConfig(config.timeout)
   private val httpAuthScope = buildAuthScope(config.authScopeURL, config.authScopePort)
@@ -66,11 +66,13 @@ protected class BusDataSourceClient(config: DataSourceConfig) extends StrictLogg
   def getHttpResponse: CloseableHttpResponse = httpResponse
 
   private def executeHttpRequest: CloseableHttpResponse = {
+    logger.info(s"Executing http request for url ${config.sourceUrl}")
     val httpGet = new HttpGet(config.sourceUrl)
     httpClient.execute(httpGet)
   }
 
   private def buildHttpClient(requestConfig: RequestConfig, credentialsProvider: CredentialsProvider): CloseableHttpClient = {
+    logger.info("Building http client")
     val client = HttpClientBuilder.create()
     client.setDefaultRequestConfig(requestConfig)
     client.setDefaultCredentialsProvider(credentialsProvider)
@@ -96,9 +98,10 @@ protected class BusDataSourceClient(config: DataSourceConfig) extends StrictLogg
   }
 
   def closeDataSource() = {
-    logger.info("closing http client")
-    httpClient.close()
-    httpResponse.close()
+    logger.info("Attempting to close http client and response")
+
+    Try(httpResponse.close()).map(_ => logger.info("Http response closed"))
+    Try(httpClient.close()).map(_ =>  logger.info("Http client closed"))
   }
 
 }
