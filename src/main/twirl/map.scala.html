@@ -101,13 +101,24 @@
                         var vehicleId = json[i].vehicleId;
                         var routeId = json[i].busRoute.id;
                         var direction = json[i].busRoute.direction;
-                        var busStopId = json[i].busStop.stopID;
-                        var busStopLat = json[i].busStop.latLng.lat;
-                        var busStopLng = json[i].busStop.latLng.lng;
-                        var arrivalTimestamp = json[i].arrivalTimestamp;
+                        var startingStopId = json[i].startingBusStop.stopID;
+                        var startingStopLat = json[i].startingBusStop.latLng.lat;
+                        var startingStopLng = json[i].startingBusStop.latLng.lng;
+                        var startingTimeStamp = json[i].startingTimeStamp;
                         var nextStopName = json[i].nextStopName;
                         var avgTimeToNextStop = json[i].avgTimeToNextStop;
                         var movementInstructionsRaw = json[i].movementInstructionsToNext;
+
+                        if (vehicleId in markerArray) {
+                            //TODO
+                        } else {
+                            var startingLatLng = new google.maps.LatLng(startingStopLat, startingStopLng);
+                            markerArray[vehicleId] = createMarker(startingLatLng);
+                        }
+
+                        var marker = markerArray[vehicleId];
+                        var initialDelayTime = startingTimeStamp - Date.now();
+                        var timeAccumulator = initialDelayTime < 0  ? 0 : initialDelayTime;
 
                         for (var j = 0; j < movementInstructionsRaw.length; i++) {
                             var fromLat = movementInstructionsRaw[j].from.lat;
@@ -117,21 +128,40 @@
                             var angle = movementInstructionsRaw[j].angle;
                             var proportionalDistance = movementInstructionsRaw[j].proportionalDistance;
 
-                        }
+                            var latLngToMoveTo = new google.maps.LatLng(toLat, toLng);
+                            var proportionalTime = avgTimeToNextStop * proportionalDistance;
 
-                        if (vehicleId in markerArray) {
-                            markerArray[vehicleId].setMap(null);
-                            delete markerArray[vehicleId];
+                            animateMarker(marker, proportionalTime, latLngToMoveTo, timeAccumulator);
+
+                            timeAccumulator += proportionalTime
                         }
-                        var latLng = new google.maps.LatLng(busStopLat, busStopLng);
-                        markerArray[vehicleId] = new google.maps.Marker({
-                            position: latLng,
-                            //icon: 'images/bus_icon.png',
-//                                icon: iconArray[reg],
-                            map: map,
-                            visible: true
-                        })
                     }
+                }
+
+                function createMarker(latLng) {
+                    return new google.maps.Marker({
+                        position: latLng,
+                        //icon: iconArray[reg],
+                        map: map,
+                        visible: true
+                    })
+                }
+
+                function animateMarker(marker, duration, moveTo, waitTime) {
+
+                    setTimeout(function () {
+//                        var routeIDOffset = routeID.length * 5.5;
+//                        iconArray[reg].rotation = rotation;
+
+//                        if (timeOut > 0) {
+//                            markerArray[reg].setVisible(true);
+//                        }
+                        marker.setDuration(duration);
+//                        markerArray[vehicleId].setIcon(iconArray[reg]);
+//                        markerArray[reg].labelAnchor = new google.maps.Point(routeIDOffset, 10);
+//                        markerArray[reg].label.setStyles();
+                        marker.setPosition(moveTo);
+                    }, waitTime);
                 }
         </script>
     </body>

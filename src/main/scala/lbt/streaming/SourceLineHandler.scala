@@ -33,7 +33,7 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
         _ <- OptionT.liftF(put(sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfThisStop)(sourceLine.arrival_TimeStamp, ttl = Some(config.cacheTtl)))
         previousStopTime <- OptionT(get[ArrivalTimestamp, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction, indexOfThisStop - 1))
         timeDiff = sourceLine.arrival_TimeStamp - previousStopTime
-        _ <- if (timeDiff >= config.minimumTimeDifferenceToPersist.toMillis)  persistTimeDifference(previousStopTime, timeDiff)
+        _ <- if (timeDiff >= config.minimumTimeDifferenceToPersist.toMillis) persistTimeDifference(previousStopTime, timeDiff)
             else OptionT.liftF(Future.successful(())) //ignored if time difference below threshold
       } yield ()
     }
@@ -68,7 +68,7 @@ class SourceLineHandler(definitions: Definitions, config: SourceLineHandlerConfi
     }
 
     OptionT.liftF(get[LastIndexPersisted, NoSerialization](sourceLine.vehicleID, sourceLine.route, sourceLine.direction)).flatMap {
-      case Some(lastIndexCached) if indexOfThisStop <= lastIndexCached => OptionT.liftF(Future.successful(())) //disregard
+      case Some(lastIndexCached) if indexOfThisStop <= lastIndexCached => OptionT.liftF(Future.successful(())) //disregard has already gone
       case _ =>
         for {
           _ <- updateTimeDifferenceForStop().orElse(OptionT.liftF(Future.successful()))

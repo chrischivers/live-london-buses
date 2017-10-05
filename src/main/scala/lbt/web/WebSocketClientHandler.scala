@@ -26,7 +26,7 @@ class WebSocketClientHandler(redisSubscriberCache: RedisSubscriberCache, redisWs
     //todo logic here to determine latlngbounds filtering parameters.
     for {
       subscribers <- redisSubscriberCache.getListOfSubscribers
-      subscribersToBusRoute <- filterSubscribers(subscribers, data.busRoute, data.busStop.latLng)
+      subscribersToBusRoute <- filterSubscribers(subscribers, data.busRoute, data.startingBusStop.latLng)
       _ <- Future.sequence(subscribersToBusRoute.map(uuid => redisWsClientCache.storeVehicleActivity(uuid, data)))
     } yield ()
   }

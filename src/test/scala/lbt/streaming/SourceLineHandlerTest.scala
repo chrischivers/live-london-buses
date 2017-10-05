@@ -96,8 +96,8 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     dataForTransmission should have size 1
     dataForTransmission.head.vehicleId shouldBe sourceLine.vehicleID
     dataForTransmission.head.busRoute shouldBe busRoute
-    dataForTransmission.head.arrivalTimestamp shouldBe timestamp
-    dataForTransmission.head.busStop shouldBe definitions.routeDefinitions.get(busRoute).value.find(_._2.stopID == sourceLine.stopID).value._2
+    dataForTransmission.head.startingTimeStamp shouldBe timestamp
+    dataForTransmission.head.startingBusStop shouldBe definitions.routeDefinitions.get(busRoute).value.find(_._2.stopID == sourceLine.stopID).value._2
     dataForTransmission.head.avgTimeToNextStop.value shouldBe 0
     dataForTransmission.head.nextStopName.value shouldBe "Katherine Road"
 

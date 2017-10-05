@@ -66,7 +66,7 @@ class SourceLineTest extends fixture.FunSuite with SharedTestFeatures with Scala
   }
 
   test("Source Line validation fails if time is in too far in the future") { f =>
-    val sourceLinePast = generateSourceLine(timeStamp = System.currentTimeMillis() + 305000)
+    val sourceLinePast = generateSourceLine(timeStamp = System.currentTimeMillis() + 1000000)
     SourceLine.validate(sourceLinePast, f.definitions) shouldBe false
   }
 
