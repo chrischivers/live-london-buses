@@ -109,6 +109,20 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     movementInstructions.head.to shouldBe LatLng(51.54777,0.03661)
   }
 
+  test("When duplicate source lines are received, only one lands in the websocket cache") { f =>
+    val uuid = UUID.randomUUID().toString
+    val params = FilteringParams(List(BusRoute("25", "outbound")), LatLngBounds(LatLng(51,0), LatLng(52,1)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
+    val sourceLine1 = generateSourceLine()
+    val sourceLine2 = generateSourceLine()
+    f.sourceLineHandler.handle(sourceLine1).value.futureValue
+    f.sourceLineHandler.handle(sourceLine2).value.futureValue
+
+    val dataForTransmission = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityFor(uuid).futureValue).value
+    dataForTransmission should have size 1
+
+  }
+
   test("Source Line handled is NOT persisted to websocket cache (when user not subscribed to that route but within bounds)") { f =>
 
     val uuid = UUID.randomUUID().toString

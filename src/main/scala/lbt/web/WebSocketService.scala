@@ -4,19 +4,18 @@ import cats.effect.{IO, _}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.{Scheduler, Sink, Stream}
 import io.circe
+import io.circe.generic.auto._
+import io.circe.parser._
+import lbt.WebsocketConfig
 import lbt.models.{BusRoute, LatLngBounds}
 import org.http4s.HttpService
-import org.http4s.dsl.{->, :?, Http4sDsl, Root, _}
+import org.http4s.dsl.{->, :?, Http4sDsl, NotFound, Root, _}
 import org.http4s.server.websocket.WS
 import org.http4s.websocket.WebsocketBits.{Text, WebSocketFrame}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import io.circe.generic.auto._
-import io.circe.parser._
-import io.circe.syntax._
-import lbt.WebsocketConfig
 
 
 case class FilteringParams(busRoutes: List[BusRoute], latLngBounds: LatLngBounds)
@@ -29,19 +28,24 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
 
     case GET -> Root :? UUIDQueryParameter(uuid) =>
 
-      webSocketClientHandler.subscribe(uuid)
+      val existsAlready = Await.result(webSocketClientHandler.isAlreadySubscribed(uuid), 10 seconds)
+      if (existsAlready) InternalServerError(s"Not subscribed to WS feed, uuid $uuid already subscribed")
+      else {
+        webSocketClientHandler.subscribe(uuid)
 
-      val toClient: Stream[IO, WebSocketFrame] =
-        scheduler.awakeEvery[IO](websocketConfig.clientSendInterval).map { _ =>
-          Text(Await.result(webSocketClientHandler.retrieveTransmissionDataForClient(uuid), 10 seconds)) //todo is this await the only option?
+
+        val toClient: Stream[IO, WebSocketFrame] =
+          scheduler.awakeEvery[IO](websocketConfig.clientSendInterval).map { _ =>
+            Text(Await.result(webSocketClientHandler.retrieveTransmissionDataForClient(uuid), 10 seconds)) //todo is this await the only option?
+          }
+        val fromClient: Sink[IO, WebSocketFrame] = _.evalMap { (ws: WebSocketFrame) =>
+          ws match {
+            case Text(params, _) => F.delay(handleIncomingFilterParams(uuid, params))
+            case f => F.delay(println(s"Unknown type: $f"))
+          }
         }
-      val fromClient: Sink[IO, WebSocketFrame] = _.evalMap { (ws: WebSocketFrame) =>
-        ws match {
-          case Text(params, _) => F.delay(handleIncomingFilterParams(uuid, params))
-          case f => F.delay(println(s"Unknown type: $f"))
-        }
+        WS(toClient, fromClient)
       }
-      WS(toClient, fromClient)
   }
 
   private def handleIncomingFilterParams(clientUUID: String, params: String): Unit = {

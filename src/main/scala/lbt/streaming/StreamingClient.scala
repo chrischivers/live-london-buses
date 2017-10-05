@@ -52,7 +52,6 @@ class StreamingClient(dataSourceConfig: DataSourceConfig, action: (String => Uni
   }
 }
 
-
 protected class BusDataSourceClient(config: DataSourceConfig)(implicit val ec: ExecutionContext) extends StrictLogging {
 
   logger.info("New Bus Data Source client being created")

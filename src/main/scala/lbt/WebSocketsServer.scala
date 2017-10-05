@@ -27,5 +27,4 @@ object WebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
         .mountService(webSocketService.service(scheduler), "/ws")
         .serve
     }
-
 }

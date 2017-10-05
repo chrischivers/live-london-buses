@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
 import lbt.db.caching.RedisDurationRecorder
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.web.StatsService
+import lbt.web.{MapService, StatsService}
 import org.http4s.server.blaze.BlazeBuilder
 import org.http4s.util.StreamApp
 
@@ -30,6 +30,8 @@ object HttpWebServer extends StreamApp[IO] with StrictLogging {
 
   val lbtService = new StatsService(redisClient, definitions)
 
+  val mapService = new MapService()
+
 
   override def stream(args: List[String], requestShutdown: IO[Unit]) = {
     logger.info(s"Starting up servlet using port $port bound to ip $ip")
@@ -38,6 +40,7 @@ object HttpWebServer extends StreamApp[IO] with StrictLogging {
       .withIdleTimeout(3.minutes)
       .withWebSockets(true)
       .mountService(lbtService.service, "/stats")
+      .mountService(mapService.service, "/map")
       .serve
   }
 }

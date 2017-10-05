@@ -118,6 +118,23 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with SharedTestFeatures 
     f.redisSubscriberCache.getListOfSubscribers.futureValue should not contain uuid1
   }
 
+  test("The same uuid is able to subscribe twice, with the second overwriting the first") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    val params1 = createFilteringParams(busRoutes = List(BusRoute("3", "outbound")))
+    val params2 = createFilteringParams(busRoutes = List(BusRoute("3", "inbound")))
+
+    f.redisSubscriberCache.subscribe(uuid, Some(params1)).futureValue
+    f.redisSubscriberCache.getListOfSubscribers.futureValue should have size 1
+    f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid)
+    f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue shouldBe Some(params1)
+
+    f.redisSubscriberCache.subscribe(uuid, Some(params2)).futureValue
+    f.redisSubscriberCache.getListOfSubscribers.futureValue should have size 1
+    f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid)
+    f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue shouldBe Some(params2)
+  }
+
   test("New filtering parameters received replace those already there") { f =>
     val uuid1 = UUID.randomUUID().toString
     val params1 = createFilteringParams()

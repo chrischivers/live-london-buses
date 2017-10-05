@@ -31,7 +31,7 @@ trait SharedTestFeatures extends OptionValues {
   }
 
   def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),
-                                    latLngBounds: LatLngBounds = LatLngBounds(LatLng(51,52), LatLng(52,53))) = {
+                                    latLngBounds: LatLngBounds = LatLngBounds(LatLng(50,-1), LatLng(52,1))) = {
     FilteringParams(busRoutes, latLngBounds)
   }
 

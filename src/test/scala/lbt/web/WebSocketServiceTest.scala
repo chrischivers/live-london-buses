@@ -25,13 +25,16 @@ import org.http4s.util.StreamApp
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest._
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.Random
 import io.circe.generic.auto._
 import io.circe.syntax._
+import io.netty.handler.codec.http.websocketx.WebSocketHandshakeException
 import lbt.streaming.{SourceLine, SourceLineHandler}
+import org.http4s.client.UnexpectedStatus
 
 import scalacache.ScalaCache
 import scalacache.guava.GuavaCache
@@ -44,7 +47,7 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
   val portIncrementer = new AtomicInteger(8000)
 
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(
-    timeout = scaled(15 seconds),
+    timeout = scaled(20 seconds),
     interval = scaled(1 second))
 
   val db = new PostgresDB(config.postgresDbConfig)
@@ -202,5 +205,49 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     websocketClient.shutdownSync()
   }
 
+  test("When two clients subscribe with same params, they receive the same data") { f =>
+
+    val uuid1 = UUID.randomUUID().toString
+    val uuid2 = UUID.randomUUID().toString
+    val subscribedBusRoute = BusRoute("25", "outbound")
+    val (websocketClient1, packagesReceivedBuffer1) = setUpTestWebSocketClient(uuid1, f.wsPort)
+    val (websocketClient2, packagesReceivedBuffer2) = setUpTestWebSocketClient(uuid2, f.wsPort)
+
+    val params = createFilteringParams(busRoutes = List(subscribedBusRoute))
+    val openedSocket1 = websocketClient1.open()
+    openedSocket1 ! createJsonStringFromFilteringParams(params)
+    val openedSocket2 = websocketClient2.open()
+    openedSocket2 ! createJsonStringFromFilteringParams(params)
+
+    parsePacketsReceived(packagesReceivedBuffer1) should have size 0
+    parsePacketsReceived(packagesReceivedBuffer2) should have size 0
+
+    val sourceLine = generateSourceLine()
+    f.sourceLineHandler.handle(sourceLine).value.futureValue
+
+    eventually {
+      parsePacketsReceived(packagesReceivedBuffer1) should have size 1
+      parsePacketsReceived(packagesReceivedBuffer2) should have size 1
+    }
+
+    websocketClient1.shutdownSync()
+    websocketClient2.shutdownSync()
+  }
+
+  test("When client with same uuid subscribes twice, the second connection recieves an Internal Server Error") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    val (websocketClient1, _) = setUpTestWebSocketClient(uuid, f.wsPort)
+    websocketClient1.open()
+
+    val (websocketClient2, _) =setUpTestWebSocketClient(uuid, f.wsPort)
+
+    assertThrows[WebSocketHandshakeException] {
+      websocketClient2.open()
+    }
+
+    websocketClient1.shutdownSync()
+    websocketClient2.shutdownSync()
+  }
 }
 

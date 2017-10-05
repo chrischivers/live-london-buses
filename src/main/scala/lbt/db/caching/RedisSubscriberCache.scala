@@ -26,6 +26,10 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
     } yield ()
   }
 
+  def subscriberExists(uuid: String) = {
+    client.zscore(subscribersKey, uuid).map(_.isDefined)
+  }
+
   def getListOfSubscribers: Future[Seq[String]] = {
     client.zrange[String](subscribersKey, 0, Long.MaxValue)
   }
@@ -38,9 +42,9 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
   def updateFilteringParameters(uuid: String, filteringParams: FilteringParams): Future[Unit] = {
     val paramsKey = getParamsKey(uuid)
     for {
-      existing <- client.zscore(subscribersKey, uuid)
-      _ <- if (existing.isDefined) client.hmset(paramsKey, filteringParamsToJsonMap(filteringParams)) else Future.successful()
-      _ <- if (existing.isDefined) updateSubscriberAliveTime(uuid) else Future.successful()
+      existing <- subscriberExists(uuid)
+      _ <- if (existing) client.hmset(paramsKey, filteringParamsToJsonMap(filteringParams)) else Future.successful()
+      _ <- if (existing) updateSubscriberAliveTime(uuid) else Future.successful()
     } yield ()
   }
 

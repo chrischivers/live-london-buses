@@ -29,7 +29,6 @@ class StreamingClientTest extends fixture.FunSuite with ScalaFutures with Option
 
   def withFixture(test: OneArgTest) = {
 
-    StreamingClient.instanceCounter.set(0)
     val restitoPort = 8000 + Random.nextInt(1000)
     val restitoServer = new StubServer(restitoPort)
     val actorSystem = ActorSystem()

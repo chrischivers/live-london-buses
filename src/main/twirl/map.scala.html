@@ -1,0 +1,138 @@
+<html>
+    <head>
+        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+        <title>Heatmaps</title>
+        <style>
+                #map {
+                    height: 90%;
+                }
+
+                html, body {
+                    height: 100%;
+                    margin: 0;
+                    padding: 0;
+                }
+        </style>
+    </head>
+    <body>
+
+        <div class="dropdown">
+            <div class="btn-group">
+                <div class="btn-group">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButtonRoutes" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Routes
+                    </button>
+                    <div class="dropdown-menu" id="routes-dropdown-menu" aria-labelledby="dropdownMenuButtonRoutes"></div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButtonDirections" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Directions
+                    </button>
+                    <div class="dropdown-menu" id="directions-dropdown-menu" aria-labelledby="dropdownMenuButtonDirections"></div>
+                </div>
+            </div>
+        </div>
+        <div id="map"></div>
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAsL6wsuPFovAUq8STgMIp0xrOqMjv3F6A&libraries=visualization"></script>
+        <script src="assets/js/jquery-3.2.1.min.js"></script>
+        <script src="assets/js/tether.min.js"></script>
+        <script src="assets/js/bootstrap.min.js"></script>
+        <script src="assets/js/jquery.easing.1.3.js"></script>
+        <script src="assets/js/markerAnimate.js"></script>
+        <script src="assets/js/SlidingMarker.min.js"></script>
+        <script>
+                var map;
+                var ws;
+                var markerArray = {};
+
+                $(function () {
+                    map = new google.maps.Map(document.getElementById('map'), {
+                        center: {lat: 51.505485, lng: -0.127889},
+                        zoom: 14
+                    });
+                    openWebsocket("2222");
+                });
+
+                function updateWSParams(routeId, direction) {
+                    var jsonToSend = '{"busRoutes" : [{"id" : "' + routeId + '","direction" : "' + direction + '"}],' +
+                            '"latLngBounds" : {' +
+                            '"southwest" : { "lat" : 50.0, "lng" : -1.0 },' +
+                            '"northeast" : { "lat" : 53.0, "lng" : 1.0 }' +
+                            '}' +
+                            '}';
+                    sendToWS(jsonToSend)
+                }
+
+                function openWebsocket(uuid) {
+                    if ("WebSocket" in window) {
+                        ws = new WebSocket("ws://34.209.127.7:80/ws?uuid=" + uuid);
+
+                        ws.onopen = function () {
+                            updateWSParams("3", "outbound")
+                        };
+
+                        ws.onmessage = function (evt) {
+                            var json = JSON.parse(evt.data);
+                            handleReceivedJson(json)
+                        };
+
+                        ws.onclose = function () {
+                            alert("Websocket connection is closed...");
+                        };
+
+                        window.onbeforeunload = function (event) {
+                            socket.close();
+                        };
+                    }
+
+                    else {
+                        alert("WebSockets are NOT supported by your Browser!");
+                    }
+                }
+
+                function sendToWS(message) {
+                    ws.send(message);
+                }
+
+                function handleReceivedJson(json) {
+                    for (var i = 0; i < json.length; i++) {
+                        var vehicleId = json[i].vehicleId;
+                        var routeId = json[i].busRoute.id;
+                        var direction = json[i].busRoute.direction;
+                        var busStopId = json[i].busStop.stopID;
+                        var busStopLat = json[i].busStop.latLng.lat;
+                        var busStopLng = json[i].busStop.latLng.lng;
+                        var arrivalTimestamp = json[i].arrivalTimestamp;
+                        var nextStopName = json[i].nextStopName;
+                        var avgTimeToNextStop = json[i].avgTimeToNextStop;
+                        var movementInstructionsRaw = json[i].movementInstructionsToNext;
+
+                        for (var j = 0; j < movementInstructionsRaw.length; i++) {
+                            var fromLat = movementInstructionsRaw[j].from.lat;
+                            var fromLng = movementInstructionsRaw[j].from.lng;
+                            var toLat = movementInstructionsRaw[j].to.lat;
+                            var toLng = movementInstructionsRaw[j].to.lng;
+                            var angle = movementInstructionsRaw[j].angle;
+                            var proportionalDistance = movementInstructionsRaw[j].proportionalDistance;
+
+                        }
+
+                        if (vehicleId in markerArray) {
+                            markerArray[vehicleId].setMap(null);
+                            delete markerArray[vehicleId];
+                        }
+                        var latLng = new google.maps.LatLng(busStopLat, busStopLng);
+                        markerArray[vehicleId] = new google.maps.Marker({
+                            position: latLng,
+                            //icon: 'images/bus_icon.png',
+//                                icon: iconArray[reg],
+                            map: map,
+                            visible: true
+                        })
+                    }
+                }
+        </script>
+    </body>
+</html>

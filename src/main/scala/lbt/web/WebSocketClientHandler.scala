@@ -13,6 +13,11 @@ class WebSocketClientHandler(redisSubscriberCache: RedisSubscriberCache, redisWs
     redisSubscriberCache.subscribe(clientUuid, None)
   }
 
+  def isAlreadySubscribed(uuid: String): Future[Boolean] = {
+    logger.debug(s"Checking if $uuid already exists")
+    redisSubscriberCache.subscriberExists(uuid)
+  }
+
   def retrieveTransmissionDataForClient(uuid: String): Future[String] = {
     redisWsClientCache.getVehicleActivityFor(uuid)
   }
