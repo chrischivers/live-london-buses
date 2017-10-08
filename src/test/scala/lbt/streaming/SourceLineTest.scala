@@ -51,8 +51,8 @@ class SourceLineTest extends fixture.FunSuite with SharedTestFeatures with Scala
     sourceLine.route shouldBe "25"
     sourceLine.direction shouldBe 1
     sourceLine.destinationText shouldBe "Ilford"
-    sourceLine.vehicleID shouldBe "BJ11DUV"
-    sourceLine.arrival_TimeStamp shouldBe time
+    sourceLine.vehicleId shouldBe "BJ11DUV"
+    sourceLine.arrivalTimeStamp shouldBe time
   }
 
   test("Source Line validation passes if all criteria met") { f =>

@@ -7,7 +7,7 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import lbt.db.caching.BusPositionDataForTransmission
 import lbt.models._
-import lbt.streaming.SourceLine
+import lbt.streaming.{SourceLine, StopArrivalRecord}
 import lbt.web.FilteringParams
 import org.scalatest.OptionValues
 
@@ -55,6 +55,14 @@ trait SharedTestFeatures extends OptionValues {
                                   vehicleId: String = "BJ11DUV",
                                   timeStamp: Long = System.currentTimeMillis() + 30000) = {
     SourceLine(route, direction, stopId, destination, vehicleId, timeStamp)
+  }
+
+
+  def generateStopArrivalRecord(
+                                 vehicleId: String = "BJ11DUV",
+                                 busRoute: BusRoute = BusRoute("25", "outbound"),
+                                 stopIndex: Int = 7) = {
+    StopArrivalRecord(vehicleId, busRoute, stopIndex)
   }
 
 }

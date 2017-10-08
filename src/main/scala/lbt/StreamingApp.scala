@@ -10,8 +10,6 @@ import lbt.streaming._
 import lbt.web.WebSocketClientHandler
 
 import scala.concurrent.ExecutionContext
-import scalacache.ScalaCache
-import scalacache.guava.GuavaCache
 
 
 object StreamingApp extends App with StrictLogging {

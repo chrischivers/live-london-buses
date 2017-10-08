@@ -1,19 +1,14 @@
 package lbt.streaming
 
-import cats.data.Validated.{Invalid, Valid, invalid, valid}
-import cats.data.{Validated, NonEmptyList => NEL, _}
-import cats.implicits._
+import cats.data.Validated.{Valid, invalid, valid}
+import cats.data.{NonEmptyList => NEL, _}
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.{Commons, Definitions}
-import lbt.models.{BusRoute, BusStop}
-import cats._
-import cats.data.Validated
-import cats.syntax.{CartesianOps, CartesianSyntax}
-import cats.instances.all._
-import cats.syntax.apply._
+import lbt.models.BusRoute
 
 
-case class SourceLine(route: String, direction: Int, stopID: String, destinationText: String, vehicleID: String, arrival_TimeStamp: Long) {
+
+case class SourceLine(route: String, direction: Int, stopID: String, destinationText: String, vehicleId: String, arrivalTimeStamp: Long) {
   def validate(definitions: Definitions): Boolean = SourceLine.validate(this, definitions)
 }
 
@@ -62,7 +57,7 @@ object SourceLine extends StrictLogging {
     }
 
     def isInPast(): ValidatedNel[String, String] = {
-      if (sourceLine.arrival_TimeStamp - System.currentTimeMillis() > 0) valid("Event is not in the past")
+      if (sourceLine.arrivalTimeStamp - System.currentTimeMillis() > 0) valid("Event is not in the past")
       else invalid(NEL.of("Event is in the past"))
     }
 
@@ -70,7 +65,6 @@ object SourceLine extends StrictLogging {
       valid("Event is not too far in future") //todo consider this later
 //      else invalid(NEL.of("Event is too far in the future"))
     }
-
 
     (validRoute(), validStop(), notOnIgnoreList(),isInPast(), isTooFarInFuture()) match {
       case (Valid(_), Valid(_), Valid(_), Valid(_), Valid(_)) => true

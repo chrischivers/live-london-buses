@@ -22,11 +22,7 @@ sealed trait DBConfig {
 
 case class PostgresDBConfig(host: String, port: Int, username: String, password: String, dbName: String) extends DBConfig
 
-case class RedisConfig(host: String, port: Int, dbIndex: Int, durationRecordTTL: Duration, durationMaxListLength: Int, wsClientCacheMaxResultsReturned: Int, clientInactiveTime: Duration)
-
-case class SourceLineCacheConfig(readPollingInterval: FiniteDuration)
-
-case class StopArrivalRecordHandlerConfig(cacheTtl: Duration, minimumTimeDifferenceToPersist: Duration)
+case class RedisConfig(host: String, port: Int, dbIndex: Int, wsClientCacheMaxResultsReturned: Int, clientInactiveTime: Duration)
 
 case class WebsocketConfig(clientSendInterval: FiniteDuration, websocketPort: Int)
 
@@ -37,9 +33,7 @@ case class LBTConfig(
                       postgresDbConfig: PostgresDBConfig,
                       redisDBConfig: RedisConfig,
                       definitionsConfig: DefinitionsConfig,
-                      sourceLineHandlerConfig: StopArrivalRecordHandlerConfig,
                       websocketConfig: WebsocketConfig,
-                      sourceLineCacheConfig: SourceLineCacheConfig,
                       metricsConfig: MetricsConfig)
 
 object ConfigLoader {
@@ -78,8 +72,6 @@ object ConfigLoader {
         defaultConfigFactory.getString(redisDBParamsPrefix + "host"),
         defaultConfigFactory.getInt(redisDBParamsPrefix + "port"),
         defaultConfigFactory.getInt(redisDBParamsPrefix + "dbIndex"),
-        defaultConfigFactory.getDuration(redisDBParamsPrefix + "durationRecordTTL"),
-        defaultConfigFactory.getInt(redisDBParamsPrefix + "durationMaxListLength"),
         defaultConfigFactory.getInt(redisDBParamsPrefix + "wsClientCacheMaxResultsReturned"),
         defaultConfigFactory.getDuration(redisDBParamsPrefix + "clientInactiveTime")
       ),
@@ -89,16 +81,9 @@ object ConfigLoader {
         defaultConfigFactory.getInt(definitionsParamsPrefix + "definitions-cached-time"),
         defaultConfigFactory.getStringList(definitionsParamsPrefix + "directions-api-keys").asScala.toList
       ),
-      StopArrivalRecordHandlerConfig(
-        defaultConfigFactory.getDuration(stopArrivalRecordHandlerParamsPrefix + "cache-ttl"),
-        defaultConfigFactory.getDuration(stopArrivalRecordHandlerParamsPrefix + "minimum-time-difference")
-      ),
       WebsocketConfig(
         FiniteDuration(defaultConfigFactory.getDuration("websockets.clientSendInterval").toMillis, TimeUnit.MILLISECONDS),
         defaultConfigFactory.getInt("websockets.port")
-      ),
-      SourceLineCacheConfig(
-        FiniteDuration(defaultConfigFactory.getDuration("sourceLineCache.readPollingInterval").toMillis, TimeUnit.MILLISECONDS)
       ),
       MetricsConfig(
         defaultConfigFactory.getString("metrics.host"),

@@ -17,8 +17,6 @@ libraryDependencies += "com.github.etaty" %% "rediscala" % "1.8.0"
 libraryDependencies += "org.apache.httpcomponents" % "httpclient" % "4.5.3"
 libraryDependencies += "com.xebialabs.restito" % "restito" % "0.9.1" % "test"
 libraryDependencies += "com.typesafe.play" %% "play-ahc-ws-standalone" % "1.0.7"
-libraryDependencies += "com.github.cb372" % "scalacache-core_2.12" % "0.9.4"
-libraryDependencies += "com.github.cb372" %% "scalacache-guava" % "0.9.4"
 libraryDependencies += "com.typesafe.akka" % "akka-stream_2.12" % "2.5.4"
 libraryDependencies += "com.typesafe.akka" % "akka-actor_2.12" % "2.5.4"
 libraryDependencies += "com.typesafe.akka" % "akka-http_2.12" % "10.0.10"
@@ -26,6 +24,7 @@ libraryDependencies += "com.github.andyglow" %% "websocket-scala-client" % "0.2.
 libraryDependencies += "com.github.davidb" % "metrics-influxdb" % "0.9.3"
 libraryDependencies += "nl.grons" %% "metrics-scala" % "3.5.9_a2.4"
 libraryDependencies += "com.internetitem" % "logback-elasticsearch-appender" % "1.6"
+libraryDependencies += "org.typelevel" %% "cats-core" % "1.0.0-MF"
 
 
 libraryDependencies ++= Seq(
