@@ -67,8 +67,8 @@ object SourceLine extends StrictLogging {
     }
 
     def isTooFarInFuture(): ValidatedNel[String, String]  = {
-      if (sourceLine.arrival_TimeStamp - System.currentTimeMillis() < 45000) valid("Event is not too far in future") //todo put in config
-      else invalid(NEL.of("Event is too far in the future"))
+      valid("Event is not too far in future") //todo consider this later
+//      else invalid(NEL.of("Event is too far in the future"))
     }
 
 

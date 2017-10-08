@@ -4,9 +4,8 @@ import akka.actor.ActorSystem
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
-import lbt.db.caching.RedisDurationRecorder
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.web.{MapService, StatsService}
+import lbt.web.MapService
 import org.http4s.server.blaze.BlazeBuilder
 import org.http4s.util.StreamApp
 
@@ -26,10 +25,6 @@ object HttpWebServer extends StreamApp[IO] with StrictLogging {
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = false)
   val definitions = new Definitions(routeDefinitionsTable)
 
-  val redisClient = new RedisDurationRecorder(config.redisDBConfig)
-
-  val lbtService = new StatsService(redisClient, definitions)
-
   val mapService = new MapService()
 
 
@@ -39,7 +34,6 @@ object HttpWebServer extends StreamApp[IO] with StrictLogging {
       .bindHttp(port, ip)
       .withIdleTimeout(3.minutes)
       .withWebSockets(true)
-      .mountService(lbtService.service, "/stats")
       .mountService(mapService.service, "/map")
       .serve
   }

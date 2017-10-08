@@ -31,8 +31,11 @@ trait MetricsLogging extends StrictLogging with DefaultInstrumented {
   private val sourceLinesValidated: Meter = metrics.meter("source-lines-validated")
   def incrSourceLinesValidated = if (metricsConfig.enabled) sourceLinesValidated.mark()
 
-  private val timeDifferencesPersistedToDB: Meter = metrics.meter("time-differences-persisted")
-  def incrTimeDifferencesPersisted = if (metricsConfig.enabled) timeDifferencesPersistedToDB.mark()
+  private val arrivalTimesPersistedToCache: Meter = metrics.meter("arrival-times-persisted")
+  def incrArrivalTimesPersisted = if (metricsConfig.enabled) arrivalTimesPersistedToCache.mark()
+
+  private val timeDifferencesPersistedToCache: Meter = metrics.meter("time-differences-persisted")
+  def incrTimeDifferencesPersisted = if (metricsConfig.enabled) timeDifferencesPersistedToCache.mark()
 }
 
 object MetricsLogging extends MetricsLogging {

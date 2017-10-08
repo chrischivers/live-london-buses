@@ -25,6 +25,8 @@ class MetricsTest extends FunSuite with SharedTestFeatures with ScalaFutures wit
     TestMetricsLogging.incrTimeDifferencesPersisted
     TestMetricsLogging.metrics.meter("time-differences-persisted").count shouldBe 1
   }
+
+  //TODO redis arrival time metrics
 }
 
 object TestMetricsLogging extends MetricsLogging {
