@@ -21,7 +21,6 @@ import scala.concurrent.duration._
 
 class VehicleTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll {
 
-
   val config = ConfigLoader.defaultConfig
 
   override implicit val patienceConfig = PatienceConfig(
@@ -65,6 +64,24 @@ class VehicleTest extends fixture.FunSuite with SharedTestFeatures with ScalaFut
     val result = (vehicle ? GetArrivalTimesMap).futureValue.asInstanceOf[Map[StopIndex, Long]]
     result should have size 1
     result(stopArrivalRecord.stopIndex) shouldBe timestamp
+  }
+
+  test("Vehicle actor updates source line map when more recent times received") { f =>
+    val actorSystem = ActorSystem()
+    val stopArrivalRecord = generateStopArrivalRecord()
+    val stopList = definitions.routeDefinitions(stopArrivalRecord.busRoute)
+    val timestamp1 = System.currentTimeMillis() + 100000
+    val timestamp2 = System.currentTimeMillis() + 50000
+
+    val vehicle = actorSystem.actorOf(Props(new Vehicle(stopArrivalRecord.vehicleId, stopArrivalRecord.busRoute, stopList)),
+      name = Vehicle.generateActorId(stopArrivalRecord.vehicleId, stopArrivalRecord.busRoute))
+
+    vehicle ! Handle(stopArrivalRecord, timestamp1)
+    vehicle ! Handle(stopArrivalRecord, timestamp2)
+
+    val result = (vehicle ? GetArrivalTimesMap).futureValue.asInstanceOf[Map[StopIndex, Long]]
+    result should have size 1
+    result(stopArrivalRecord.stopIndex) shouldBe timestamp2
   }
 
   //TODO more here

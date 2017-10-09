@@ -19,14 +19,19 @@ class MetricsTest extends FunSuite with SharedTestFeatures with ScalaFutures wit
     TestMetricsLogging.incrSourceLinesValidated
     TestMetricsLogging.metrics.meter("source-lines-validated").count shouldBe 1
   }
-
-  test("Time differences persisted increases when called") {
-    TestMetricsLogging.metrics.meter("time-differences-persisted").count shouldBe 0
-    TestMetricsLogging.incrTimeDifferencesPersisted
-    TestMetricsLogging.metrics.meter("time-differences-persisted").count shouldBe 1
+  test("Arrival Times logged metrics meter increases when called") {
+    TestMetricsLogging.metrics.meter("arrival-times-logged").count shouldBe 0
+    TestMetricsLogging.incrArrivalTimesLogged
+    TestMetricsLogging.metrics.meter("arrival-times-logged").count shouldBe 1
   }
-
-  //TODO redis arrival time metrics
+  test("Number live vehicles metrics counter increases/decreases when called") {
+    TestMetricsLogging.metrics.counter("live-vehicle-actors").count shouldBe 0
+    TestMetricsLogging.incrLiveVehicleActors
+    TestMetricsLogging.metrics.counter("live-vehicle-actors").count shouldBe 1
+    TestMetricsLogging.decrLiveVehicleActors
+    TestMetricsLogging.metrics.counter("live-vehicle-actors").count shouldBe 0
+  }
+  
 }
 
 object TestMetricsLogging extends MetricsLogging {

@@ -2,15 +2,16 @@ package lbt.streaming
 
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.scalalogging.StrictLogging
+import lbt.StreamingConfig
 import lbt.common.{Commons, Definitions}
 import lbt.db.caching.RedisArrivalTimeLog
 import lbt.models.BusRoute
 
 case class StopArrivalRecord(vehicleId: String, busRoute: BusRoute, stopIndex: Int)
 
-class SourceLineHandler(redisArrivalTimeLog: RedisArrivalTimeLog, definitions: Definitions)(implicit actorSystem: ActorSystem) extends StrictLogging {
+class SourceLineHandler(redisArrivalTimeLog: RedisArrivalTimeLog, definitions: Definitions, streamingConfig: StreamingConfig)(implicit actorSystem: ActorSystem) extends StrictLogging {
 
-  val vehicleCoordinator = actorSystem.actorOf(Props(new VehicleCoordinator(definitions)))
+  val vehicleCoordinator = actorSystem.actorOf(Props(new VehicleCoordinator(definitions, streamingConfig)))
 
   def handle(sourceLine: SourceLine) = {
 

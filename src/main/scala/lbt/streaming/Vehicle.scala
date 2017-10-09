@@ -2,13 +2,14 @@ package lbt.streaming
 
 import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
+import lbt.metrics.MetricsLogging
 import lbt.models.{BusPolyLine, BusRoute, BusStop}
 import lbt.streaming.Vehicle.StopIndex
 
 sealed trait VehicleCommands
 
 case class Handle(stopArrivalRecord: StopArrivalRecord, arrivalTimestamp: Long) extends VehicleCommands
-case class Transmit(stopIndex: StopIndex)
+//case class Transmit(stopIndex: StopIndex)
 case object GetArrivalTimesMap extends VehicleCommands
 
 object Vehicle {
@@ -30,5 +31,9 @@ class Vehicle(vehicleId: String, busRoute: BusRoute, definitionStopList: List[(S
 
     case Handle(stopArrivalRecord, arrivalTimestamp) => context.become(active(vehicleId, busRoute, definitionStopList, predictedArrivalTimes + (stopArrivalRecord.stopIndex -> arrivalTimestamp)))
     case GetArrivalTimesMap => sender() ! predictedArrivalTimes
+  }
+
+  override def postStop(): Unit = {
+    MetricsLogging.decrLiveVehicleActors
   }
 }

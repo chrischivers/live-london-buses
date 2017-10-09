@@ -13,14 +13,13 @@ import lbt.streaming.Vehicle.StopIndex
 import lbt.streaming.VehicleCoordinator.{LastUpdated, VehicleActorID}
 import lbt.{ConfigLoader, SharedTestFeatures}
 import org.scalatest.Matchers._
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, OptionValues, fixture}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class VehicleCoordinatorTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll {
-
+class VehicleCoordinatorTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll with Eventually{
 
   val config = ConfigLoader.defaultConfig
 
@@ -54,7 +53,7 @@ class VehicleCoordinatorTest extends fixture.FunSuite with SharedTestFeatures wi
   test("Vehicle coordinator creates a new vehicle for new registration/route and sends along source line") { f =>
 
     implicit val actorSystem = ActorSystem()
-    val vehicleCoordinator = actorSystem.actorOf(Props(new VehicleCoordinator(f.definitions)))
+    val vehicleCoordinator = actorSystem.actorOf(Props(new VehicleCoordinator(f.definitions, config.streamingConfig)))
     val stopArrivalRecord = generateStopArrivalRecord()
     val timeStamp = System.currentTimeMillis() + 60000
     vehicleCoordinator ! Handle(stopArrivalRecord, timeStamp)
@@ -74,7 +73,7 @@ class VehicleCoordinatorTest extends fixture.FunSuite with SharedTestFeatures wi
   test("Vehicle coordinator does not create duplicate vehicle actors for known registration/route") { f =>
 
     implicit val actorSystem = ActorSystem()
-    val vehicleCoordinator = actorSystem.actorOf(Props(new VehicleCoordinator(f.definitions)))
+    val vehicleCoordinator = actorSystem.actorOf(Props(new VehicleCoordinator(f.definitions, config.streamingConfig)))
     val busRoute = BusRoute("25", "outbound")
 
     val stopArrivalRecord1 = generateStopArrivalRecord(stopIndex = f.definitions.routeDefinitions(busRoute)(5)._1)
@@ -91,6 +90,35 @@ class VehicleCoordinatorTest extends fixture.FunSuite with SharedTestFeatures wi
 
     val resultFromVehicle = (resultFromCoordinator(actorId)._1 ? GetArrivalTimesMap).futureValue.asInstanceOf[Map[StopIndex, Long]]
     resultFromVehicle should have size 2
+
+  }
+
+  test("If no activity is received for a vehicle, the actor is deleted according to the config") { f =>
+
+    implicit val actorSystem = ActorSystem()
+    val testStreamingConfig = config.streamingConfig.copy(idleTimeBeforeVehicleDeleted = 5 seconds, cleanUpEveryNLines = 2)
+    val vehicleCoordinator = actorSystem.actorOf(Props(new VehicleCoordinator(f.definitions, testStreamingConfig)))
+    val busRoute = BusRoute("25", "outbound")
+
+    val stopArrivalRecord1 = generateStopArrivalRecord(stopIndex = f.definitions.routeDefinitions(busRoute)(5)._1)
+    val timestamp1 = System.currentTimeMillis() + 100000
+
+    vehicleCoordinator ! Handle(stopArrivalRecord1, timestamp1)
+
+    val initialResult = (vehicleCoordinator ? GetLiveVehicleList).futureValue.asInstanceOf[Map[VehicleActorID, (ActorRef, LastUpdated)]]
+    initialResult should have size 1
+    initialResult.head._1 shouldBe Vehicle.generateActorId(stopArrivalRecord1.vehicleId, busRoute)
+
+    Thread.sleep(5100)
+
+    val stopArrivalRecord2 = generateStopArrivalRecord(vehicleId = "ANOTHERVEHICLE")
+    vehicleCoordinator ! Handle(stopArrivalRecord2, timestamp1)
+
+    eventually {
+      val finalResult = (vehicleCoordinator ? GetLiveVehicleList).futureValue.asInstanceOf[Map[VehicleActorID, (ActorRef, LastUpdated)]]
+      finalResult should have size 1
+      finalResult.head._1 shouldBe Vehicle.generateActorId(stopArrivalRecord2.vehicleId, busRoute)
+    }
 
   }
 

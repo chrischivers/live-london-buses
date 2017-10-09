@@ -26,6 +26,8 @@ case class RedisConfig(host: String, port: Int, dbIndex: Int, wsClientCacheMaxRe
 
 case class WebsocketConfig(clientSendInterval: FiniteDuration, websocketPort: Int)
 
+case class StreamingConfig(idleTimeBeforeVehicleDeleted: FiniteDuration, cleanUpEveryNLines: Int)
+
 case class MetricsConfig(host: String, port: Int, dbName: String, updateInterval: Int, enabled: Boolean)
 
 case class LBTConfig(
@@ -34,6 +36,7 @@ case class LBTConfig(
                       redisDBConfig: RedisConfig,
                       definitionsConfig: DefinitionsConfig,
                       websocketConfig: WebsocketConfig,
+                      streamingConfig: StreamingConfig,
                       metricsConfig: MetricsConfig)
 
 object ConfigLoader {
@@ -48,7 +51,7 @@ object ConfigLoader {
     val definitionsParamsPrefix = "dataSource.definitions."
     val postgresDBParamsPrefix = "db.postgres."
     val redisDBParamsPrefix = "db.redis."
-    val stopArrivalRecordHandlerParamsPrefix = "stop-arrival-record-handler."
+
     LBTConfig(
       DataSourceConfig(
         defaultConfigFactory.getString(dataSourceStreamingParamsPrefix + "source-url"),
@@ -84,6 +87,10 @@ object ConfigLoader {
       WebsocketConfig(
         FiniteDuration(defaultConfigFactory.getDuration("websockets.clientSendInterval").toMillis, TimeUnit.MILLISECONDS),
         defaultConfigFactory.getInt("websockets.port")
+      ),
+      StreamingConfig(
+        FiniteDuration(defaultConfigFactory.getDuration("streaming.idleTimeBeforeVehicleDeleted").toMillis, TimeUnit.MILLISECONDS),
+        defaultConfigFactory.getInt("streaming.cleanUpEveryNLines"),
       ),
       MetricsConfig(
         defaultConfigFactory.getString("metrics.host"),

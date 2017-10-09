@@ -49,11 +49,10 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
   def withFixture(test: OneArgTest) = {
       implicit val actorSystem = ActorSystem()
     val definitions = new Definitions(routeDefinitionsTable)
-      val testVehicleCoordinator = actorSystem.actorOf(Props(new VehicleCoordinator(definitions)))
-
+      val testVehicleCoordinator = actorSystem.actorOf(Props(new VehicleCoordinator(definitions, config.streamingConfig)))
 
       val redisArrivalTimeLog = new RedisArrivalTimeLog(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
-      val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, definitions) {
+      val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, definitions, config.streamingConfig) {
         override val vehicleCoordinator = testVehicleCoordinator
       }
       val testFixture = FixtureParam(definitions, sourceLineHandler, testVehicleCoordinator, redisArrivalTimeLog)
