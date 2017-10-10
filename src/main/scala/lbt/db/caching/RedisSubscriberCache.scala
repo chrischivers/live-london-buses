@@ -17,21 +17,21 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionContext: ExecutionContext, val actorSystem: ActorSystem) extends RedisClient {
 
-  val subscribersKey = "SUBSCRIBERS"
+  private val SUBSCRIBERS_KEY = "SUBSCRIBERS"
 
   def subscribe(clientUUID: String, params: Option[FilteringParams]): Future[Unit] = {
     for {
-      _ <- client.zadd(subscribersKey, (System.currentTimeMillis(), clientUUID))
+      _ <- client.zadd(SUBSCRIBERS_KEY, (System.currentTimeMillis(), clientUUID))
       _ <- params.fold(Future.successful(()))( p => updateFilteringParameters(clientUUID, p))
     } yield ()
   }
 
   def subscriberExists(uuid: String) = {
-    client.zscore(subscribersKey, uuid).map(_.isDefined)
+    client.zscore(SUBSCRIBERS_KEY, uuid).map(_.isDefined)
   }
 
   def getListOfSubscribers: Future[Seq[String]] = {
-    client.zrange[String](subscribersKey, 0, Long.MaxValue)
+    client.zrange[String](SUBSCRIBERS_KEY, 0, Long.MaxValue)
   }
 
   def getParamsForSubscriber(uuid: String): Future[Option[FilteringParams]] = {
@@ -50,7 +50,7 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
 
   def updateSubscriberAliveTime(uuid: String) = {
     val setClientParamsTTL = client.pexpire(getParamsKey(uuid), redisConfig.clientInactiveTime.toMillis)
-    val updateSubscribersSetScore = client.zadd(subscribersKey, (System.currentTimeMillis(), uuid))
+    val updateSubscribersSetScore = client.zadd(SUBSCRIBERS_KEY, (System.currentTimeMillis(), uuid))
     val updateClientDataTTL = client.pexpire(uuid, redisConfig.clientInactiveTime.toMillis)
     for {
       _ <- setClientParamsTTL
@@ -60,7 +60,7 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
   }
 
   def cleanUpInactiveSubscribers = {
-   client.zremrangebyscore(subscribersKey, Limit(0), Limit(System.currentTimeMillis() - redisConfig.clientInactiveTime.toMillis))
+   client.zremrangebyscore(SUBSCRIBERS_KEY, Limit(0), Limit(System.currentTimeMillis() - redisConfig.clientInactiveTime.toMillis))
   }
 
 

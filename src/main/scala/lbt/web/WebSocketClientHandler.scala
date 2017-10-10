@@ -19,7 +19,7 @@ class WebSocketClientHandler(redisSubscriberCache: RedisSubscriberCache, redisWs
   }
 
   def retrieveTransmissionDataForClient(uuid: String): Future[String] = {
-    redisWsClientCache.getVehicleActivityFor(uuid)
+    redisWsClientCache.getVehicleActivityJsonFor(uuid)
   }
 
   def queueTransmissionDataToClients(data: BusPositionDataForTransmission) = {

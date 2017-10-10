@@ -5,6 +5,7 @@ import io.circe.generic.auto._
 import io.circe.generic.semiauto.deriveDecoder
 import io.circe.parser.parse
 import io.circe.syntax._
+import lbt.common.Definitions
 import lbt.db.caching.BusPositionDataForTransmission
 import lbt.models._
 import lbt.streaming.{SourceLine, StopArrivalRecord}
@@ -25,9 +26,9 @@ trait SharedTestFeatures extends OptionValues {
                             busStop: BusStop = BusStop("490003059E", "Abingdon Street", LatLng(51.49759, -0.125605)),
                             nextStopNameOpt: Option[String] = Some("NextStop"),
                             arrivalTimeStamp: Long = System.currentTimeMillis(),
-                            durationToNextStopOpt: Option[Int] = Some(100),
+                            arrivalTimeAtNextStop: Option[Long] = Some(System.currentTimeMillis() + 120000),
                             movementInstructionsOpt: Option[List[MovementInstruction]] = Some(BusPolyLine("}biyHzoW~KqA").toMovementInstructions)) = {
-    BusPositionDataForTransmission(vehicleId, busRoute, busStop, arrivalTimeStamp, nextStopNameOpt, durationToNextStopOpt, movementInstructionsOpt)
+    BusPositionDataForTransmission(vehicleId, busRoute, busStop, arrivalTimeStamp, nextStopNameOpt, arrivalTimeAtNextStop, movementInstructionsOpt)
   }
 
   def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),
@@ -63,6 +64,15 @@ trait SharedTestFeatures extends OptionValues {
                                  busRoute: BusRoute = BusRoute("25", "outbound"),
                                  stopIndex: Int = 7) = {
     StopArrivalRecord(vehicleId, busRoute, stopIndex)
+  }
+
+  def getBusStopFromStopID(stopId: String, definitions: Definitions): Option[BusStop] = {
+    definitions.routeDefinitions.values.flatten.find(_._2.stopID == stopId).map(_._2)
+  }
+
+  def getNextBusStopFromStopID(stopId: String, busRoute: BusRoute, definitions: Definitions): Option[BusStop] = {
+    val thisStopIndex = definitions.routeDefinitions(busRoute).find(_._2.stopID == stopId).map(_._1)
+    definitions.routeDefinitions(busRoute).find(_._1 == thisStopIndex.get + 1).map(_._2)
   }
 
 }

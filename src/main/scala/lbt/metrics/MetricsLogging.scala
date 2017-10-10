@@ -34,9 +34,9 @@ trait MetricsLogging extends StrictLogging with DefaultInstrumented {
   private val arrivalTimesLoggedToCache: Meter = metrics.meter("arrival-times-logged")
   def incrArrivalTimesLogged = if (metricsConfig.enabled) arrivalTimesLoggedToCache.mark()
 
-  private val liveVehicleActors: Counter = metrics.counter("live-vehicle-actors")
-  def incrLiveVehicleActors = if (metricsConfig.enabled) liveVehicleActors.inc()
-  def decrLiveVehicleActors = if (metricsConfig.enabled) liveVehicleActors.dec()
+  private val vehicleArrivalTimesLoggedToCache: Meter = metrics.meter("vehicle-arrival-times-logged")
+  def incrVehicleArrivalTimesLogged = if (metricsConfig.enabled) vehicleArrivalTimesLoggedToCache.mark()
+
 
 }
 

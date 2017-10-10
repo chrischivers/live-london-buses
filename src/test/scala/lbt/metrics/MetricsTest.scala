@@ -24,13 +24,7 @@ class MetricsTest extends FunSuite with SharedTestFeatures with ScalaFutures wit
     TestMetricsLogging.incrArrivalTimesLogged
     TestMetricsLogging.metrics.meter("arrival-times-logged").count shouldBe 1
   }
-  test("Number live vehicles metrics counter increases/decreases when called") {
-    TestMetricsLogging.metrics.counter("live-vehicle-actors").count shouldBe 0
-    TestMetricsLogging.incrLiveVehicleActors
-    TestMetricsLogging.metrics.counter("live-vehicle-actors").count shouldBe 1
-    TestMetricsLogging.decrLiveVehicleActors
-    TestMetricsLogging.metrics.counter("live-vehicle-actors").count shouldBe 0
-  }
+  //TODO
   
 }
 

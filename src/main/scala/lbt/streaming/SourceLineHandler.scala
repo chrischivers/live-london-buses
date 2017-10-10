@@ -1,19 +1,18 @@
 package lbt.streaming
 
-import akka.actor.{ActorSystem, Props}
 import com.typesafe.scalalogging.StrictLogging
 import lbt.StreamingConfig
 import lbt.common.{Commons, Definitions}
-import lbt.db.caching.RedisArrivalTimeLog
+import lbt.db.caching.{RedisArrivalTimeLog, RedisVehicleArrivalTimeLog}
 import lbt.models.BusRoute
+
+import scala.concurrent.{ExecutionContext, Future}
 
 case class StopArrivalRecord(vehicleId: String, busRoute: BusRoute, stopIndex: Int)
 
-class SourceLineHandler(redisArrivalTimeLog: RedisArrivalTimeLog, definitions: Definitions, streamingConfig: StreamingConfig)(implicit actorSystem: ActorSystem) extends StrictLogging {
+class SourceLineHandler(redisArrivalTimeLog: RedisArrivalTimeLog, redisVehicleArrivalTimeLog: RedisVehicleArrivalTimeLog, definitions: Definitions, streamingConfig: StreamingConfig)(implicit executionContext: ExecutionContext) extends StrictLogging {
 
-  val vehicleCoordinator = actorSystem.actorOf(Props(new VehicleCoordinator(definitions, streamingConfig)))
-
-  def handle(sourceLine: SourceLine) = {
+  def handle(sourceLine: SourceLine): Future[Unit] = {
 
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
     val busStop = definitions.routeDefinitions(busRoute).find(_._2.stopID == sourceLine.stopID)
@@ -21,13 +20,17 @@ class SourceLineHandler(redisArrivalTimeLog: RedisArrivalTimeLog, definitions: D
 
     val stopArrivalRecord = StopArrivalRecord(sourceLine.vehicleId, busRoute, busStop._1)
 
-    vehicleCoordinator ! Handle(stopArrivalRecord, sourceLine.arrivalTimeStamp)
-    addToRedisArrivalTimeLog(sourceLine.arrivalTimeStamp, stopArrivalRecord)
+    for {
+      _ <- addToRedisArrivalTimeLog(sourceLine.arrivalTimeStamp, stopArrivalRecord)
+      _ <- addToRedisVehicleArrivalTimeLog(sourceLine.arrivalTimeStamp, stopArrivalRecord)
+    } yield ()
   }
 
-
   private def addToRedisArrivalTimeLog(arrivalTimeStamp: Long, stopArrivalRecord: StopArrivalRecord) = {
-    logger.debug(s"Adding $stopArrivalRecord to Redis arrival time log")
     redisArrivalTimeLog.addArrivalRecord(arrivalTimeStamp, stopArrivalRecord)
+  }
+
+  private def addToRedisVehicleArrivalTimeLog(arrivalTimeStamp: Long, stopArrivalRecord: StopArrivalRecord) = {
+    redisVehicleArrivalTimeLog.addVehicleArrivalTime(stopArrivalRecord, arrivalTimeStamp)
   }
 }

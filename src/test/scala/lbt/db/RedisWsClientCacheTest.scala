@@ -56,7 +56,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData2).futureValue
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData3).futureValue
 
-    val results = f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue
+    val results = f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue
     val parsedResults: List[BusPositionDataForTransmission] = parseWebsocketCacheResult(results).value
     parsedResults should have size 3
     parsedResults.head shouldBe busPosData3
@@ -72,13 +72,13 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData1).futureValue
     f.redisWSClientCache.storeVehicleActivity(uuid, busPosData2).futureValue
 
-    val results = f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue
+    val results = f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue
     val parsedResults: List[BusPositionDataForTransmission] = parseWebsocketCacheResult(results).value
     parsedResults should have size 2
     parsedResults.head shouldBe busPosData2
     parsedResults(1) shouldBe busPosData1
 
-    val resultsAgain = f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue
+    val resultsAgain = f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue
     parseWebsocketCacheResult(resultsAgain).value should have size 0
   }
 
@@ -86,7 +86,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
 
     val uuid = UUID.randomUUID().toString
 
-    val results = f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue
+    val results = f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue
     parseWebsocketCacheResult(results).value should have size 0
   }
 
@@ -98,9 +98,9 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
     }).futureValue
 
 
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue).value should have size 100
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue).value should have size 1
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue).value should have size 0
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 100
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 1
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
   }
 
 
@@ -113,7 +113,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
     f.redisWSClientCache.storeVehicleActivity(uuid, busPos1).futureValue
     f.redisWSClientCache.storeVehicleActivity(uuid, busPos2).futureValue
     Thread.sleep(5500)
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue).value should have size 0
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
   }
 
   test("Vehicle activity for a uuid in Redis expires if no get requests received in in TTL period") { f =>
@@ -126,6 +126,6 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
     Thread.sleep(3000)
     f.redisWSClientCache.storeVehicleActivity(uuid, busPos2).futureValue
     Thread.sleep(3000)
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityFor(uuid).futureValue).value should have size 0
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
   }
 }

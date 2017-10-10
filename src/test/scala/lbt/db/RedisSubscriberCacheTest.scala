@@ -91,7 +91,7 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with SharedTestFeatures 
     f.redisSubscriberCache.cleanUpInactiveSubscribers.futureValue
     f.redisSubscriberCache.getListOfSubscribers.futureValue should have size 0
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue should not be defined
-    f.redisWsClientCache.getVehicleActivityFor(uuid1).futureValue shouldBe "[]"
+    f.redisWsClientCache.getVehicleActivityJsonFor(uuid1).futureValue shouldBe "[]"
   }
 
   test("Clean Up Subscribers does not remove subscribers from cache if there has been retrieval activity") { f =>
@@ -102,9 +102,9 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with SharedTestFeatures 
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)
     f.redisWsClientCache.storeVehicleActivity(uuid1, createBusPositionData()).futureValue
-    f.redisWsClientCache.getVehicleActivityFor(uuid1).futureValue
+    f.redisWsClientCache.getVehicleActivityJsonFor(uuid1).futureValue
     Thread.sleep(6000)
-    f.redisWsClientCache.getVehicleActivityFor(uuid1).futureValue
+    f.redisWsClientCache.getVehicleActivityJsonFor(uuid1).futureValue
     Thread.sleep(6000)
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)

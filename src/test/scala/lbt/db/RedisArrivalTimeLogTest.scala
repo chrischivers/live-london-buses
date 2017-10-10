@@ -42,7 +42,7 @@ class RedisArrivalTimeLogTest extends fixture.FunSuite with ScalaFutures with Op
     val stopArrivalRecord = generateStopArrivalRecord()
 
     f.redisArrivalTimeLog.addArrivalRecord(arrivalTime, stopArrivalRecord).futureValue
-    val result = f.redisArrivalTimeLog.getArrivalRecords(arrivalTime + 1).futureValue
+    val result = f.redisArrivalTimeLog.getAndDropArrivalRecords(arrivalTime + 1).futureValue
     result should have size 1
     result.head._1 shouldBe stopArrivalRecord
     result.head._2 shouldBe arrivalTime
@@ -59,7 +59,7 @@ class RedisArrivalTimeLogTest extends fixture.FunSuite with ScalaFutures with Op
     val stopArrivalRecord2 = generateStopArrivalRecord()
     f.redisArrivalTimeLog.addArrivalRecord(arrivalTime2, stopArrivalRecord2).futureValue
 
-    val result = f.redisArrivalTimeLog.getArrivalRecords(arrivalTime2 + 1).futureValue
+    val result = f.redisArrivalTimeLog.getAndDropArrivalRecords(arrivalTime2 + 1).futureValue
     result should have size 1
     result.head._1 shouldBe stopArrivalRecord2
     result.head._2 shouldBe arrivalTime2
@@ -77,15 +77,15 @@ class RedisArrivalTimeLogTest extends fixture.FunSuite with ScalaFutures with Op
     f.redisArrivalTimeLog.addArrivalRecord(arrivalTime1, stopArrivalRecord1).futureValue
     f.redisArrivalTimeLog.addArrivalRecord(arrivalTime2, stopArrivalRecord2).futureValue
 
-    val result1 = f.redisArrivalTimeLog.getArrivalRecords(arrivalTime1 + 1).futureValue
+    val result1 = f.redisArrivalTimeLog.getAndDropArrivalRecords(arrivalTime1 + 1).futureValue
     result1 should have size 1
     result1.head._1 shouldBe stopArrivalRecord1
     result1.head._2 shouldBe arrivalTime1
 
-    val result2 = f.redisArrivalTimeLog.getArrivalRecords(arrivalTime1 + 1).futureValue
+    val result2 = f.redisArrivalTimeLog.getAndDropArrivalRecords(arrivalTime1 + 1).futureValue
     result2 should have size 0
 
-    val result3 = f.redisArrivalTimeLog.getArrivalRecords(arrivalTime2 + 1).futureValue
+    val result3 = f.redisArrivalTimeLog.getAndDropArrivalRecords(arrivalTime2 + 1).futureValue
     result3 should have size 1
     result3.head._1 shouldBe stopArrivalRecord2
     result3.head._2 shouldBe arrivalTime2
