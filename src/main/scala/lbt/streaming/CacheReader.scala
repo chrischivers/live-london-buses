@@ -1,26 +1,16 @@
 package lbt.streaming
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props}
 import cats.data.OptionT
 import com.typesafe.scalalogging.StrictLogging
+import lbt.StreamingConfig
 import lbt.common.Definitions
 import lbt.db.caching._
+import lbt.metrics.MetricsLogging
 import lbt.web.FilteringParams
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-
-//class CacheReaderScheduler {
-//
-//
-//  //  val arrivalTimeCacheReader = actorSystem.actorOf(Props(new ArrivalTimeCacheReader(redisArrivalTimeCache, stopArrivalRecordHandler)))
-//  //
-//  //  val scheduler =
-//  //    actorSystem.scheduler.schedule(
-//  //      0.seconds,
-//  //      sourceLineCacheConfig.readPollingInterval,
-//  //      arrivalTimeCacheReader,
-//  //      CacheReadCommand(sourceLineCacheConfig.readPollingInterval.toMillis))
-//}
 
 case class CacheReadCommand(readTimeAhead: Long)
 
@@ -35,6 +25,7 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
   def transferArrivalTimesToWebSocketCache(arrivalTimesUpTo: Long) = {
     redisArrivalTimeCache.getAndDropArrivalRecords(System.currentTimeMillis() + arrivalTimesUpTo)
       .flatMap { records =>
+        MetricsLogging.incrCachedRecordsProcessed(records.size)
         for {
           transmissionDataList <- Future.sequence(records.map { case (stopArrivalRecord, timestamp) => createDataForTransmission(stopArrivalRecord, timestamp) })
           subscribersParams <- getSubscibersAndFilteringParams()

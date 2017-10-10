@@ -14,8 +14,8 @@ object WebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
 
   implicit val actorSystem = ActorSystem()
   val config = ConfigLoader.defaultConfig
-  val redisSubscriberCache = new RedisSubscriberCache(config.redisDBConfig)
-  val redisWsClientCache = new RedisWsClientCache(config.redisDBConfig, redisSubscriberCache)
+  val redisSubscriberCache = new RedisSubscriberCache(config.redisConfig)
+  val redisWsClientCache = new RedisWsClientCache(config.redisConfig, redisSubscriberCache)
   val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
   val webSocketService = new WebSocketService(webSocketClientHandler, config.websocketConfig)
 

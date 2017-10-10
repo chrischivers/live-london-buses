@@ -108,47 +108,45 @@
 
                 function handleReceivedJson(json) {
                     for (var i = 0; i < json.length; i++) {
-                        if (json[i].vehicleId === "LTZ1703") {
-                            var vehicleId = json[i].vehicleId;
-                            var routeId = json[i].busRoute.id;
-                            var direction = json[i].busRoute.direction;
-                            var startingStopId = json[i].startingBusStop.stopID;
-                            var startingStopLat = json[i].startingBusStop.latLng.lat;
-                            var startingStopLng = json[i].startingBusStop.latLng.lng;
-                            var startingTimeStamp = json[i].startingTimeStamp;
-                            var nextStopName = json[i].nextStopName;
-                            var avgTimeToNextStop = json[i].avgTimeToNextStop;
-                            var movementInstructionsRaw = json[i].movementInstructionsToNext;
+                        var vehicleId = json[i].vehicleId;
+                        var routeId = json[i].busRoute.id;
+                        var direction = json[i].busRoute.direction;
+                        var startingStopId = json[i].startingBusStop.stopID;
+                        var startingStopLat = json[i].startingBusStop.latLng.lat;
+                        var startingStopLng = json[i].startingBusStop.latLng.lng;
+                        var startingTimeStamp = json[i].startingTimeStamp;
+                        var nextStopName = json[i].nextStopName;
+                        var avgTimeToNextStop = json[i].avgTimeToNextStop;
+                        var movementInstructionsRaw = json[i].movementInstructionsToNext;
 
-                            var startingLatLng = new google.maps.LatLng(startingStopLat, startingStopLng);
+                        var startingLatLng = new google.maps.LatLng(startingStopLat, startingStopLng);
 
-                            console.log("Handling json for vehicle: " + vehicleId+ ". StartingStopId: " + startingStopId + ". startingTimeStamp: " + startingTimeStamp + ". avgToNext: " + avgTimeToNextStop);
+                        console.log("Handling json for vehicle: " + vehicleId + ". StartingStopId: " + startingStopId + ". startingTimeStamp: " + startingTimeStamp + ". avgToNext: " + avgTimeToNextStop);
 
-                            if (vehicleId in markerArray) {
+                        if (vehicleId in markerArray) {
 //                            markerArray[vehicleId].setPosition(startingLatLng);
-                            } else {
-                                markerArray[vehicleId] = createMarker(routeId, startingLatLng, 0);
-                            }
+                        } else {
+                            markerArray[vehicleId] = createMarker(routeId, startingLatLng, 0);
+                        }
 
-                            var marker = markerArray[vehicleId];
+                        var marker = markerArray[vehicleId];
 
-                            var timeDifferenceFromNow = startingTimeStamp - Date.now();
-                            var timeAccumulator = timeDifferenceFromNow < 0 ? 0 : timeDifferenceFromNow;
+                        var timeDifferenceFromNow = startingTimeStamp - Date.now();
+                        var timeAccumulator = timeDifferenceFromNow < 0 ? 0 : timeDifferenceFromNow;
 
-                            for (var j = 0; j < movementInstructionsRaw.length; j++) {
-                                var fromLat = movementInstructionsRaw[j].from.lat;
-                                var fromLng = movementInstructionsRaw[j].from.lng;
-                                var toLat = movementInstructionsRaw[j].to.lat;
-                                var toLng = movementInstructionsRaw[j].to.lng;
-                                var angle = movementInstructionsRaw[j].angle;
-                                var proportionalDistance = movementInstructionsRaw[j].proportionalDistance;
+                        for (var j = 0; j < movementInstructionsRaw.length; j++) {
+                            var fromLat = movementInstructionsRaw[j].from.lat;
+                            var fromLng = movementInstructionsRaw[j].from.lng;
+                            var toLat = movementInstructionsRaw[j].to.lat;
+                            var toLng = movementInstructionsRaw[j].to.lng;
+                            var angle = movementInstructionsRaw[j].angle;
+                            var proportionalDistance = movementInstructionsRaw[j].proportionalDistance;
 
-                                var latLngToMoveTo = new google.maps.LatLng(toLat, toLng);
-                                var proportionalTime = parseInt(avgTimeToNextStop * proportionalDistance * 1000);
+                            var latLngToMoveTo = new google.maps.LatLng(toLat, toLng);
+                            var proportionalTime = parseInt(avgTimeToNextStop * proportionalDistance * 1000);
 
-                                animateMarker(marker, routeId, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
-                                timeAccumulator += proportionalTime
-                            }
+                            animateMarker(marker, routeId, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
+                            timeAccumulator += proportionalTime
                         }
                     }
                 }
@@ -178,6 +176,7 @@
                     };
 
                 }
+
                 function animateMarker(marker, routeId, duration, moveTo, rotation, waitTime) {
                     console.log("Wait time : " + waitTime + ". Duration: " + duration);
 

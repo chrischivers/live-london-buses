@@ -3,7 +3,7 @@ package lbt
 import akka.actor.ActorSystem
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
-import lbt.db.caching.{RedisSubscriberCache, RedisWsClientCache}
+import lbt.db.caching.{RedisArrivalTimeLog, RedisSubscriberCache, RedisVehicleArrivalTimeLog, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.metrics.MetricsLogging
 import lbt.streaming._
@@ -21,22 +21,33 @@ object StreamingApp extends App with StrictLogging {
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema())
   val definitions = new Definitions(routeDefinitionsTable)
 
-  val redisSubscriberCache = new RedisSubscriberCache(config.redisDBConfig)
-  val redisWsClientCache = new RedisWsClientCache(config.redisDBConfig, redisSubscriberCache)
+  val redisSubscriberCache = new RedisSubscriberCache(config.redisConfig)
+  val redisWsClientCache = new RedisWsClientCache(config.redisConfig, redisSubscriberCache)
 
   val streamingClient = new StreamingClient(config.dataSourceConfig, processSourceLine)
   val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
+
+  val redisArrivalTimeLog = new RedisArrivalTimeLog(config.redisConfig)
+  val redisVehicleArrivalTimeLog = new RedisVehicleArrivalTimeLog(config.redisConfig, config.streamingConfig)
+
+  val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, redisVehicleArrivalTimeLog, definitions, config.streamingConfig)
+
+  val cachedReaderScheduler = new CacheReaderScheduler(
+    redisArrivalTimeLog,
+    redisVehicleArrivalTimeLog,
+    redisSubscriberCache,
+    redisWsClientCache,
+    definitions,
+    config.streamingConfig)
 
   streamingClient.start().map(_ => ())
 
   def processSourceLine(rawSourceLine: String): Unit = {
     MetricsLogging.incrSourceLinesReceived
     SourceLine.fromRawLine(rawSourceLine).fold(throw new RuntimeException(s"Unable to parse raw source line: $rawSourceLine")) { line =>
-//      if (line.vehicleID == "LTZ1703") logger.info("Line received: " + line)
       if (line.validate(definitions)) {
-//        if (line.vehicleID == "LTZ1703") logger.info("Line validated: " + line)
         MetricsLogging.incrSourceLinesValidated
-        //TODO something here
+        sourceLineHandler.handle(line)
       }
     }
   }

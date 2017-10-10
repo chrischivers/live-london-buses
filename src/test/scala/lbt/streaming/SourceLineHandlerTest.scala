@@ -44,7 +44,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
   def withFixture(test: OneArgTest) = {
     implicit val actorSystem = ActorSystem()
     val definitions = new Definitions(routeDefinitionsTable)
-    val redisConfig = config.redisDBConfig.copy(dbIndex = 1)
+    val redisConfig = config.redisConfig.copy(dbIndex = 1)
 
     val redisArrivalTimeLog = new RedisArrivalTimeLog(redisConfig) // 1 = test, 0 = main
     val redisVehicleArrivalTimeLog = new RedisVehicleArrivalTimeLog(redisConfig, config.streamingConfig)

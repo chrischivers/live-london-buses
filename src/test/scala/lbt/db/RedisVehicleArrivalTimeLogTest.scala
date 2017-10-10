@@ -25,7 +25,7 @@ class RedisVehicleArrivalTimeLogTest extends fixture.FunSuite with ScalaFutures 
 
     implicit val actorSystem: ActorSystem = ActorSystem()
     val redisVehicleArrivalTimeLog = new RedisVehicleArrivalTimeLog(
-      config.redisDBConfig.copy(dbIndex = 1),
+      config.redisConfig.copy(dbIndex = 1),
       config.streamingConfig.copy(idleTimeBeforeVehicleDeleted = 5 seconds)
     ) // 1 = test, 0 = main
     val testFixture = FixtureParam(redisVehicleArrivalTimeLog)

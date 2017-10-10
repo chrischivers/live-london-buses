@@ -32,7 +32,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
   def withFixture(test: OneArgTest) = {
 
     implicit val actorSystem: ActorSystem = ActorSystem()
-    val modifiedConfig = config.redisDBConfig.copy(dbIndex = 1, clientInactiveTime = 5 seconds) // 1 = test, 0 = main
+    val modifiedConfig = config.redisConfig.copy(dbIndex = 1, clientInactiveTime = 5 seconds) // 1 = test, 0 = main
     val redisSubscriberCache = new RedisSubscriberCache(modifiedConfig)
     val redisWSClientCache = new RedisWsClientCache(modifiedConfig, redisSubscriberCache)
     val testFixture = FixtureParam(redisWSClientCache)

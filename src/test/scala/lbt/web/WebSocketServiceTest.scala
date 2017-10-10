@@ -68,7 +68,7 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     val wsPort: Int = portIncrementer.incrementAndGet()
 
     implicit val actorSystem: ActorSystem = ActorSystem()
-    val redisConfig = config.redisDBConfig.copy(dbIndex = 1)
+    val redisConfig = config.redisConfig.copy(dbIndex = 1)
     val redisSubscriberCache = new RedisSubscriberCache(redisConfig) // 1 = test, 0 = main
     val redisWsClientCache = new RedisWsClientCache(redisConfig, redisSubscriberCache)
     val redisArrivalTimeLog = new RedisArrivalTimeLog(redisConfig)
