@@ -49,6 +49,7 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
   }
 
   private def handleIncomingFilterParams(clientUUID: String, params: String): Unit = {
+    println(s"Client $clientUUID received filter params $params")
     decodeIncomingFilterParams(params) match {
       case Right(filteringParams) =>
         logger.info(s"Successfully decoded filtering parameters for $clientUUID, filtering params: $filteringParams")

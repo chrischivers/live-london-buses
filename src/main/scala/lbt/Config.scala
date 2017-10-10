@@ -22,11 +22,11 @@ sealed trait DBConfig {
 
 case class PostgresDBConfig(host: String, port: Int, username: String, password: String, dbName: String) extends DBConfig
 
-case class RedisConfig(host: String, port: Int, dbIndex: Int, durationRecordTTL: Duration, durationMaxListLength: Int, wsClientCacheMaxResultsReturned: Int, clientInactiveTime: Duration)
-
-case class SourceLineHandlerConfig(cacheTtl: Duration, minimumTimeDifferenceToPersist: Duration)
+case class RedisConfig(host: String, port: Int, dbIndex: Int, wsClientCacheMaxResultsReturned: Int, clientInactiveTime: Duration)
 
 case class WebsocketConfig(clientSendInterval: FiniteDuration, websocketPort: Int)
+
+case class StreamingConfig(idleTimeBeforeVehicleDeleted: FiniteDuration, cleanUpEveryNLines: Int)
 
 case class MetricsConfig(host: String, port: Int, dbName: String, updateInterval: Int, enabled: Boolean)
 
@@ -35,8 +35,8 @@ case class LBTConfig(
                       postgresDbConfig: PostgresDBConfig,
                       redisDBConfig: RedisConfig,
                       definitionsConfig: DefinitionsConfig,
-                      sourceLineHandlerConfig: SourceLineHandlerConfig,
                       websocketConfig: WebsocketConfig,
+                      streamingConfig: StreamingConfig,
                       metricsConfig: MetricsConfig)
 
 object ConfigLoader {
@@ -51,7 +51,7 @@ object ConfigLoader {
     val definitionsParamsPrefix = "dataSource.definitions."
     val postgresDBParamsPrefix = "db.postgres."
     val redisDBParamsPrefix = "db.redis."
-    val sourceLineHandlerParamsPrefix = "source-line-handler."
+
     LBTConfig(
       DataSourceConfig(
         defaultConfigFactory.getString(dataSourceStreamingParamsPrefix + "source-url"),
@@ -75,8 +75,6 @@ object ConfigLoader {
         defaultConfigFactory.getString(redisDBParamsPrefix + "host"),
         defaultConfigFactory.getInt(redisDBParamsPrefix + "port"),
         defaultConfigFactory.getInt(redisDBParamsPrefix + "dbIndex"),
-        defaultConfigFactory.getDuration(redisDBParamsPrefix + "durationRecordTTL"),
-        defaultConfigFactory.getInt(redisDBParamsPrefix + "durationMaxListLength"),
         defaultConfigFactory.getInt(redisDBParamsPrefix + "wsClientCacheMaxResultsReturned"),
         defaultConfigFactory.getDuration(redisDBParamsPrefix + "clientInactiveTime")
       ),
@@ -86,13 +84,13 @@ object ConfigLoader {
         defaultConfigFactory.getInt(definitionsParamsPrefix + "definitions-cached-time"),
         defaultConfigFactory.getStringList(definitionsParamsPrefix + "directions-api-keys").asScala.toList
       ),
-      SourceLineHandlerConfig(
-        defaultConfigFactory.getDuration(sourceLineHandlerParamsPrefix + "cache-ttl"),
-        defaultConfigFactory.getDuration(sourceLineHandlerParamsPrefix + "minimum-time-difference")
-      ),
       WebsocketConfig(
         FiniteDuration(defaultConfigFactory.getDuration("websockets.clientSendInterval").toMillis, TimeUnit.MILLISECONDS),
         defaultConfigFactory.getInt("websockets.port")
+      ),
+      StreamingConfig(
+        FiniteDuration(defaultConfigFactory.getDuration("streaming.idleTimeBeforeVehicleDeleted").toMillis, TimeUnit.MILLISECONDS),
+        defaultConfigFactory.getInt("streaming.cleanUpEveryNLines"),
       ),
       MetricsConfig(
         defaultConfigFactory.getString("metrics.host"),
@@ -100,9 +98,8 @@ object ConfigLoader {
         defaultConfigFactory.getString("metrics.dbName"),
         defaultConfigFactory.getInt("metrics.updateInterval"),
         defaultConfigFactory.getBoolean("metrics.enabled")
-      ),
+      )
     )
-
   }
 }
 

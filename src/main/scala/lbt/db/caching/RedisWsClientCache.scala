@@ -10,7 +10,7 @@ import lbt.models.{BusRoute, BusStop, LatLng, MovementInstruction}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class BusPositionDataForTransmission(vehicleId: String, busRoute: BusRoute, startingBusStop: BusStop, startingTimeStamp: Long, nextStopName: Option[String], avgTimeToNextStop: Option[Int], movementInstructionsToNext: Option[List[MovementInstruction]])
+case class BusPositionDataForTransmission(vehicleId: String, busRoute: BusRoute, startingBusStop: BusStop, startingTimeStamp: Long, nextStopName: Option[String], nextStopArrivalTime: Option[Long], movementInstructionsToNext: Option[List[MovementInstruction]])
 
 class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: RedisSubscriberCache)(implicit val executionContext: ExecutionContext, val actorSystem: ActorSystem) extends RedisClient {
 
@@ -25,7 +25,7 @@ class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: Red
     } yield ()
   }
 
-  def getVehicleActivityFor(clientUUID: String): Future[String] = {
+  def getVehicleActivityJsonFor(clientUUID: String): Future[String] = {
 
     val updateClientAliveTime = redisSubscriberCache.updateSubscriberAliveTime(clientUUID)
       for {

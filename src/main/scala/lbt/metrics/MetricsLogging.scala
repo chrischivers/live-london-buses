@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 import com.typesafe.scalalogging.StrictLogging
 import lbt.{ConfigLoader, MetricsConfig}
 import metrics_influxdb.{HttpInfluxdbProtocol, InfluxdbReporter}
-import nl.grons.metrics.scala.{DefaultInstrumented, Meter, MetricName}
+import nl.grons.metrics.scala.{Counter, DefaultInstrumented, Meter, MetricName}
 
 trait MetricsLogging extends StrictLogging with DefaultInstrumented {
 
@@ -31,8 +31,13 @@ trait MetricsLogging extends StrictLogging with DefaultInstrumented {
   private val sourceLinesValidated: Meter = metrics.meter("source-lines-validated")
   def incrSourceLinesValidated = if (metricsConfig.enabled) sourceLinesValidated.mark()
 
-  private val timeDifferencesPersistedToDB: Meter = metrics.meter("time-differences-persisted")
-  def incrTimeDifferencesPersisted = if (metricsConfig.enabled) timeDifferencesPersistedToDB.mark()
+  private val arrivalTimesLoggedToCache: Meter = metrics.meter("arrival-times-logged")
+  def incrArrivalTimesLogged = if (metricsConfig.enabled) arrivalTimesLoggedToCache.mark()
+
+  private val vehicleArrivalTimesLoggedToCache: Meter = metrics.meter("vehicle-arrival-times-logged")
+  def incrVehicleArrivalTimesLogged = if (metricsConfig.enabled) vehicleArrivalTimesLoggedToCache.mark()
+
+
 }
 
 object MetricsLogging extends MetricsLogging {

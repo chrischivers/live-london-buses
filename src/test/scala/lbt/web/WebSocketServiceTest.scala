@@ -3,41 +3,32 @@ package lbt.web
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem, Props}
 import cats.effect.IO
 import cats.implicits._
 import com.github.andyglow.websocket.WebsocketClient
 import com.typesafe.scalalogging.StrictLogging
 import fs2.Stream._
 import fs2.{Scheduler, Stream}
-import io.circe._
-import io.circe.generic.semiauto._
-import io.circe.parser.parse
+import io.netty.handler.codec.http.websocketx.WebSocketHandshakeException
 import lbt.common.Definitions
-import lbt.db.caching.{BusPositionDataForTransmission, RedisDurationRecorder, RedisSubscriberCache, RedisWsClientCache}
+import lbt.db.caching._
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
-import lbt.models.{BusRoute, BusStop, LatLng, LatLngBounds}
+import lbt.models.BusRoute
 import lbt.scripts.BusRouteDefinitionsUpdater
+import lbt.streaming.{CacheReadCommand, CacheReader, SourceLineHandler}
 import lbt.{ConfigLoader, LBTConfig, SharedTestFeatures}
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.blaze.BlazeBuilder
 import org.http4s.util.StreamApp
 import org.scalatest.Matchers._
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest._
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
-import scala.util.Random
-import io.circe.generic.auto._
-import io.circe.syntax._
-import io.netty.handler.codec.http.websocketx.WebSocketHandshakeException
-import lbt.streaming.{SourceLine, SourceLineHandler}
-import org.http4s.client.UnexpectedStatus
+import scala.concurrent.{ExecutionContext, Future}
 
-import scalacache.ScalaCache
-import scalacache.guava.GuavaCache
 
 class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll with EitherValues with StrictLogging with Eventually {
 
@@ -70,22 +61,25 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     (websocketClient, wsReceivedBuffer)
   }
 
-  case class FixtureParam(redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache, sourceLineHandler: SourceLineHandler, wsPort: Int)
+  case class FixtureParam(redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache, sourceLineHandler: SourceLineHandler, cacheReader: ActorRef, wsPort: Int)
 
   def withFixture(test: OneArgTest) = {
 
-    val cache = ScalaCache(GuavaCache())
     val wsPort: Int = portIncrementer.incrementAndGet()
 
     implicit val actorSystem: ActorSystem = ActorSystem()
     val redisConfig = config.redisDBConfig.copy(dbIndex = 1)
-    val redisDurationRecorder = new RedisDurationRecorder(redisConfig)
     val redisSubscriberCache = new RedisSubscriberCache(redisConfig) // 1 = test, 0 = main
     val redisWsClientCache = new RedisWsClientCache(redisConfig, redisSubscriberCache)
+    val redisArrivalTimeLog = new RedisArrivalTimeLog(redisConfig)
+    val redisVehicleArrivalTimeLog = new RedisVehicleArrivalTimeLog(redisConfig, config.streamingConfig)
+
+    val cacheReader = actorSystem.actorOf(Props(new CacheReader(redisArrivalTimeLog, redisVehicleArrivalTimeLog, redisSubscriberCache, redisWsClientCache, definitions)))
+
     val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
     val webSocketService: WebSocketService = new WebSocketService(webSocketClientHandler, config.websocketConfig)
 
-    val sourceLineHandler = new SourceLineHandler(definitions,config.sourceLineHandlerConfig,redisDurationRecorder, webSocketClientHandler)(cache, ec)
+    val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, redisVehicleArrivalTimeLog,definitions, config.streamingConfig)(ec)
 
 
     object TestWebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
@@ -104,15 +98,20 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     Future(TestWebSocketsServer.main(Array.empty))
     Thread.sleep(2000)
 
-    val testFixture = FixtureParam(redisWsClientCache, redisSubscriberCache, sourceLineHandler, wsPort)
+    val testFixture = FixtureParam(redisWsClientCache, redisSubscriberCache, sourceLineHandler, cacheReader, wsPort)
     try {
       redisSubscriberCache.flushDB.futureValue
       redisWsClientCache.flushDB.futureValue
+      redisArrivalTimeLog.flushDB.futureValue
+      redisVehicleArrivalTimeLog.flushDB.futureValue
       withFixture(test.toNoArgTest(testFixture))
     }
     finally {
       redisSubscriberCache.flushDB.futureValue
       redisWsClientCache.flushDB.futureValue
+      redisArrivalTimeLog.flushDB.futureValue
+      redisVehicleArrivalTimeLog.flushDB.futureValue
+      actorSystem.terminate().futureValue
     }
   }
 
@@ -192,13 +191,16 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
 
     val subscribedSourceLine = generateSourceLine(route = "25", direction = 1, stopId = "490007497E")
     val nonSubscribedSourceLine = generateSourceLine(route = "3", direction = 2, stopId = "490007190W")
-    f.sourceLineHandler.handle(subscribedSourceLine).value.futureValue
-    f.sourceLineHandler.handle(nonSubscribedSourceLine).value.futureValue
+    f.sourceLineHandler.handle(subscribedSourceLine).futureValue
+    f.sourceLineHandler.handle(nonSubscribedSourceLine).futureValue
+
+    f.cacheReader ! CacheReadCommand(60000)
 
     eventually {
       val received = parsePacketsReceived(packagesReceivedBuffer)
+      println(received)
       received should have size 1
-      received.head.vehicleId shouldBe subscribedSourceLine.vehicleID
+      received.head.vehicleId shouldBe subscribedSourceLine.vehicleId
       received.head.busRoute shouldBe subscribedBusRoute
     }
 
@@ -223,7 +225,9 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     parsePacketsReceived(packagesReceivedBuffer2) should have size 0
 
     val sourceLine = generateSourceLine()
-    f.sourceLineHandler.handle(sourceLine).value.futureValue
+    f.sourceLineHandler.handle(sourceLine).futureValue
+
+    f.cacheReader ! CacheReadCommand(60000)
 
     eventually {
       parsePacketsReceived(packagesReceivedBuffer1) should have size 1
