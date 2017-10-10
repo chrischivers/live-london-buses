@@ -24,7 +24,7 @@ class RedisArrivalTimeLogTest extends fixture.FunSuite with ScalaFutures with Op
   def withFixture(test: OneArgTest) = {
 
     implicit val actorSystem: ActorSystem = ActorSystem()
-    val redisArrivalTimeLog = new RedisArrivalTimeLog(config.redisDBConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
+    val redisArrivalTimeLog = new RedisArrivalTimeLog(config.redisConfig.copy(dbIndex = 1)) // 1 = test, 0 = main
     val testFixture = FixtureParam(redisArrivalTimeLog)
 
     try {

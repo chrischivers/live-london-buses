@@ -37,6 +37,9 @@ trait MetricsLogging extends StrictLogging with DefaultInstrumented {
   private val vehicleArrivalTimesLoggedToCache: Meter = metrics.meter("vehicle-arrival-times-logged")
   def incrVehicleArrivalTimesLogged = if (metricsConfig.enabled) vehicleArrivalTimesLoggedToCache.mark()
 
+  private val cachedRecordsProcessed: Meter = metrics.meter("cached-records-processed")
+  def incrCachedRecordsProcessed(n: Int) = if (metricsConfig.enabled) cachedRecordsProcessed.mark(n)
+
 
 }
 
