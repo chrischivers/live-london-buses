@@ -42,10 +42,13 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
   }
 
   private def createDataForTransmission(stopArrivalRecord: StopArrivalRecord, timestamp: Long) = {
+
     val stopList = definitions.routeDefinitions.getOrElse(stopArrivalRecord.busRoute,
       throw new RuntimeException(s"Unable to locate ${stopArrivalRecord.busRoute} in definitions file"))
+
     val thisStop = stopList.find { case (index, _, _) => index == stopArrivalRecord.stopIndex }
       .getOrElse(throw new RuntimeException(s"Unable to locate index ${stopArrivalRecord.stopIndex} in definitions file for route ${stopArrivalRecord.busRoute}"))
+
     val nextStopOpt = stopList.find { case (index, _, _) => index == stopArrivalRecord.stopIndex + 1 }
 
     getArrivalTimeForNextStop(stopArrivalRecord).map(nextArrivalTimeOpt => {
@@ -56,7 +59,7 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
         timestamp,
         nextStopOpt.map(_._2.stopName),
         nextArrivalTimeOpt,
-        None) //todo
+        thisStop._3.map(_.toMovementInstructions))
     })
 
   }
