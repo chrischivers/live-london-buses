@@ -1,19 +1,13 @@
 package lbt.streaming
 
-import java.util.UUID
-
-import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props}
-import cats.data.OptionT
+import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
-import lbt.StreamingConfig
 import lbt.common.Definitions
 import lbt.db.caching._
 import lbt.metrics.MetricsLogging
 import lbt.web.FilteringParams
 
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 
 case class CacheReadCommand(readTimeAhead: Long)
 
@@ -22,12 +16,8 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
   logger.info("New cache reader created")
   override def receive = {
     case CacheReadCommand(time) =>
-      val uuid = UUID.randomUUID().toString
-      val startTime = System.currentTimeMillis()
-      logger.info(s"Cache read command received [$uuid]")
-      transferArrivalTimesToWebSocketCache(time).onComplete{
-        case Success(_) => logger.info(s"Cache read command completed successfully [$uuid]. Time taken = ${System.currentTimeMillis() - startTime}")
-        case Failure(e) => logger.error(s"Failure in cache read processing [$uuid]", e)
+      MetricsLogging.measureCacheReadProcess {
+        transferArrivalTimesToWebSocketCache(time)
       }
     case unknown => throw new RuntimeException(s"Unknown command received by arrival time cache reader: $unknown")
   }

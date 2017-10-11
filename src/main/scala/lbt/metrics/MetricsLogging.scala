@@ -6,7 +6,9 @@ import java.util.concurrent.TimeUnit
 import com.typesafe.scalalogging.StrictLogging
 import lbt.{ConfigLoader, MetricsConfig}
 import metrics_influxdb.{HttpInfluxdbProtocol, InfluxdbReporter}
-import nl.grons.metrics.scala.{Counter, DefaultInstrumented, Meter, MetricName}
+import nl.grons.metrics.scala._
+
+import scala.concurrent.Future
 
 trait MetricsLogging extends StrictLogging with DefaultInstrumented {
 
@@ -40,6 +42,8 @@ trait MetricsLogging extends StrictLogging with DefaultInstrumented {
   private val cachedRecordsProcessed: Meter = metrics.meter("cached-records-processed")
   def incrCachedRecordsProcessed(n: Int) = if (metricsConfig.enabled) cachedRecordsProcessed.mark(n)
 
+  private val cacheReadProcessingTimer: Timer = metrics.timer("cache-read-processing")
+  def measureCacheReadProcess[A](f: => Future[A]) = cacheReadProcessingTimer.timeFuture(f)
 
 }
 

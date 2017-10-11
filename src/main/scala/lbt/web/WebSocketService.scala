@@ -33,7 +33,6 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
       else {
         webSocketClientHandler.subscribe(uuid)
 
-
         val toClient: Stream[IO, WebSocketFrame] =
           scheduler.awakeEvery[IO](websocketConfig.clientSendInterval).map { _ =>
             Text(Await.result(webSocketClientHandler.retrieveTransmissionDataForClient(uuid), 10 seconds)) //todo is this await the only option?
