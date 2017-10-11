@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import lbt.{ConfigLoader, MetricsConfig}
 import metrics_influxdb.{HttpInfluxdbProtocol, InfluxdbReporter}
 import nl.grons.metrics.scala._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.concurrent.Future
 
