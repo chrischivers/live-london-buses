@@ -9,8 +9,8 @@ import scala.concurrent.duration._
 
 class Definitions(routeDefinitionsTable: RouteDefinitionsTable) extends StrictLogging {
 
-  lazy val routeDefinitions: Map[BusRoute, List[(Int, BusStop, Option[BusPolyLine])]] = {
-    val result = Await.result(routeDefinitionsTable.getAllRouteDefinitions, 5 minutes)
+  val routeDefinitions: Map[BusRoute, List[(Int, BusStop, Option[BusPolyLine])]] = {
+    val result = Await.result(routeDefinitionsTable.getAllRouteDefinitions, 10 minutes)
     logger.info(s"Obtained ${result.size} route definitions from DB")
     result
   }

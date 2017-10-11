@@ -8,9 +8,7 @@ import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.metrics.MetricsLogging
 import lbt.streaming._
 import lbt.web.WebSocketClientHandler
-
 import scala.concurrent.ExecutionContext
-
 
 object StreamingApp extends App with StrictLogging {
   implicit val actorSystem: ActorSystem = ActorSystem()
@@ -24,13 +22,14 @@ object StreamingApp extends App with StrictLogging {
   val redisSubscriberCache = new RedisSubscriberCache(config.redisConfig)
   val redisWsClientCache = new RedisWsClientCache(config.redisConfig, redisSubscriberCache)
 
-  val streamingClient = new StreamingClient(config.dataSourceConfig, processSourceLine)
   val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
 
   val redisArrivalTimeLog = new RedisArrivalTimeLog(config.redisConfig)
   val redisVehicleArrivalTimeLog = new RedisVehicleArrivalTimeLog(config.redisConfig, config.streamingConfig)
 
   val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, redisVehicleArrivalTimeLog, definitions, config.streamingConfig)
+
+  val streamingClient = new StreamingClient(config.dataSourceConfig, processSourceLine)
 
   val cachedReaderScheduler = new CacheReaderScheduler(
     redisArrivalTimeLog,
@@ -40,6 +39,7 @@ object StreamingApp extends App with StrictLogging {
     definitions,
     config.streamingConfig)
 
+  logger.info("Starting streaming client")
   streamingClient.start().map(_ => ())
 
   def processSourceLine(rawSourceLine: String): Unit = {

@@ -38,7 +38,7 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
         MetricsLogging.incrCachedRecordsProcessed(records.size)
         for {
           transmissionDataList <- Future.sequence(records.map { case (stopArrivalRecord, timestamp) => createDataForTransmission(stopArrivalRecord, timestamp) })
-          subscribersParams <- getSubscibersAndFilteringParams()
+          subscribersParams <- getSubscribersAndFilteringParams()
           filteringMap = subscribersParams.map {
             case (client, params) => client -> transmissionDataList.filter(data =>
               params.busRoutes.contains(data.busRoute) &&
@@ -77,7 +77,7 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
     })
   }
 
-  private def getSubscibersAndFilteringParams(): Future[Seq[(String, FilteringParams)]] = {
+  private def getSubscribersAndFilteringParams(): Future[Seq[(String, FilteringParams)]] = {
     for {
       subscribers <- redisSubscriberCache.getListOfSubscribers
       filteringParams <- Future.sequence(subscribers.map(subscriber =>
