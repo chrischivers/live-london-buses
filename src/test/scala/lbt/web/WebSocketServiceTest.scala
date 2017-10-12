@@ -178,7 +178,7 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     websocketClient.shutdownSync()
   }
 
-  test("Client receives data only for routes they are subscribed to") { f =>
+  test("Client receives data for routes they are subscribed to") { f =>
 
     val uuid = UUID.randomUUID().toString
     val subscribedBusRoute = BusRoute("25", "outbound")

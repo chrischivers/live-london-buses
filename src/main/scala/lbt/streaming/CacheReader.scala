@@ -24,30 +24,36 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
 
   def transferArrivalTimesToWebSocketCache(arrivalTimesUpTo: Long) = {
     redisArrivalTimeCache.getAndDropArrivalRecords(System.currentTimeMillis() + arrivalTimesUpTo)
-      .flatMap { records =>
-        MetricsLogging.incrCachedRecordsProcessed(records.size)
+      .flatMap { allRecords =>
+        MetricsLogging.incrCachedRecordsProcessed(allRecords.size)
+        val filteredRecords = allRecords.filter(_._1.lastStop != true) //disregard last stops as these are not sent to client
         for {
-          transmissionDataList <- Future.sequence(records.map { case (stopArrivalRecord, timestamp) => createDataForTransmission(stopArrivalRecord, timestamp) })
+          transmissionDataList <- Future.sequence(filteredRecords.map { case (stopArrivalRecord, timestamp) => createDataForTransmission(stopArrivalRecord, timestamp) })
+          _ = println(transmissionDataList)
           subscribersParams <- getSubscribersAndFilteringParams()
-          filteringMap = subscribersParams.map {
+          _ = println(subscribersParams)
+          subscribersWithPayloads = subscribersParams.map {
             case (client, params) => client -> transmissionDataList.filter(data =>
               params.busRoutes.contains(data.busRoute) &&
                 params.latLngBounds.isWithinBounds(data.startingBusStop.latLng))
           }
-          results <- Future.sequence(filteringMap.map { case (client, recordsForTransmission) => Future.sequence(recordsForTransmission
+          _ = println(subscribersWithPayloads)
+          results <- Future.sequence(subscribersWithPayloads.map { case (client, recordsForTransmission) => Future.sequence(recordsForTransmission
             .map(record => redisWsClientCache.storeVehicleActivity(client, record)))
           }).map(_.flatten)
         } yield results
       }
   }
 
-  private def createDataForTransmission(stopArrivalRecord: StopArrivalRecord, timestamp: Long) = {
+  private def createDataForTransmission(stopArrivalRecord: StopArrivalRecord, timestamp: Long): Future[BusPositionDataForTransmission] = {
 
     val stopList = definitions.routeDefinitions.getOrElse(stopArrivalRecord.busRoute,
       throw new RuntimeException(s"Unable to locate ${stopArrivalRecord.busRoute} in definitions file"))
 
     val thisStop = stopList.find { case (index, _, _) => index == stopArrivalRecord.stopIndex }
       .getOrElse(throw new RuntimeException(s"Unable to locate index ${stopArrivalRecord.stopIndex} in definitions file for route ${stopArrivalRecord.busRoute}"))
+
+    val isPenultimateStop = stopList.size == thisStop._1 + 2
 
     val nextStopOpt = stopList.find { case (index, _, _) => index == stopArrivalRecord.stopIndex + 1 }
 
@@ -57,11 +63,11 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
         stopArrivalRecord.busRoute,
         thisStop._2,
         timestamp,
+        isPenultimateStop,
         nextStopOpt.map(_._2.stopName),
         nextArrivalTimeOpt,
         thisStop._3.map(_.toMovementInstructions))
     })
-
   }
 
   private def getArrivalTimeForNextStop(stopArrivalRecord: StopArrivalRecord): Future[Option[Long]] = {

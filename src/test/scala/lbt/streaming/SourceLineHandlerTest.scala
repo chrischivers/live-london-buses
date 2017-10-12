@@ -63,23 +63,41 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
   }
 
 
-    test("Source Line Handler sends message to arrival time cache and vehicle arrival time cache") { f =>
+  test("Source Line Handler sends message to arrival time cache and vehicle arrival time cache") { f =>
 
-      val sourceLine = generateSourceLine()
-      val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
-      val indexOfStop = f.definitions.routeDefinitions(busRoute).find(_._2.stopID == sourceLine.stopID).value._1
-      f.sourceLineHandler.handle(sourceLine).futureValue
+    val sourceLine = generateSourceLine()
+    val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
+    val indexOfStop = f.definitions.routeDefinitions(busRoute).find(_._2.stopID == sourceLine.stopID).value._1
+    f.sourceLineHandler.handle(sourceLine).futureValue
 
-      val resultFromArrivalTimeCache = f.redisArrivalTimeLog.getAndDropArrivalRecords(sourceLine.arrivalTimeStamp + 1).futureValue
-      resultFromArrivalTimeCache should have size 1
-      resultFromArrivalTimeCache.head._1 shouldBe StopArrivalRecord(sourceLine.vehicleId, busRoute, indexOfStop)
-      resultFromArrivalTimeCache.head._2 shouldBe sourceLine.arrivalTimeStamp
+    val resultFromArrivalTimeCache = f.redisArrivalTimeLog.getAndDropArrivalRecords(sourceLine.arrivalTimeStamp + 1).futureValue
+    resultFromArrivalTimeCache should have size 1
+    resultFromArrivalTimeCache.head._1 shouldBe StopArrivalRecord(sourceLine.vehicleId, busRoute, indexOfStop, lastStop = false)
+    resultFromArrivalTimeCache.head._2 shouldBe sourceLine.arrivalTimeStamp
 
-      val resultFromVehicleArrivalTimeCache = f.redisVehicleArrivalTimeLog.getArrivalTimes(sourceLine.vehicleId, busRoute).futureValue
-      resultFromVehicleArrivalTimeCache should have size 1
-      resultFromVehicleArrivalTimeCache.head.stopIndex shouldBe indexOfStop
-      resultFromVehicleArrivalTimeCache.head.arrivalTime shouldBe sourceLine.arrivalTimeStamp
-    }
+    val resultFromVehicleArrivalTimeCache = f.redisVehicleArrivalTimeLog.getArrivalTimes(sourceLine.vehicleId, busRoute).futureValue
+    resultFromVehicleArrivalTimeCache should have size 1
+    resultFromVehicleArrivalTimeCache.head.stopIndex shouldBe indexOfStop
+    resultFromVehicleArrivalTimeCache.head.arrivalTime shouldBe sourceLine.arrivalTimeStamp
+  }
+
+  test("Source Line Handler sends message to arrival time cache and vehicle arrival and set lastStop to true") { f =>
+
+    val sourceLine = generateSourceLine(stopId = "490007657S")
+    val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
+    val indexOfStop = f.definitions.routeDefinitions(busRoute).find(_._2.stopID == sourceLine.stopID).value._1
+    f.sourceLineHandler.handle(sourceLine).futureValue
+
+    val resultFromArrivalTimeCache = f.redisArrivalTimeLog.getAndDropArrivalRecords(sourceLine.arrivalTimeStamp + 1).futureValue
+    resultFromArrivalTimeCache should have size 1
+    resultFromArrivalTimeCache.head._1 shouldBe StopArrivalRecord(sourceLine.vehicleId, busRoute, indexOfStop, lastStop = true)
+    resultFromArrivalTimeCache.head._2 shouldBe sourceLine.arrivalTimeStamp
+
+    val resultFromVehicleArrivalTimeCache = f.redisVehicleArrivalTimeLog.getArrivalTimes(sourceLine.vehicleId, busRoute).futureValue
+    resultFromVehicleArrivalTimeCache should have size 1
+    resultFromVehicleArrivalTimeCache.head.stopIndex shouldBe indexOfStop
+    resultFromVehicleArrivalTimeCache.head.arrivalTime shouldBe sourceLine.arrivalTimeStamp
+  }
 
   test("Source Line for same route/vehicle/index is updated not appended") { f =>
 
@@ -92,7 +110,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
 
     val resultFromArrivalTimeCache = f.redisArrivalTimeLog.getAndDropArrivalRecords(sourceLine2.arrivalTimeStamp + 1).futureValue
     resultFromArrivalTimeCache should have size 1
-    resultFromArrivalTimeCache.head._1 shouldBe StopArrivalRecord(sourceLine2.vehicleId, busRoute, indexOfStop)
+    resultFromArrivalTimeCache.head._1 shouldBe StopArrivalRecord(sourceLine2.vehicleId, busRoute, indexOfStop, lastStop = false)
     resultFromArrivalTimeCache.head._2 shouldBe sourceLine2.arrivalTimeStamp
 
     val resultFromVehicleArrivalTimeCache = f.redisVehicleArrivalTimeLog.getArrivalTimes(sourceLine1.vehicleId, busRoute).futureValue

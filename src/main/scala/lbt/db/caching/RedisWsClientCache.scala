@@ -10,7 +10,7 @@ import lbt.models.{BusRoute, BusStop, LatLng, MovementInstruction}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class BusPositionDataForTransmission(vehicleId: String, busRoute: BusRoute, startingBusStop: BusStop, startingTimeStamp: Long, nextStopName: Option[String], nextStopArrivalTime: Option[Long], movementInstructionsToNext: Option[List[MovementInstruction]])
+case class BusPositionDataForTransmission(vehicleId: String, busRoute: BusRoute, startingBusStop: BusStop, startingTimeStamp: Long, isPenultimateStop: Boolean, nextStopName: Option[String], nextStopArrivalTime: Option[Long], movementInstructionsToNext: Option[List[MovementInstruction]])
 
 class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: RedisSubscriberCache)(implicit val executionContext: ExecutionContext, val actorSystem: ActorSystem) extends RedisClient {
 
@@ -19,7 +19,6 @@ class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: Red
     for {
       existsAlready <- client.exists(clientUUID)
       _ <- client.zadd(clientUUID, (busPositionData.startingTimeStamp, jsonToStore))
-      _ = logger.debug("Adding json " + jsonToStore + s" for client $clientUUID")
       _ <- if (!existsAlready) client.pexpire(clientUUID, redisConfig.clientInactiveTime.toMillis) else Future.successful(())
         // The above updates the ttl only on first persistence. Going forward the expiry is updated when requests are made.
     } yield ()

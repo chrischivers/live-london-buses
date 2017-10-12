@@ -73,7 +73,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
   }
 
 
-    test("Cache reader sends records to web socket client cache (no next stop information available)") { f =>
+    test("Cache reader sends records to web socket client cache (not penultimate stop but no next stop information available)") { f =>
 
       val sourceLine = generateSourceLine()
       val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
@@ -96,11 +96,43 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
           busRoute,
           getBusStopFromStopID(sourceLine.stopID, definitions).get,
           sourceLine.arrivalTimeStamp,
+          isPenultimateStop = false,
           getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
           None,
           None)
       }
   }
+
+  test("Cache reader sends records to web socket client cache (when is penultimate stop and no next stop information available)") { f =>
+
+    val sourceLine = generateSourceLine(stopId = "490008466R") //penultimate stop
+    val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
+
+    val uuid = UUID.randomUUID().toString
+    val params = FilteringParams(List(busRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
+
+    f.sourceLineHandler.handle(sourceLine).futureValue
+
+    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
+
+    f.cacheReader ! CacheReadCommand(60000)
+
+    eventually {
+      val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value
+      results should have size 1
+      results.head shouldBe BusPositionDataForTransmission(
+        sourceLine.vehicleId,
+        busRoute,
+        getBusStopFromStopID(sourceLine.stopID, definitions).get,
+        sourceLine.arrivalTimeStamp,
+        isPenultimateStop = true,
+        getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
+        None,
+        None)
+    }
+  }
+
 
   test("Cache reader sends records to web socket client cache (with next stop information available)") { f =>
 
@@ -128,6 +160,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
         busRoute,
         getBusStopFromStopID(sourceLine1.stopID, definitions).get,
         sourceLine1.arrivalTimeStamp,
+        isPenultimateStop = false,
         getNextBusStopFromStopID(sourceLine1.stopID, busRoute, definitions).map(_.stopName),
         Some(timestamp2),
         None)
@@ -137,10 +170,32 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
         busRoute,
         getBusStopFromStopID(sourceLine2.stopID, definitions).get,
         sourceLine2.arrivalTimeStamp,
+        isPenultimateStop = false,
         getNextBusStopFromStopID(sourceLine2.stopID, busRoute, definitions).map(_.stopName),
         None,
         None)
     }
+  }
+
+  test("Cache reader does not send records to websocket client for last stop)") { f =>
+
+    val sourceLineLastStop = generateSourceLine(stopId = "490007657S")
+    val sourceLineNonLastStop = generateSourceLine()
+    val busRoute = BusRoute(sourceLineLastStop.route, Commons.toDirection(sourceLineLastStop.direction))
+
+    val uuid = UUID.randomUUID().toString
+    val params = FilteringParams(List(busRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
+
+    f.sourceLineHandler.handle(sourceLineLastStop).futureValue
+    f.sourceLineHandler.handle(sourceLineNonLastStop).futureValue
+
+    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
+
+    f.cacheReader ! CacheReadCommand(40000)
+    Thread.sleep(5000)
+    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 1
+
   }
 
   test("user only receives source lines for routes they are subscribed to, when within bounds") { f =>
@@ -167,6 +222,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
         subscribedBusRoute,
         getBusStopFromStopID(sourceLine1.stopID, definitions).get,
         sourceLine1.arrivalTimeStamp,
+        isPenultimateStop = false,
         getNextBusStopFromStopID(sourceLine1.stopID, subscribedBusRoute, definitions).map(_.stopName),
         None,
         None)

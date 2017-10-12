@@ -115,6 +115,7 @@
                         var startingStopLat = json[i].startingBusStop.latLng.lat;
                         var startingStopLng = json[i].startingBusStop.latLng.lng;
                         var startingTimeStamp = json[i].startingTimeStamp;
+                        var isPenultimatestop = json[i].isPenultimateStop;
                         var nextStopName = json[i].nextStopName;
                         var nextStopArrivalTime = json[i].nextStopArrivalTime;
                         var movementInstructionsRaw = json[i].movementInstructionsToNext;
@@ -145,10 +146,15 @@
 
                             var latLngToMoveTo = new google.maps.LatLng(toLat, toLng);
 
-                            var proportionalTime = parseInt(timeToNextStop * proportionalDistance * 1000);
+                            var proportionalTime = parseInt(timeToNextStop * proportionalDistance);
 
                             animateMarker(marker, routeId, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
                             timeAccumulator += proportionalTime
+                        }
+
+                        if (isPenultimateStop) {
+                            console.log("Deleting marker in " + timeAccumulator + " as at end of route");
+                            deleteMarker(marker, vehicleId, timeAccumulator)
                         }
                     }
                 }
@@ -177,6 +183,13 @@
                         rotation: rotation
                     };
 
+                }
+
+                function deleteMarker(marker, vehicleId, waitTime) {
+                    setTimeout(function () {
+                        marker.setMap(null);
+                        delete markerArray[vehicleId];
+                    }, waitTime);
                 }
 
                 function animateMarker(marker, routeId, duration, moveTo, rotation, waitTime) {
