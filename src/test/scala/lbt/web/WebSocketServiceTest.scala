@@ -198,7 +198,6 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
 
     eventually {
       val received = parsePacketsReceived(packagesReceivedBuffer)
-      println(received)
       received should have size 1
       received.head.vehicleId shouldBe subscribedSourceLine.vehicleId
       received.head.busRoute shouldBe subscribedBusRoute

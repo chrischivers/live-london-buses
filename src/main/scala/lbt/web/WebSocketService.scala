@@ -40,7 +40,7 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
         val fromClient: Sink[IO, WebSocketFrame] = _.evalMap { (ws: WebSocketFrame) =>
           ws match {
             case Text(params, _) => F.delay(handleIncomingFilterParams(uuid, params))
-            case f => F.delay(println(s"Unknown type: $f"))
+            case f => F.delay(logger.error(s"Unknown type: $f"))
           }
         }
         WS(toClient, fromClient)
@@ -48,7 +48,7 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
   }
 
   private def handleIncomingFilterParams(clientUUID: String, params: String): Unit = {
-    println(s"Client $clientUUID received filter params $params")
+    logger.debug(s"Client $clientUUID received filter params $params")
     decodeIncomingFilterParams(params) match {
       case Right(filteringParams) =>
         logger.info(s"Successfully decoded filtering parameters for $clientUUID, filtering params: $filteringParams")

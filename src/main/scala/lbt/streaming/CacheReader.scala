@@ -29,15 +29,12 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
         val filteredRecords = allRecords.filter(_._1.lastStop != true) //disregard last stops as these are not sent to client
         for {
           transmissionDataList <- Future.sequence(filteredRecords.map { case (stopArrivalRecord, timestamp) => createDataForTransmission(stopArrivalRecord, timestamp) })
-          _ = println(transmissionDataList)
           subscribersParams <- getSubscribersAndFilteringParams()
-          _ = println(subscribersParams)
           subscribersWithPayloads = subscribersParams.map {
             case (client, params) => client -> transmissionDataList.filter(data =>
               params.busRoutes.contains(data.busRoute) &&
                 params.latLngBounds.isWithinBounds(data.startingBusStop.latLng))
           }
-          _ = println(subscribersWithPayloads)
           results <- Future.sequence(subscribersWithPayloads.map { case (client, recordsForTransmission) => Future.sequence(recordsForTransmission
             .map(record => redisWsClientCache.storeVehicleActivity(client, record)))
           }).map(_.flatten)
