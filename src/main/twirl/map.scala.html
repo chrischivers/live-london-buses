@@ -157,23 +157,20 @@
 
                 function handleReceivedJson(json) {
                     for (var i = 0; i < json.length; i++) {
+
                         var routeId = json[i].busRoute.id;
+                        var direction = json[i].busRoute.direction;
+
                         if ($.inArray(routeId, selectedRoutes) > -1) {
                             var vehicleId = json[i].vehicleId;
-                            var direction = json[i].busRoute.direction;
-                            var startingStopId = json[i].startingBusStop.stopID;
-                            var startingStopLat = json[i].startingBusStop.latLng.lat;
-                            var startingStopLng = json[i].startingBusStop.latLng.lng;
-                            var startingTimeStamp = json[i].startingTimeStamp;
-                            var isPenultimateStop = json[i].isPenultimateStop;
+                            var startingTime = json[i].startingTime;
+                            var startingLatLng = new google.maps.LatLng(json[i].startingLatLng);
+                            var deleteAfter = json[i].deleteAfter;
                             var nextStopName = json[i].nextStopName;
                             var nextStopArrivalTime = json[i].nextStopArrivalTime;
                             var movementInstructionsRaw = json[i].movementInstructionsToNext;
 
-                            var startingLatLng = new google.maps.LatLng(startingStopLat, startingStopLng);
                             var id = getId(vehicleId, routeId, direction);
-
-                            console.log("Handling json for vehicle: " + id + ". StartingStopId: " + startingStopId + ". startingTimeStamp: " + startingTimeStamp + ". nextStopArrivalTime: " + nextStopArrivalTime);
 
                             if (!(id in markerArray)) {
                                 markerArray[id] = createMarker(routeId, startingLatLng, 0);
@@ -181,27 +178,24 @@
 
                             var marker = markerArray[id];
                             var now = Date.now();
+
                             var timeNextFree = timeNextFreeArray[id] || 0;
-                            var actualStartingTime = startingTimeStamp < timeNextFree ? timeNextFree : startingTimeStamp;
-                            var waitTimeBeforeStart = actualStartingTime - now;
+                            var adjustedStartingTime = startingTime < timeNextFree ? timeNextFree : startingTime;
+                            var waitTimeBeforeStart = adjustedStartingTime - now;
                             var timeAccumulator = waitTimeBeforeStart < 0 ? 0 : waitTimeBeforeStart;
-                            var timeToNextStop = nextStopArrivalTime - (actualStartingTime < now ? now : actualStartingTime);
+                            var timeToNextStop = nextStopArrivalTime - (adjustedStartingTime < now ? now : adjustedStartingTime);
 
                             for (var j = 0; j < movementInstructionsRaw.length; j++) {
-                                var toLat = movementInstructionsRaw[j].to.lat;
-                                var toLng = movementInstructionsRaw[j].to.lng;
+                                var latLngToMoveTo = new google.maps.LatLng(movementInstructionsRaw[j].to);
                                 var angle = movementInstructionsRaw[j].angle;
-                                var proportionalDistance = movementInstructionsRaw[j].proportionalDistance;
-
-                                var latLngToMoveTo = new google.maps.LatLng(toLat, toLng);
-
+                                var proportionalDistance = movementInstructionsRaw[j].proportion;
                                 var proportionalTime = parseInt(timeToNextStop * proportionalDistance);
 
                                 animateMarker(marker, routeId, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
                                 timeAccumulator += proportionalTime
                             }
 
-                            if (isPenultimateStop) {
+                            if (deleteAfter) {
                                 console.log("Deleting marker in " + timeAccumulator + " as at end of route");
                                 deleteMarker(marker, id, timeAccumulator)
                             }

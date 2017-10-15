@@ -1,6 +1,6 @@
 package lbt.models
 
-case class MovementInstruction(from: LatLng, to: LatLng, angle: Int, proportionalDistance: Double)
+case class MovementInstruction(to: LatLng, angle: Int, proportion: Double)
 
 case class BusPolyLine(encodedPolyLine: String) {
   def decode: List[LatLng] = BusPolyLine.decodePolyLine(this)
@@ -64,20 +64,20 @@ object BusPolyLine {
 
   def toMovementInstructions(decodedPolyLine: List[LatLng]): List[MovementInstruction] = {
 
-    type temporaryInstructionList = (LatLng, LatLng, Int, Double)
+    type temporaryInstructionList = (LatLng, Int, Double)
 
     def helper(remainingToDecode: List[LatLng], accumulatedInstructions: List[temporaryInstructionList]): List[temporaryInstructionList] = {
       remainingToDecode match {
         case Nil => accumulatedInstructions
         case x :: Nil => accumulatedInstructions
         case from :: to :: tail =>
-          val acc = accumulatedInstructions :+ (from, to, from.angleTo(to), from.distanceTo(to))
+          val acc = accumulatedInstructions :+ (to, from.angleTo(to), from.distanceTo(to))
           helper(to :: tail, acc)
       }
     }
 
     val temporaryResults = helper(decodedPolyLine, List.empty)
-    val sumOfAllDistances = temporaryResults.foldLeft(0.0)((acc, x) => acc + x._4)
-    temporaryResults.map(res => MovementInstruction(res._1, res._2, res._3, truncateAt(res._4 / sumOfAllDistances)))
+    val sumOfAllDistances = temporaryResults.foldLeft(0.0)((acc, x) => acc + x._3)
+    temporaryResults.map(res => MovementInstruction(res._1, res._2, truncateAt(res._3 / sumOfAllDistances)))
   }
 }

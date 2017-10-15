@@ -14,16 +14,16 @@ import scala.concurrent.{ExecutionContext, Future}
 
 case class BusPositionDataForTransmission(vehicleId: String,
                                           busRoute: BusRoute,
-                                          startingBusStop: BusStop,
-                                          startingTimeStamp: Long,
-                                          isPenultimateStop: Boolean,
+                                          startingTime: Long,
+                                          startingLatLng: LatLng,
+                                          deleteAfter: Boolean,
                                           nextStopName: Option[String],
                                           nextStopArrivalTime: Option[Long],
                                           movementInstructionsToNext: Option[List[MovementInstruction]]) {
 
   def satisfiesFilteringParams(fps: FilteringParams): Boolean = {
     fps.busRoutes.contains(this.busRoute) &&
-      fps.latLngBounds.isWithinBounds(this.startingBusStop.latLng)
+      fps.latLngBounds.isWithinBounds(this.startingLatLng)
   }
 }
 
@@ -35,7 +35,7 @@ class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: Red
     val jsonToStore = busPositionData.asJson.noSpaces
     for {
       existsAlready <- client.exists(clientUUID)
-      _ <- client.zadd(clientUUID, (busPositionData.startingTimeStamp, jsonToStore))
+      _ <- client.zadd(clientUUID, (busPositionData.startingTime, jsonToStore))
       _ <- if (!existsAlready) client.pexpire(clientUUID, redisConfig.clientInactiveTime.toMillis) else Future.successful(())
     // The above updates the ttl only on first persistence. Going forward the expiry is updated when requests are made.
     } yield ()

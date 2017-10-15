@@ -29,11 +29,11 @@ trait SharedTestFeatures extends OptionValues {
                             arrivalTimeStamp: Long = System.currentTimeMillis(),
                             arrivalTimeAtNextStop: Option[Long] = Some(System.currentTimeMillis() + 120000),
                             movementInstructionsOpt: Option[List[MovementInstruction]] = Some(BusPolyLine("}biyHzoW~KqA").toMovementInstructions)) = {
-    BusPositionDataForTransmission(vehicleId, busRoute, busStop, arrivalTimeStamp, isPenultimateStop, nextStopNameOpt, arrivalTimeAtNextStop, movementInstructionsOpt)
+    BusPositionDataForTransmission(vehicleId, busRoute, arrivalTimeStamp, busStop.latLng, isPenultimateStop, nextStopNameOpt, arrivalTimeAtNextStop, movementInstructionsOpt)
   }
 
   def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),
-                                    latLngBounds: LatLngBounds = LatLngBounds(LatLng(50,-1), LatLng(52,1))) = {
+                            latLngBounds: LatLngBounds = LatLngBounds(LatLng(50, -1), LatLng(52, 1))) = {
     FilteringParams(busRoutes, latLngBounds)
   }
 
@@ -50,12 +50,12 @@ trait SharedTestFeatures extends OptionValues {
   }
 
   def generateSourceLine(
-                                  route: String = "25",
-                                  direction: Int = 1,
-                                  stopId: String = "490007497E",
-                                  destination: String = "Ilford",
-                                  vehicleId: String = "BJ11DUV",
-                                  timeStamp: Long = System.currentTimeMillis() + 30000) = {
+                          route: String = "25",
+                          direction: Int = 1,
+                          stopId: String = "490007497E",
+                          destination: String = "Ilford",
+                          vehicleId: String = "BJ11DUV",
+                          timeStamp: Long = System.currentTimeMillis() + 30000) = {
     SourceLine(route, direction, stopId, destination, vehicleId, timeStamp)
   }
 

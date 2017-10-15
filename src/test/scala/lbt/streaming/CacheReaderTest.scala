@@ -96,9 +96,9 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       results.head shouldBe BusPositionDataForTransmission(
         sourceLine1.vehicleId,
         busRoute,
-        getBusStopFromStopID(sourceLine1.stopID, definitions).get,
         sourceLine1.arrivalTimeStamp,
-        isPenultimateStop = false,
+        getBusStopFromStopID(sourceLine1.stopID, definitions).get.latLng,
+        deleteAfter = false,
         getNextBusStopFromStopID(sourceLine1.stopID, busRoute, definitions).map(_.stopName),
         Some(timestamp2),
         None)
@@ -106,9 +106,9 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       results(1) shouldBe BusPositionDataForTransmission(
         sourceLine2.vehicleId,
         busRoute,
-        getBusStopFromStopID(sourceLine2.stopID, definitions).get,
         sourceLine2.arrivalTimeStamp,
-        isPenultimateStop = false,
+        getBusStopFromStopID(sourceLine1.stopID, definitions).get.latLng,
+        deleteAfter = false,
         getNextBusStopFromStopID(sourceLine2.stopID, busRoute, definitions).map(_.stopName),
         None,
         None)
@@ -136,9 +136,9 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       results.head shouldBe BusPositionDataForTransmission(
         sourceLine.vehicleId,
         busRoute,
-        getBusStopFromStopID(sourceLine.stopID, definitions).get,
         sourceLine.arrivalTimeStamp,
-        isPenultimateStop = false,
+        getBusStopFromStopID(sourceLine.stopID, definitions).get.latLng,
+        deleteAfter = false,
         getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
         None,
         None)
@@ -166,9 +166,9 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       results.head shouldBe BusPositionDataForTransmission(
         sourceLine.vehicleId,
         busRoute,
-        getBusStopFromStopID(sourceLine.stopID, definitions).get,
         sourceLine.arrivalTimeStamp,
-        isPenultimateStop = true,
+        getBusStopFromStopID(sourceLine.stopID, definitions).get.latLng,
+        deleteAfter = true,
         getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
         None,
         None)
@@ -219,9 +219,9 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       results.head shouldBe BusPositionDataForTransmission(
         sourceLine1.vehicleId,
         subscribedBusRoute,
-        getBusStopFromStopID(sourceLine1.stopID, definitions).get,
         sourceLine1.arrivalTimeStamp,
-        isPenultimateStop = false,
+        getBusStopFromStopID(sourceLine1.stopID, definitions).get.latLng,
+        deleteAfter = false,
         getNextBusStopFromStopID(sourceLine1.stopID, subscribedBusRoute, definitions).map(_.stopName),
         None,
         None)

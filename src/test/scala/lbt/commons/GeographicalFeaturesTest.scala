@@ -43,10 +43,9 @@ class GeographicalFeaturesTest extends FunSuite with Matchers {
 
     val movementInstructions = encodedPolyLine.toMovementInstructions
     movementInstructions should have size 1
-    movementInstructions.head.from shouldBe latLng1
     movementInstructions.head.to shouldBe latLng2
     movementInstructions.head.angle shouldBe 353
-    movementInstructions.head.proportionalDistance shouldBe 1
+    movementInstructions.head.proportion shouldBe 1
   }
 
   test("Returns list of movement instructions given a polyline consisting of three points") {
@@ -58,22 +57,20 @@ class GeographicalFeaturesTest extends FunSuite with Matchers {
 
     val movementInstructions = encodedPolyLine.toMovementInstructions
     movementInstructions should have size 2
-    movementInstructions.head.from shouldBe latLng1
     movementInstructions.head.to shouldBe latLng2
     movementInstructions.head.angle shouldBe 56
-    movementInstructions.head.proportionalDistance shouldBe 0.537198
+    movementInstructions.head.proportion shouldBe 0.537198
 
-    movementInstructions(1).from shouldBe latLng2
     movementInstructions(1).to shouldBe latLng3
     movementInstructions(1).angle shouldBe 49
-    movementInstructions(1).proportionalDistance shouldBe 0.462801
+    movementInstructions(1).proportion shouldBe 0.462801
   }
 
   test("Sum of proportional distances for polyline should be 1") {
 
     val encodedPolyLine = BusPolyLine("uo`zHdxO`A^d@@RGTMPWF]HuAINS`AAPDXZhA?l@ZJTF@GBUDUPSNQ@I@OGkBE?cl@pmBKMO`@Ob@Ul@J^R`@Xb@f@n@")
     val movementInstructions = encodedPolyLine.toMovementInstructions
-    Math.round(movementInstructions.map(_.proportionalDistance).sum * 1000)/1000 shouldBe 1.0000
+    Math.round(movementInstructions.map(_.proportion).sum * 1000)/1000 shouldBe 1.0000
   }
 
 }

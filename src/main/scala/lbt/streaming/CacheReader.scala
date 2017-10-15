@@ -68,8 +68,8 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
       BusPositionDataForTransmission(
         stopArrivalRecord.vehicleId,
         stopArrivalRecord.busRoute,
-        thisStop._2,
         timestamp,
+        thisStop._2.latLng,
         isPenultimateStop,
         nextStopOpt.map(_._2.stopName),
         nextArrivalTimeOpt,
