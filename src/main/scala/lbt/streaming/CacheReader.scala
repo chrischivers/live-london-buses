@@ -29,14 +29,14 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
         MetricsLogging.incrCachedRecordsProcessed(allRecords.size)
         val filteredRecords = allRecords.filter(_._1.lastStop != true) //disregard last stops as these are not sent to client
         Future.sequence(filteredRecords.map { case (stopArrivalRecord, timestamp) => createDataForTransmission(stopArrivalRecord, timestamp) }).flatMap { transmissionDataList =>
-        val storeInMemoizedCacheResult = storeInMemoizedCache(transmissionDataList)
+//        val storeInMemoizedCacheResult = storeInMemoizedCache(transmissionDataList)
           for {
           subscribersParams<- getSubscribersAndFilteringParams()
           clientTransmissionRecords = generateClientTransmissionRecords(subscribersParams, transmissionDataList)
           results <- Future.sequence(clientTransmissionRecords.map { case (client, recordsForTransmission) => Future.sequence(recordsForTransmission
             .map(record => redisWsClientCache.storeVehicleActivityForClient(client, record)))
           }).map(_.flatten)
-          _ <- storeInMemoizedCacheResult
+//          _ <- storeInMemoizedCacheResult
         } yield ()
       }
   }
@@ -48,9 +48,9 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
     }
   }
 
-  private def storeInMemoizedCache(transmissionData: Seq[BusPositionDataForTransmission]): Future[Seq[Unit]] = {
-    Future.sequence(transmissionData.map(redisWsClientCache.memoizeReadVehicleData))
-  }
+//  private def storeInMemoizedCache(transmissionData: Seq[BusPositionDataForTransmission]): Future[Seq[Unit]] = {
+//    Future.sequence(transmissionData.map(redisWsClientCache.memoizeReadVehicleData))
+//  }
 
   private def createDataForTransmission(stopArrivalRecord: StopArrivalRecord, timestamp: Long): Future[BusPositionDataForTransmission] = {
 

@@ -57,7 +57,7 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
     val msgType = parsedMsg.flatMap(msg => msg.hcursor.downField("type").as[String])
     (parsedMsg, msgType) match {
       case (Right(json), Right("UPDATE")) => handleUpdateFilterParams(clientUUID, json)
-      case (Right(json), Right("REFRESH")) => handleRefreshRequest(clientUUID, json)
+//      case (Right(json), Right("REFRESH")) => handleRefreshRequest(clientUUID, json)
       case (Right(_), e) => e.fold(
         failure => logger.error(s"Unable to parse message type field", failure),
         str => logger.error(s"Unable to identify message type $str"))
@@ -74,14 +74,14 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
     }
   }
 
-  private def handleRefreshRequest(clientUUID: String, jsonMsg: Json) = {
-    jsonMsg.as[FilteringParams] match {
-      case Right(filteringParams) => for {
-        _ <- webSocketClientHandler.addInProgressDataToClientCache(clientUUID, filteringParams)
-        _ = Thread.sleep(websocketConfig.clientSendInterval.toMillis - (System.currentTimeMillis() - timeLastTransmitted.get()))
-        _ <- webSocketClientHandler.updateFilteringParamsForClient(clientUUID, filteringParams)
-      } yield ()
-      case Left(e) => Future(logger.error(s"Error parsing/decoding filter param for refresh requests: $jsonMsg", e))
-    }
-  }
+//  private def handleRefreshRequest(clientUUID: String, jsonMsg: Json) = {
+//    jsonMsg.as[FilteringParams] match {
+//      case Right(filteringParams) => for {
+//        _ <- webSocketClientHandler.addInProgressDataToClientCache(clientUUID, filteringParams)
+//        _ = Thread.sleep(websocketConfig.clientSendInterval.toMillis - (System.currentTimeMillis() - timeLastTransmitted.get()))
+//        _ <- webSocketClientHandler.updateFilteringParamsForClient(clientUUID, filteringParams)
+//      } yield ()
+//      case Left(e) => Future(logger.error(s"Error parsing/decoding filter param for refresh requests: $jsonMsg", e))
+//    }
+//  }
 }

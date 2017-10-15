@@ -4,6 +4,7 @@ import java.util.UUID
 
 import akka.actor.ActorSystem
 import lbt.db.caching.{RedisSubscriberCache, RedisWsClientCache}
+import lbt.models.{BusStop, LatLng}
 import lbt.{ConfigLoader, SharedTestFeatures}
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
@@ -86,16 +87,32 @@ class WebSocketClientHandlerTest extends fixture.FunSuite with SharedTestFeature
     f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue.value shouldBe filteringParams
   }
 
-  test("In progress data is updated and sent to clients") { f =>
-
-    val uuid = UUID.randomUUID().toString
-    val filteringParams = createFilteringParams()
-    val busPositionData = createBusPositionData()
-
-    f.redisWsClientCache.memoizeReadVehicleData(busPositionData).futureValue
-    f.webSocketClientHandler.addInProgressDataToClientCache(uuid, filteringParams).futureValue
-    val result = parseWebsocketCacheResult(f.webSocketClientHandler.retrieveTransmissionDataForClient(uuid).futureValue).value
-    result should have size 1
-    result.head shouldBe busPositionData
-  }
+//  test("In progress data is updated and sent to clients") { f =>
+//
+//    val uuid = UUID.randomUUID().toString
+//    val filteringParams = createFilteringParams()
+//    val busPositionData = createBusPositionData()
+//
+//    f.redisWsClientCache.memoizeReadVehicleData(busPositionData).futureValue
+//    f.webSocketClientHandler.addInProgressDataToClientCache(uuid, filteringParams).futureValue
+//    val result = parseWebsocketCacheResult(f.webSocketClientHandler.retrieveTransmissionDataForClient(uuid).futureValue).value
+//    result should have size 1
+//    result.head shouldBe busPositionData
+//  }
+//
+//  test("Duplicate In Progress data for same vehicle is only sent once") { f =>
+//
+//    val uuid = UUID.randomUUID().toString
+//    val filteringParams = createFilteringParams()
+//    val busPositionData1 = createBusPositionData(vehicleId = "VEHICLE1", arrivalTimeAtNextStop = Some(System.currentTimeMillis() + 60000), busStop = BusStop("STOP1", "NAME", LatLng(50, 0)))
+//    val busPositionData2 = createBusPositionData(vehicleId = "VEHICLE1", arrivalTimeAtNextStop = Some(System.currentTimeMillis() + 90000), busStop = BusStop("STOP2", "NAME", LatLng(50, 0)))
+//
+//    f.redisWsClientCache.memoizeReadVehicleData(busPositionData1).futureValue
+//    f.redisWsClientCache.memoizeReadVehicleData(busPositionData2).futureValue
+//
+//    f.webSocketClientHandler.addInProgressDataToClientCache(uuid, filteringParams).futureValue
+//    val result = parseWebsocketCacheResult(f.webSocketClientHandler.retrieveTransmissionDataForClient(uuid).futureValue).value
+//    result should have size 1
+//    result.head shouldBe busPositionData2
+//  }
 }

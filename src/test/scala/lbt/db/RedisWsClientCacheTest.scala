@@ -130,16 +130,16 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
   }
 
 
-  test("Positioning Data where next arrival time is in future are available in memoize cache") { f =>
-
-    val busPosData1 = createBusPositionData(arrivalTimeAtNextStop = Some(System.currentTimeMillis() + 120000))
-    val busPosData2 = createBusPositionData(arrivalTimeAtNextStop = Some(System.currentTimeMillis() - 1000))
-    f.redisWSClientCache.memoizeReadVehicleData(busPosData1).futureValue
-    f.redisWSClientCache.memoizeReadVehicleData(busPosData2).futureValue
-
-    val fromCache = f.redisWSClientCache.getRecordsInMemoizeCache().futureValue
-    val results = parseWebsocketCacheResult(s"[${fromCache.mkString(",")}]").value
-    results should have size 1
-    results.head shouldBe busPosData1
-  }
+//  test("Positioning Data where next arrival time is in future are available in memoize cache") { f =>
+//
+//    val busPosData1 = createBusPositionData(arrivalTimeAtNextStop = Some(System.currentTimeMillis() + 120000))
+//    val busPosData2 = createBusPositionData(arrivalTimeAtNextStop = Some(System.currentTimeMillis() - 1000))
+//    f.redisWSClientCache.memoizeReadVehicleData(busPosData1).futureValue
+//    f.redisWSClientCache.memoizeReadVehicleData(busPosData2).futureValue
+//
+//    val fromCache = f.redisWSClientCache.getRecordsInMemoizeCache().futureValue
+//    val results = parseWebsocketCacheResult(s"[${fromCache.mkString(",")}]").value
+//    results should have size 1
+//    results.head shouldBe busPosData1
+//  }
 }
