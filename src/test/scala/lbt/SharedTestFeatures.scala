@@ -77,4 +77,5 @@ trait SharedTestFeatures extends OptionValues {
     definitions.routeDefinitions(busRoute).find(_._1 == thisStopIndex.get + 1).map(_._2)
   }
 
+
 }

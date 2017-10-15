@@ -24,7 +24,6 @@ class MetricsTest extends FunSuite with SharedTestFeatures with ScalaFutures wit
     TestMetricsLogging.incrArrivalTimesLogged
     TestMetricsLogging.metrics.meter("arrival-times-logged").count shouldBe 1
   }
-  //TODO
   
 }
 

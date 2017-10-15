@@ -32,7 +32,6 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(tableName = "lbttest"), createNewTable = true)
   val updater = new BusRouteDefinitionsUpdater(config.definitionsConfig, routeDefinitionsTable)
   updater.start(limitUpdateTo = Some(List(BusRoute("25", "outbound")))).futureValue
-  val definitions = new Definitions(routeDefinitionsTable)
 
   override protected def afterAll(): Unit = {
     routeDefinitionsTable.dropTable.futureValue

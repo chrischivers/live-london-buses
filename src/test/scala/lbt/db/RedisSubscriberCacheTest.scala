@@ -86,12 +86,12 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with SharedTestFeatures 
     f.redisSubscriberCache.subscribe(uuid1, Some(params1)).futureValue
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)
-    f.redisWsClientCache.storeVehicleActivity(uuid1, createBusPositionData()).futureValue
+    f.redisWsClientCache.storeVehicleActivityForClient(uuid1, createBusPositionData()).futureValue
     Thread.sleep(11000)
     f.redisSubscriberCache.cleanUpInactiveSubscribers.futureValue
     f.redisSubscriberCache.getListOfSubscribers.futureValue should have size 0
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue should not be defined
-    f.redisWsClientCache.getVehicleActivityJsonFor(uuid1).futureValue shouldBe "[]"
+    f.redisWsClientCache.getVehicleActivityJsonForClient(uuid1).futureValue shouldBe "[]"
   }
 
   test("Clean Up Subscribers does not remove subscribers from cache if there has been retrieval activity") { f =>
@@ -101,10 +101,10 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with SharedTestFeatures 
     f.redisSubscriberCache.subscribe(uuid1, Some(params1)).futureValue
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)
-    f.redisWsClientCache.storeVehicleActivity(uuid1, createBusPositionData()).futureValue
-    f.redisWsClientCache.getVehicleActivityJsonFor(uuid1).futureValue
+    f.redisWsClientCache.storeVehicleActivityForClient(uuid1, createBusPositionData()).futureValue
+    f.redisWsClientCache.getVehicleActivityJsonForClient(uuid1).futureValue
     Thread.sleep(6000)
-    f.redisWsClientCache.getVehicleActivityJsonFor(uuid1).futureValue
+    f.redisWsClientCache.getVehicleActivityJsonForClient(uuid1).futureValue
     Thread.sleep(6000)
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
     f.redisSubscriberCache.getParamsForSubscriber(uuid1).futureValue shouldBe Some(params1)

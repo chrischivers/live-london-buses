@@ -25,7 +25,7 @@ object HttpWebServer extends StreamApp[IO] with StrictLogging {
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = false)
   val definitions = new Definitions(routeDefinitionsTable)
 
-  val mapService = new MapService()
+  val mapService = new MapService(definitions)
 
 
   override def stream(args: List[String], requestShutdown: IO[Unit]) = {

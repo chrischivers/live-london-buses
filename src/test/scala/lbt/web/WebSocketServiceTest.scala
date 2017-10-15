@@ -125,7 +125,7 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     websocketClient.open()
     f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe List(uuid)
 
-    f.redisWsClientCache.storeVehicleActivity("ANOTHER_UUID", createBusPositionData()).futureValue
+    f.redisWsClientCache.storeVehicleActivityForClient("ANOTHER_UUID", createBusPositionData()).futureValue
 
     eventually {
       receivedBuffer.size should be > 0
@@ -145,8 +145,8 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     val posData1 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() - 10000)
     val posData2 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis())
 
-    f.redisWsClientCache.storeVehicleActivity(uuid, posData1).futureValue
-    f.redisWsClientCache.storeVehicleActivity(uuid, posData2).futureValue
+    f.redisWsClientCache.storeVehicleActivityForClient(uuid, posData1).futureValue
+    f.redisWsClientCache.storeVehicleActivityForClient(uuid, posData2).futureValue
 
     eventually {
       val messagesReceived = parsePacketsReceived(packagesReceivedBuffer)

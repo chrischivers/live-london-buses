@@ -13,7 +13,8 @@ case class CacheReadCommand(readTimeAhead: Long)
 
 class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArrivalTimeLog: RedisVehicleArrivalTimeLog, redisSubscriberCache: RedisSubscriberCache, redisWsClientCache: RedisWsClientCache, definitions: Definitions)(implicit executionContext: ExecutionContext) extends Actor with StrictLogging {
 
-  logger.info("New cache reader created")
+ type ClientId = String
+
   override def receive = {
     case CacheReadCommand(time) =>
       MetricsLogging.measureCacheReadProcess {
@@ -27,19 +28,28 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
       .flatMap { allRecords =>
         MetricsLogging.incrCachedRecordsProcessed(allRecords.size)
         val filteredRecords = allRecords.filter(_._1.lastStop != true) //disregard last stops as these are not sent to client
-        for {
-          transmissionDataList <- Future.sequence(filteredRecords.map { case (stopArrivalRecord, timestamp) => createDataForTransmission(stopArrivalRecord, timestamp) })
-          subscribersParams <- getSubscribersAndFilteringParams()
-          subscribersWithPayloads = subscribersParams.map {
-            case (client, params) => client -> transmissionDataList.filter(data =>
-              params.busRoutes.contains(data.busRoute) &&
-                params.latLngBounds.isWithinBounds(data.startingBusStop.latLng))
-          }
-          results <- Future.sequence(subscribersWithPayloads.map { case (client, recordsForTransmission) => Future.sequence(recordsForTransmission
-            .map(record => redisWsClientCache.storeVehicleActivity(client, record)))
+        Future.sequence(filteredRecords.map { case (stopArrivalRecord, timestamp) => createDataForTransmission(stopArrivalRecord, timestamp) }).flatMap { transmissionDataList =>
+        val storeInMemoizedCacheResult = storeInMemoizedCache(transmissionDataList)
+          for {
+          subscribersParams<- getSubscribersAndFilteringParams()
+          clientTransmissionRecords = generateClientTransmissionRecords(subscribersParams, transmissionDataList)
+          results <- Future.sequence(clientTransmissionRecords.map { case (client, recordsForTransmission) => Future.sequence(recordsForTransmission
+            .map(record => redisWsClientCache.storeVehicleActivityForClient(client, record)))
           }).map(_.flatten)
-        } yield results
+          _ <- storeInMemoizedCacheResult
+        } yield ()
       }
+  }
+  }
+
+  private def generateClientTransmissionRecords(subscribersParams: Seq[(ClientId, FilteringParams)], transmissionDataList: Seq[BusPositionDataForTransmission]):  Seq[(ClientId, Seq[BusPositionDataForTransmission])]  = {
+    subscribersParams.map {
+      case (client, params) => client -> transmissionDataList.filter(_.satisfiesFilteringParams(params))
+    }
+  }
+
+  private def storeInMemoizedCache(transmissionData: Seq[BusPositionDataForTransmission]): Future[Seq[Unit]] = {
+    Future.sequence(transmissionData.map(redisWsClientCache.memoizeReadVehicleData))
   }
 
   private def createDataForTransmission(stopArrivalRecord: StopArrivalRecord, timestamp: Long): Future[BusPositionDataForTransmission] = {
@@ -73,7 +83,7 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
     })
   }
 
-  private def getSubscribersAndFilteringParams(): Future[Seq[(String, FilteringParams)]] = {
+  private def getSubscribersAndFilteringParams(): Future[Seq[(ClientId, FilteringParams)]] = {
     for {
       subscribers <- redisSubscriberCache.getListOfSubscribers
       filteringParams <- Future.sequence(subscribers.map(subscriber =>

@@ -23,7 +23,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
   val config = ConfigLoader.defaultConfig
 
   override implicit val patienceConfig = PatienceConfig(
-    timeout = scaled(30 seconds),
+    timeout = scaled(1 minute),
     interval = scaled(1 second)
   )
 
@@ -72,68 +72,6 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     }
   }
 
-
-    test("Cache reader sends records to web socket client cache (not penultimate stop but no next stop information available)") { f =>
-
-      val sourceLine = generateSourceLine()
-      val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
-
-      val uuid = UUID.randomUUID().toString
-      val params = FilteringParams(List(busRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
-      f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
-
-      f.sourceLineHandler.handle(sourceLine).futureValue
-
-      parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
-
-      f.cacheReader ! CacheReadCommand(40000)
-
-      eventually {
-        val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value
-        results should have size 1
-        results.head shouldBe BusPositionDataForTransmission(
-          sourceLine.vehicleId,
-          busRoute,
-          getBusStopFromStopID(sourceLine.stopID, definitions).get,
-          sourceLine.arrivalTimeStamp,
-          isPenultimateStop = false,
-          getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
-          None,
-          None)
-      }
-  }
-
-  test("Cache reader sends records to web socket client cache (when is penultimate stop and no next stop information available)") { f =>
-
-    val sourceLine = generateSourceLine(stopId = "490008466R") //penultimate stop
-    val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
-
-    val uuid = UUID.randomUUID().toString
-    val params = FilteringParams(List(busRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
-    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
-
-    f.sourceLineHandler.handle(sourceLine).futureValue
-
-    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
-
-    f.cacheReader ! CacheReadCommand(60000)
-
-    eventually {
-      val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value
-      results should have size 1
-      results.head shouldBe BusPositionDataForTransmission(
-        sourceLine.vehicleId,
-        busRoute,
-        getBusStopFromStopID(sourceLine.stopID, definitions).get,
-        sourceLine.arrivalTimeStamp,
-        isPenultimateStop = true,
-        getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
-        None,
-        None)
-    }
-  }
-
-
   test("Cache reader sends records to web socket client cache (with next stop information available)") { f =>
 
     val busRoute = BusRoute("25", "outbound")
@@ -153,7 +91,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     f.cacheReader ! CacheReadCommand(60001)
 
     eventually {
-      val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value
+      val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value
       results should have size 2
       results.head shouldBe BusPositionDataForTransmission(
         sourceLine1.vehicleId,
@@ -177,6 +115,67 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     }
   }
 
+  test("Cache reader sends records to web socket client cache (not penultimate stop but no next stop information available)") { f =>
+
+    val sourceLine = generateSourceLine()
+    val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
+
+    val uuid = UUID.randomUUID().toString
+    val params = FilteringParams(List(busRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
+
+    f.sourceLineHandler.handle(sourceLine).futureValue
+
+    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 0
+
+    f.cacheReader ! CacheReadCommand(40000)
+
+    eventually {
+      val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value
+      results should have size 1
+      results.head shouldBe BusPositionDataForTransmission(
+        sourceLine.vehicleId,
+        busRoute,
+        getBusStopFromStopID(sourceLine.stopID, definitions).get,
+        sourceLine.arrivalTimeStamp,
+        isPenultimateStop = false,
+        getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
+        None,
+        None)
+    }
+  }
+
+  test("Cache reader sends records to web socket client cache (when is penultimate stop and no next stop information available)") { f =>
+
+    val sourceLine = generateSourceLine(stopId = "490008466R") //penultimate stop
+  val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
+
+    val uuid = UUID.randomUUID().toString
+    val params = FilteringParams(List(busRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
+
+    f.sourceLineHandler.handle(sourceLine).futureValue
+
+    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 0
+
+    f.cacheReader ! CacheReadCommand(60000)
+
+    eventually {
+      val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value
+      results should have size 1
+      results.head shouldBe BusPositionDataForTransmission(
+        sourceLine.vehicleId,
+        busRoute,
+        getBusStopFromStopID(sourceLine.stopID, definitions).get,
+        sourceLine.arrivalTimeStamp,
+        isPenultimateStop = true,
+        getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
+        None,
+        None)
+    }
+  }
+
+
   test("Cache reader does not send records to websocket client for last stop)") { f =>
 
     val sourceLineLastStop = generateSourceLine(stopId = "490007657S")
@@ -190,11 +189,11 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     f.sourceLineHandler.handle(sourceLineLastStop).futureValue
     f.sourceLineHandler.handle(sourceLineNonLastStop).futureValue
 
-    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
+    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 0
 
     f.cacheReader ! CacheReadCommand(40000)
     Thread.sleep(5000)
-    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 1
+    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 1
 
   }
 
@@ -210,12 +209,12 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     f.sourceLineHandler.handle(sourceLine1).futureValue
     f.sourceLineHandler.handle(sourceLine2).futureValue
 
-    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
+    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 0
 
     f.cacheReader ! CacheReadCommand(40000)
 
     eventually {
-      val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value
+      val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value
       results should have size 1
       results.head shouldBe BusPositionDataForTransmission(
         sourceLine1.vehicleId,
@@ -239,7 +238,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
 
     f.cacheReader ! CacheReadCommand(40000)
     Thread.sleep(2000)
-    val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value
+    val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value
     results should have size 0
   }
 
@@ -255,7 +254,69 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
 
     f.cacheReader ! CacheReadCommand(40000)
     Thread.sleep(2000)
-    val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonFor(uuid).futureValue).value
+    val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value
+    results should have size 0
+  }
+
+  test("Memoized cache is populated when next stop is available (and is not in past)") { f =>
+
+    val busRoute = BusRoute("25", "outbound")
+    val definitionsForRoute = definitions.routeDefinitions(busRoute)
+    val timestamp1 = System.currentTimeMillis() + 5000
+    val timestamp2 = System.currentTimeMillis() + 180000
+    val sourceLine1 = generateSourceLine(stopId = definitionsForRoute(5)._2.stopID, timeStamp = timestamp1)
+    val sourceLine2 = generateSourceLine(stopId = definitionsForRoute(6)._2.stopID, timeStamp = timestamp2)
+
+    f.sourceLineHandler.handle(sourceLine1).futureValue
+    f.sourceLineHandler.handle(sourceLine2).futureValue
+
+    f.cacheReader ! CacheReadCommand(60001)
+
+    Thread.sleep(2000)
+
+    val fromCache = f.redisWsClientCache.getRecordsInMemoizeCache().futureValue
+    val results = parseWebsocketCacheResult(s"[${fromCache.mkString(",")}]").value
+
+    results should have size 1
+    results.head shouldBe BusPositionDataForTransmission(
+      sourceLine1.vehicleId,
+      busRoute,
+      getBusStopFromStopID(sourceLine1.stopID, definitions).get,
+      sourceLine1.arrivalTimeStamp,
+      isPenultimateStop = false,
+      getNextBusStopFromStopID(sourceLine1.stopID, busRoute, definitions).map(_.stopName),
+      Some(timestamp2),
+      None)
+  }
+
+  test("Memoized cache is NOT populated when next stop is available but is in past") { f =>
+
+    val sourceLine1 = generateSourceLine(timeStamp = System.currentTimeMillis() - 10000)
+    val sourceLine2 = generateSourceLine(timeStamp = System.currentTimeMillis() - 1000)
+    val busRoute = BusRoute(sourceLine1.route, Commons.toDirection(sourceLine1.direction))
+    f.sourceLineHandler.handle(sourceLine1).futureValue
+    f.sourceLineHandler.handle(sourceLine2).futureValue
+
+    f.cacheReader ! CacheReadCommand(60001)
+
+    Thread.sleep(500)
+
+    val fromCache = f.redisWsClientCache.getRecordsInMemoizeCache().futureValue
+    val results = parseWebsocketCacheResult(s"[${fromCache.mkString(",")}]").value
+    results should have size 0
+  }
+
+  test("Memoized cache is NOT populated when no next stop information is available") { f =>
+
+    val sourceLine1 = generateSourceLine(timeStamp = System.currentTimeMillis() + 60000)
+    f.sourceLineHandler.handle(sourceLine1).futureValue
+
+    f.cacheReader ! CacheReadCommand(60001)
+
+    Thread.sleep(500)
+
+    val fromCache = f.redisWsClientCache.getRecordsInMemoizeCache().futureValue
+    val results = parseWebsocketCacheResult(s"[${fromCache.mkString(",")}]").value
     results should have size 0
   }
 }

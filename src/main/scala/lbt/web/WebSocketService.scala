@@ -3,13 +3,13 @@ package lbt.web
 import cats.effect.{IO, _}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.{Scheduler, Sink, Stream}
-import io.circe
+import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.parser._
 import lbt.WebsocketConfig
 import lbt.models.{BusRoute, LatLngBounds}
 import org.http4s.HttpService
-import org.http4s.dsl.{->, :?, Http4sDsl, NotFound, Root, _}
+import org.http4s.dsl.{->, :?, Http4sDsl, Root, _}
 import org.http4s.server.websocket.WS
 import org.http4s.websocket.WebsocketBits.{Text, WebSocketFrame}
 
@@ -39,7 +39,7 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
           }
         val fromClient: Sink[IO, WebSocketFrame] = _.evalMap { (ws: WebSocketFrame) =>
           ws match {
-            case Text(params, _) => F.delay(handleIncomingFilterParams(uuid, params))
+            case Text(msg, _) => F.delay(handleIncomingMessage(uuid, msg))
             case f => F.delay(logger.error(s"Unknown type: $f"))
           }
         }
@@ -47,17 +47,35 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
       }
   }
 
-  private def handleIncomingFilterParams(clientUUID: String, params: String): Unit = {
-    logger.debug(s"Client $clientUUID received filter params $params")
-    decodeIncomingFilterParams(params) match {
-      case Right(filteringParams) =>
-        logger.info(s"Successfully decoded filtering parameters for $clientUUID, filtering params: $filteringParams")
-        webSocketClientHandler.updateFilteringParamsForClient(clientUUID, filteringParams)
-      case Left(e) => logger.error(s"Error parsing/decoding filter params: $params", e)
+  private def handleIncomingMessage(clientUUID: String, message: String) = {
+    val parsedMsg = parse(message)
+    val msgType = parsedMsg.flatMap(msg => msg.hcursor.downField("type").as[String])
+    (parsedMsg, msgType) match {
+      case (Right(json), Right("UPDATE")) => handleUpdateFilterParams(clientUUID, json)
+      case (Right(json), Right("REFRESH")) => handleRefreshRequest(clientUUID, json)
+      case (Right(_), e) => e.fold(
+        failure => logger.error(s"Unable to parse message type field", failure),
+        str => logger.error(s"Unable to identify message type $str"))
+      case (Left(e), _) => logger.error(s"Unable to parse json incoming message $message, ${e.message}", e.underlying)
     }
   }
 
-  private def decodeIncomingFilterParams(params: String): Either[circe.Error, FilteringParams] = {
-    parse(params).flatMap(json => json.as[FilteringParams])
+  private def handleUpdateFilterParams(clientUUID: String, jsonMsg: Json): Unit = {
+    logger.debug(s"Client $clientUUID received filter params $jsonMsg")
+    jsonMsg.as[FilteringParams] match {
+      case Right(filteringParams) =>
+        webSocketClientHandler.updateFilteringParamsForClient(clientUUID, filteringParams)
+      case Left(e) => logger.error(s"Error parsing/decoding filter param for update request: $jsonMsg", e)
+    }
+  }
+
+  private def handleRefreshRequest(clientUUID: String, jsonMsg: Json) = {
+    jsonMsg.as[FilteringParams] match {
+      case Right(filteringParams) => for {
+        _ <- webSocketClientHandler.addInProgressDataToClientCache(clientUUID, filteringParams)
+        _ <- webSocketClientHandler.updateFilteringParamsForClient(clientUUID, filteringParams)
+      } yield ()
+      case Left(e) => logger.error(s"Error parsing/decoding filter param for refresh requests: $jsonMsg", e)
+    }
   }
 }

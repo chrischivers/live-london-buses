@@ -1,8 +1,10 @@
 package lbt.web
 
 import com.typesafe.scalalogging.StrictLogging
+import io.circe.generic.auto._
+import io.circe.parser.parse
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
-import lbt.models.{BusRoute, LatLng, LatLngBounds}
+import lbt.models.{BusRoute, LatLng}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -19,29 +21,32 @@ class WebSocketClientHandler(redisSubscriberCache: RedisSubscriberCache, redisWs
   }
 
   def retrieveTransmissionDataForClient(uuid: String): Future[String] = {
-    redisWsClientCache.getVehicleActivityJsonFor(uuid)
-  }
-
-  def queueTransmissionDataToClients(data: BusPositionDataForTransmission) = {
-    //todo logic here to determine latlngbounds filtering parameters.
-    for {
-      subscribers <- redisSubscriberCache.getListOfSubscribers
-      subscribersToBusRoute <- filterSubscribers(subscribers, data.busRoute, data.startingBusStop.latLng)
-      _ <- Future.sequence(subscribersToBusRoute.map(uuid => redisWsClientCache.storeVehicleActivity(uuid, data)))
-    } yield ()
+    redisWsClientCache.getVehicleActivityJsonForClient(uuid)
   }
 
   def updateFilteringParamsForClient(clientUuid: String, filteringParams: FilteringParams): Future[Unit] = {
-      redisSubscriberCache.updateFilteringParameters(clientUuid, filteringParams)
+    redisSubscriberCache.updateFilteringParameters(clientUuid, filteringParams)
   }
 
-  private def filterSubscribers(subscribers: Seq[String], busRoute: BusRoute, busStopLatLng: LatLng): Future[Seq[String]] = {
-    Future.sequence(subscribers
-      .map(subscriber => redisSubscriberCache.getParamsForSubscriber(subscriber)
-        .map(_.flatMap(
-          filteringParams => if (filteringParams.busRoutes.contains(busRoute) && filteringParams.latLngBounds.isWithinBounds(busStopLatLng))
-            Some(subscriber) else None))))
-      .map(_.flatten)
+  def addInProgressDataToClientCache(clientUUID: String, filteringParams: FilteringParams) = for {
+    inProgressData <- getInProgressData(filteringParams)
+    _ <- Future.sequence(inProgressData.map(rec => redisWsClientCache.storeVehicleActivityForClient(clientUUID, rec)))
+  } yield ()
+
+  private def getInProgressData(filteringParams: FilteringParams): Future[Seq[BusPositionDataForTransmission]] = {
+    val now = System.currentTimeMillis()
+
+    redisWsClientCache.getRecordsInMemoizeCache().map { recordsFromCache =>
+      recordsFromCache.flatMap(parseWebsocketCacheResult)
+        .filter(_.satisfiesFilteringParams(filteringParams))
+    }
+      .map { recordsFromCacheMatchingParams =>
+        recordsFromCacheMatchingParams.filter(rec => now > rec.startingTimeStamp &&
+          rec.nextStopArrivalTime.fold(true)(nextStop => nextStop > now))
+      }
   }
 
+  private def parseWebsocketCacheResult(str: String): Option[BusPositionDataForTransmission] = {
+    parse(str).flatMap(_.as[BusPositionDataForTransmission]).toOption
+  }
 }

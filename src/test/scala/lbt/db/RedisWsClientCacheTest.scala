@@ -52,11 +52,11 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
     val busPosData1 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis())
     val busPosData2 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() + 60000)
     val busPosData3 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() - 60000)
-    f.redisWSClientCache.storeVehicleActivity(uuid, busPosData1).futureValue
-    f.redisWSClientCache.storeVehicleActivity(uuid, busPosData2).futureValue
-    f.redisWSClientCache.storeVehicleActivity(uuid, busPosData3).futureValue
+    f.redisWSClientCache.storeVehicleActivityForClient(uuid, busPosData1).futureValue
+    f.redisWSClientCache.storeVehicleActivityForClient(uuid, busPosData2).futureValue
+    f.redisWSClientCache.storeVehicleActivityForClient(uuid, busPosData3).futureValue
 
-    val results = f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue
+    val results = f.redisWSClientCache.getVehicleActivityJsonForClient(uuid).futureValue
     val parsedResults: List[BusPositionDataForTransmission] = parseWebsocketCacheResult(results).value
     parsedResults should have size 3
     parsedResults.head shouldBe busPosData3
@@ -69,16 +69,16 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
     val uuid = UUID.randomUUID().toString
     val busPosData1 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() + 60000)
     val busPosData2 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis())
-    f.redisWSClientCache.storeVehicleActivity(uuid, busPosData1).futureValue
-    f.redisWSClientCache.storeVehicleActivity(uuid, busPosData2).futureValue
+    f.redisWSClientCache.storeVehicleActivityForClient(uuid, busPosData1).futureValue
+    f.redisWSClientCache.storeVehicleActivityForClient(uuid, busPosData2).futureValue
 
-    val results = f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue
+    val results = f.redisWSClientCache.getVehicleActivityJsonForClient(uuid).futureValue
     val parsedResults: List[BusPositionDataForTransmission] = parseWebsocketCacheResult(results).value
     parsedResults should have size 2
     parsedResults.head shouldBe busPosData2
     parsedResults(1) shouldBe busPosData1
 
-    val resultsAgain = f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue
+    val resultsAgain = f.redisWSClientCache.getVehicleActivityJsonForClient(uuid).futureValue
     parseWebsocketCacheResult(resultsAgain).value should have size 0
   }
 
@@ -86,7 +86,7 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
 
     val uuid = UUID.randomUUID().toString
 
-    val results = f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue
+    val results = f.redisWSClientCache.getVehicleActivityJsonForClient(uuid).futureValue
     parseWebsocketCacheResult(results).value should have size 0
   }
 
@@ -94,13 +94,13 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
 
     val uuid = UUID.randomUUID().toString
     Future.sequence((0 to 100).map { _ =>
-      f.redisWSClientCache.storeVehicleActivity(uuid, createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() + Random.nextInt(60000)))
+      f.redisWSClientCache.storeVehicleActivityForClient(uuid, createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() + Random.nextInt(60000)))
     }).futureValue
 
 
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 100
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 1
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 100
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 1
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 0
   }
 
 
@@ -110,10 +110,10 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
     val busPos1 = createBusPositionData()
     val busPos2 = createBusPositionData()
 
-    f.redisWSClientCache.storeVehicleActivity(uuid, busPos1).futureValue
-    f.redisWSClientCache.storeVehicleActivity(uuid, busPos2).futureValue
+    f.redisWSClientCache.storeVehicleActivityForClient(uuid, busPos1).futureValue
+    f.redisWSClientCache.storeVehicleActivityForClient(uuid, busPos2).futureValue
     Thread.sleep(5500)
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 0
   }
 
   test("Vehicle activity for a uuid in Redis expires if no get requests received in in TTL period") { f =>
@@ -122,10 +122,24 @@ class RedisWsClientCacheTest extends fixture.FunSuite with SharedTestFeatures wi
     val busPos1 = createBusPositionData()
     val busPos2 = createBusPositionData()
 
-    f.redisWSClientCache.storeVehicleActivity(uuid, busPos1).futureValue
+    f.redisWSClientCache.storeVehicleActivityForClient(uuid, busPos1).futureValue
     Thread.sleep(3000)
-    f.redisWSClientCache.storeVehicleActivity(uuid, busPos2).futureValue
+    f.redisWSClientCache.storeVehicleActivityForClient(uuid, busPos2).futureValue
     Thread.sleep(3000)
-    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonFor(uuid).futureValue).value should have size 0
+    parseWebsocketCacheResult(f.redisWSClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 0
+  }
+
+
+  test("Positioning Data where next arrival time is in future are available in memoize cache") { f =>
+
+    val busPosData1 = createBusPositionData(arrivalTimeAtNextStop = Some(System.currentTimeMillis() + 120000))
+    val busPosData2 = createBusPositionData(arrivalTimeAtNextStop = Some(System.currentTimeMillis() - 1000))
+    f.redisWSClientCache.memoizeReadVehicleData(busPosData1).futureValue
+    f.redisWSClientCache.memoizeReadVehicleData(busPosData2).futureValue
+
+    val fromCache = f.redisWSClientCache.getRecordsInMemoizeCache().futureValue
+    val results = parseWebsocketCacheResult(s"[${fromCache.mkString(",")}]").value
+    results should have size 1
+    results.head shouldBe busPosData1
   }
 }
