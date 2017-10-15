@@ -103,13 +103,12 @@
                     selectedRoutes = newSelectedRoutes;
                     clearRoutes(routesToDelete);
                     var params = getWSParamsJson(newSelectedRoutes, map.getBounds());
-                    getSnapshot(params);
-                    sendToWS(params);
+                    getSnapshot(params, true);
 
                 });
 
                 function getWSParamsJson(selectedRoutes, bounds) {
-                    //todo move away from hardcoding bounds
+                    //TODO move away from hardcoding bounds
                     var busRoutesArray = [];
                     for (var i = 0; i < selectedRoutes.length; i++) {
                         var outboundRoute = {"id": selectedRoutes[i], "direction": "outbound"};
@@ -162,26 +161,29 @@
                     ws.send(message);
                 }
 
-                function getSnapshot(filterParams) {
+                function getSnapshot(filterParams, updateWSParamsAfter) {
                     $.get( "map/snapshot", { filteringParams: filterParams }, function( data ) {
                         $( ".result" ).html( data );
                         handleReceivedJson(JSON.parse(data));
+                        if (updateWSParamsAfter) {
+                            sendToWS(filterParams);
+                        }
                     });
                 }
 
                 function handleReceivedJson(json) {
                     for (var i = 0; i < json.length; i++) {
-
+                        console.log("Handling json: " + json);
                         var routeId = json[i].busRoute.id;
                         var direction = json[i].busRoute.direction;
+                        var nextStopArrivalTime = json[i].nextStopArrivalTime; //TODO deal with null next stops?
 
-                        if ($.inArray(routeId, selectedRoutes) > -1) {
+                        if ($.inArray(routeId, selectedRoutes) > -1 && nextStopArrivalTime !== null) {
                             var vehicleId = json[i].vehicleId;
                             var startingTime = json[i].startingTime;
                             var startingLatLng = new google.maps.LatLng(json[i].startingLatLng);
                             var deleteAfter = json[i].deleteAfter;
                             var nextStopName = json[i].nextStopName;
-                            var nextStopArrivalTime = json[i].nextStopArrivalTime;
                             var movementInstructionsRaw = json[i].movementInstructionsToNext;
 
                             var id = getId(vehicleId, routeId, direction);
