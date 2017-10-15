@@ -44,7 +44,12 @@ trait MetricsLogging extends StrictLogging with DefaultInstrumented {
   def incrCachedRecordsProcessed(n: Int) = if (metricsConfig.enabled) cachedRecordsProcessed.mark(n)
 
   private val cacheReadProcessingTimer: Timer = metrics.timer("cache-read-processing")
-  def measureCacheReadProcess[A](f: => Future[A]) = cacheReadProcessingTimer.timeFuture(f)
+  def measureCacheReadProcess[A](f: => Future[A]) =
+    if (metricsConfig.enabled) cacheReadProcessingTimer.timeFuture(f) else f
+
+  private val usersConnectedToWs: Counter = metrics.counter("users-connected-ws")
+  def incrUsersConnectedToWs = if (metricsConfig.enabled)  usersConnectedToWs.inc()
+  def decrUsersConnectedToWs = if (metricsConfig.enabled)  usersConnectedToWs.dec()
 
 }
 

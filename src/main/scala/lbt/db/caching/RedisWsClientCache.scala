@@ -51,17 +51,17 @@ class RedisWsClientCache(val redisConfig: RedisConfig, redisSubscriberCache: Red
     } yield s"[${results.mkString(",")}]"
   }
 
-//  def memoizeReadVehicleData(busPositionData: BusPositionDataForTransmission): Future[Unit] = {
-//    val jsonToStore = busPositionData.asJson.noSpaces
-//    for {
-//      _ <- busPositionData.nextStopArrivalTime.fold(Future.successful(0L))(nextArrival => client.zadd(MEMOIZED_RECORDS_KEY, (nextArrival, jsonToStore)))
-//      _ <- client.zremrangebyscore(MEMOIZED_RECORDS_KEY, Limit(0), Limit(System.currentTimeMillis()))
-//    } yield ()
-//  }
+  def storeVehicleActivityInProgress(busPositionData: BusPositionDataForTransmission): Future[Unit] = {
+    val jsonToStore = busPositionData.asJson.noSpaces
+    for {
+      _ <- busPositionData.nextStopArrivalTime.fold(Future.successful())(nextArrival => client.zadd(MEMOIZED_RECORDS_KEY, (nextArrival, jsonToStore)).map(_ => ()))
+      _ <- client.zremrangebyscore(MEMOIZED_RECORDS_KEY, Limit(0), Limit(System.currentTimeMillis()))
+    } yield ()
+  }
 
-//  def getRecordsInMemoizeCache(): Future[Seq[String]] = {
-//    for {
-//      results <- client.zrangebyscore[String](MEMOIZED_RECORDS_KEY, Limit(0), Limit(Long.MaxValue)) //TODO limit?
-//    } yield results
-//  }
+  def getVehicleActivityInProgress(): Future[Seq[String]] = {
+    for {
+      results <- client.zrange[String](MEMOIZED_RECORDS_KEY, 0, Long.MaxValue)
+    } yield results
+  }
 }
