@@ -187,12 +187,6 @@
                             var movementInstructionsRaw = json[i].movementInstructionsToNext;
 
                             var id = getId(vehicleId, routeId, direction);
-
-                            if (!(id in markerArray)) {
-                                markerArray[id] = createMarker(routeId, startingLatLng, 0);
-                            }
-
-                            var marker = markerArray[id];
                             var now = Date.now();
 
                             var timeNextFree = timeNextFreeArray[id] || 0;
@@ -201,22 +195,33 @@
                             var timeAccumulator = waitTimeBeforeStart < 0 ? 0 : waitTimeBeforeStart;
                             var timeToNextStop = nextStopArrivalTime - (adjustedStartingTime < now ? now : adjustedStartingTime);
 
-                            for (var j = 0; j < movementInstructionsRaw.length; j++) {
-                                var latLngToMoveTo = new google.maps.LatLng(movementInstructionsRaw[j].to);
-                                var angle = movementInstructionsRaw[j].angle;
-                                var proportionalDistance = movementInstructionsRaw[j].proportion;
-                                var proportionalTime = parseInt(timeToNextStop * proportionalDistance);
+                            if (timeToNextStop > 1000) {
 
-                                animateMarker(marker, routeId, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
-                                timeAccumulator += proportionalTime
+                                if (!(id in markerArray)) {
+                                    markerArray[id] = createMarker(routeId, startingLatLng, 0);
+                                }
+
+                                var marker = markerArray[id];
+
+                                for (var j = 0; j < movementInstructionsRaw.length; j++) {
+                                    var latLngToMoveTo = new google.maps.LatLng(movementInstructionsRaw[j].to);
+                                    var angle = movementInstructionsRaw[j].angle;
+                                    var proportionalDistance = movementInstructionsRaw[j].proportion;
+                                    var proportionalTime = parseInt(timeToNextStop * proportionalDistance);
+
+                                    animateMarker(marker, routeId, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
+                                    timeAccumulator += proportionalTime
+                                }
+
+                                if (deleteAfter) {
+                                    console.log("Deleting marker in " + timeAccumulator + " as at end of route");
+                                    deleteMarker(marker, id, timeAccumulator)
+                                }
+
+                                timeNextFreeArray[id] = nextStopArrivalTime;
+                            } else {
+                                console.log("Ignoring as timeToNextStop too small")
                             }
-
-                            if (deleteAfter) {
-                                console.log("Deleting marker in " + timeAccumulator + " as at end of route");
-                                deleteMarker(marker, id, timeAccumulator)
-                            }
-
-                            timeNextFreeArray[id] = nextStopArrivalTime;
                         }
                     }
                 }
