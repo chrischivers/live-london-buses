@@ -81,7 +81,6 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
 
     val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, redisVehicleArrivalTimeLog,definitions, config.streamingConfig)(ec)
 
-
     object TestWebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
       logger.info(s"Starting up web socket service using port $wsPort")
 
