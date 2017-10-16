@@ -162,7 +162,7 @@
                 }
 
                 function getSnapshot(filterParams, updateWSParamsAfter) {
-                    $.get( "map/snapshot", { filteringParams: filterParams }, function( data ) {
+                    $.post( "map/snapshot", filterParams, function( data ) {
                         $( ".result" ).html( data );
                         handleReceivedJson(JSON.parse(data));
                         if (updateWSParamsAfter) {
