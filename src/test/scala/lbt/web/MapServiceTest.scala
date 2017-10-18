@@ -57,7 +57,7 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
     val redisConfig = config.redisConfig.copy(dbIndex = 1)
     val redisSubscriberCache = new RedisSubscriberCache(redisConfig) // 1 = test, 0 = main
     val redisWsClientCache = new RedisWsClientCache(redisConfig, redisSubscriberCache)
-    val mapService = new MapService(definitions, redisWsClientCache)
+    val mapService = new MapService(definitions, redisWsClientCache, redisSubscriberCache)
 
     val builder = BlazeBuilder[IO].bindHttp(port, "localhost").mountService(mapService.service, "/map").start
     builder.unsafeRunSync

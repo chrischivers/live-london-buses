@@ -70,7 +70,7 @@ class WebSocketClientHandlerTest extends fixture.FunSuite with SharedTestFeature
     val busPositionData = createBusPositionData()
     val filteringParams = createFilteringParams()
     f.webSocketClientHandler.subscribe(uuid)
-    f.webSocketClientHandler.updateFilteringParamsForClient(uuid, filteringParams).futureValue
+    f.redisSubscriberCache.updateFilteringParameters(uuid, filteringParams).futureValue
     f.redisWsClientCache.storeVehicleActivityForClient(uuid, busPositionData).futureValue
     val result = parseWebsocketCacheResult(f.webSocketClientHandler.retrieveTransmissionDataForClient(uuid).futureValue).value
     result should have size 1
@@ -83,7 +83,7 @@ class WebSocketClientHandlerTest extends fixture.FunSuite with SharedTestFeature
     val filteringParams = createFilteringParams()
     f.webSocketClientHandler.subscribe(uuid).futureValue
     f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue should not be defined
-    f.webSocketClientHandler.updateFilteringParamsForClient(uuid, filteringParams).futureValue
+    f.redisSubscriberCache.updateFilteringParameters(uuid, filteringParams).futureValue
     f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue.value shouldBe filteringParams
   }
 }

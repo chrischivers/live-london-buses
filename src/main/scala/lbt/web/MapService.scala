@@ -9,8 +9,7 @@ import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax._
 import lbt.common.Definitions
-import lbt.db.caching.{BusPositionDataForTransmission, RedisWsClientCache}
-import lbt.models.BusPolyLine.truncateAt
+import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
 import lbt.models.MovementInstruction
 import org.http4s._
 import org.http4s.dsl._
@@ -20,8 +19,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-class MapService(definitions: Definitions, redisWsClientCache: RedisWsClientCache) extends StrictLogging {
+class MapService(definitions: Definitions, redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache) extends StrictLogging {
 
+
+  object UUIDQueryParameter extends QueryParamDecoderMatcher[String]("uuid")
   private val supportedAssetTypes = List("css", "js")
 
   def service = HttpService[IO] {
@@ -30,32 +31,38 @@ class MapService(definitions: Definitions, redisWsClientCache: RedisWsClientCach
       StaticFile.fromFile(new File(s"./src/main/twirl/assets/$assetType/$file"), Some(request))
         .getOrElseF(NotFound())
 
-    case req@POST -> Root / "snapshot" => {
-      val body = new String(req.body.runLog.unsafeRunSync.toArray, "UTF-8")
-      val parseResult = for {
-        json <- parse(body)
-        filteringParams <- json.as[FilteringParams]
-      } yield filteringParams
+    case req@POST -> Root / "snapshot" :? UUIDQueryParameter(uuid) =>
+      handleSnapshotRequest(uuid, req)
+    case GET -> Root => handleMapRequest
+  }
 
-      parseResult match {
-        case Right(fp) => {
-          val response: Future[String] = for {
-            inProgressData <- getInProgressDataSatisfying(fp)
-            modifiedInProgressData = modifyBusPositionDataToStartNow(inProgressData)
-          } yield modifiedInProgressData.asJson.noSpaces
-          Ok(response)
-        }
-        case Left(e) =>
-          logger.error(s"Error parsing/decoding json $body. Error: $e")
-          InternalServerError()
+  private def handleMapRequest = {
+    val busRoutes = definitions.routeDefinitions.map { case (busRoute, _) => busRoute.id }.toList.distinct
+    val (digitRoutes, letterRoutes) = busRoutes.partition(_.forall(_.isDigit))
+    val sortedRoutes = digitRoutes.sortBy(_.toInt) ++ letterRoutes.sorted
+    Ok(html.map(sortedRoutes))
+  }
+
+  private def handleSnapshotRequest(uuid: String, req: Request[IO]) = {
+    val body = new String(req.body.runLog.unsafeRunSync.toArray, "UTF-8")
+    val parseResult = for {
+      json <- parse(body)
+      filteringParams <- json.as[FilteringParams]
+    } yield filteringParams
+
+    parseResult match {
+      case Right(fp) => {
+        val response: Future[String] = for {
+          _ <- redisSubscriberCache.updateFilteringParameters(uuid, fp)
+          inProgressData <- getInProgressDataSatisfying(fp)
+          modifiedInProgressData = modifyBusPositionDataToStartNow(inProgressData)
+        } yield modifiedInProgressData.asJson.noSpaces
+        Ok(response)
       }
+      case Left(e) =>
+        logger.error(s"Error parsing/decoding json $body. Error: $e")
+        InternalServerError()
     }
-
-    case GET -> Root =>
-      val busRoutes = definitions.routeDefinitions.map { case (busRoute, _) => busRoute.id }.toList.distinct
-      val (digitRoutes, letterRoutes) = busRoutes.partition(_.forall(_.isDigit))
-      val sortedRoutes = digitRoutes.sortBy(_.toInt) ++ letterRoutes.sorted
-      Ok(html.map(sortedRoutes))
   }
 
   private def modifyBusPositionDataToStartNow(data: Seq[BusPositionDataForTransmission]) = {

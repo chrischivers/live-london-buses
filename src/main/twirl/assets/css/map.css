@@ -20,3 +20,13 @@
 .checkbox-inline.no_indent+.checkbox-inline.no_indent {
     margin-left: 10px;
 }
+
+#map {
+    height: 90%;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}

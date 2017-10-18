@@ -23,9 +23,9 @@ import scala.concurrent.duration._
 
 case class FilteringParams(busRoutes: List[BusRoute], latLngBounds: LatLngBounds)
 
-object UUIDQueryParameter extends QueryParamDecoderMatcher[String]("uuid")
-
 class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocketConfig: WebsocketConfig)(implicit F: Effect[IO]) extends Http4sDsl[IO] with StrictLogging {
+
+  object UUIDQueryParameter extends QueryParamDecoderMatcher[String]("uuid")
 
   val timeLastTransmitted = new AtomicLong(0L)
 
@@ -46,31 +46,12 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
 
         val fromClient: Sink[IO, WebSocketFrame] = _.evalMap { (ws: WebSocketFrame) =>
           ws match {
-            case Text(msg, _) => F.delay(handleIncomingMessage(uuid, msg))
-            case f => F.delay(logger.error(s"Unknown type: $f"))
+//            case Text(msg, _) => F.delay(handleIncomingMessage(uuid, msg))
+            case f => F.delay(logger.error(s"Unknown message from client, type: $f"))
           }
         }
         MetricsLogging.incrUsersConnectedToWs
         WS(toClient, fromClient)
       }
-  }
-
-  private def handleIncomingMessage(clientUUID: String, message: String) = {
-    val parsedMsg = parse(message)
-//    val msgType = parsedMsg.flatMap(msg => msg.hcursor.downField("type").as[String])
-      parsedMsg match {
-      case Right(json) => handleUpdateFilterParams(clientUUID, json)
-      //      case (Right(json), Right("REFRESH")) => handleRefreshRequest(clientUUID, json)
-      case Left(e) => logger.error(s"Unable to parse json incoming message $message, ${e.message}", e.underlying)
-    }
-  }
-
-  private def handleUpdateFilterParams(clientUUID: String, jsonMsg: Json): Future[Unit] = {
-    logger.debug(s"Client $clientUUID received filter params $jsonMsg")
-    jsonMsg.as[FilteringParams] match {
-      case Right(filteringParams) =>
-        webSocketClientHandler.updateFilteringParamsForClient(clientUUID, filteringParams)
-      case Left(e) => Future(logger.error(s"Error parsing/decoding filter param for update request: $jsonMsg", e))
-    }
   }
 }
