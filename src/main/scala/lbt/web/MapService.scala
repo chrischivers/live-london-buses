@@ -5,12 +5,13 @@ import java.io.File
 import cats.effect.IO
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
+import fs2.Scheduler
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax._
 import lbt.common.Definitions
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
-import lbt.models.MovementInstruction
+import lbt.models.{LatLng, MovementInstruction}
 import org.http4s._
 import org.http4s.dsl._
 import org.http4s.twirl._
@@ -20,7 +21,6 @@ import scala.concurrent.Future
 
 
 class MapService(definitions: Definitions, redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache) extends StrictLogging {
-
 
   object UUIDQueryParameter extends QueryParamDecoderMatcher[String]("uuid")
   private val supportedAssetTypes = List("css", "js")
@@ -73,23 +73,22 @@ class MapService(definitions: Definitions, redisWsClientCache: RedisWsClientCach
         val proportionRemaining = 1.0 - (lateBy.toDouble / timeToTravel.toDouble)
         println("Proportion remaining: " + proportionRemaining)
 
-        def getInstructionsRemaining(remainingList: List[MovementInstruction], accList: List[MovementInstruction], accProportions: Double): List[MovementInstruction] = {
+        def getInstructionsRemaining(remainingList: List[MovementInstruction], accList: List[MovementInstruction], accProportions: Double): (LatLng, List[MovementInstruction]) = {
           println("Remaining List: " + remainingList + ". accList: " + accList + ". accProportions: " + accProportions)
-          if (remainingList.isEmpty) accList
+          if (remainingList.isEmpty) (rec.startingLatLng, accList)
           else {
-            val instruction = remainingList.last
-            val nextProportion = accProportions + instruction.proportion
-            if (nextProportion > proportionRemaining) accList
+            val nextInstruction = remainingList.last
+            val nextProportion = accProportions + nextInstruction.proportion
+            if (nextProportion > proportionRemaining) (nextInstruction.to, accList)
             else {
-              getInstructionsRemaining(remainingList.dropRight(1), instruction +: accList, nextProportion)
+              getInstructionsRemaining(remainingList.dropRight(1), nextInstruction +: accList, nextProportion)
             }
           }
         }
-        val instructionsToNext = getInstructionsRemaining(movementInstructions, List.empty, 0)
+        val (startingLatLng, instructionsToNext) = getInstructionsRemaining(movementInstructions, List.empty, 0)
         val sumOfAllProportions = instructionsToNext.foldLeft(0.0)((acc,ins) => acc + ins.proportion)
         val adjustedInstructionsToNext = instructionsToNext.map(ins => ins.copy(proportion = ins.proportion / sumOfAllProportions))
-        rec.copy(startingTime = System.currentTimeMillis(), movementInstructionsToNext = Some(adjustedInstructionsToNext))
-
+        rec.copy(startingTime = System.currentTimeMillis(), startingLatLng = startingLatLng, movementInstructionsToNext = Some(adjustedInstructionsToNext))
       })
   }
 

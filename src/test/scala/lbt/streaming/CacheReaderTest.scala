@@ -100,6 +100,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       getBusStopFromStopID(sourceLine1.stopID, definitions).get.latLng,
       deleteAfter = false,
       getNextBusStopFromStopID(sourceLine1.stopID, busRoute, definitions).map(_.stopName),
+      getNextBusStopIndexFromStopID(sourceLine1.stopID, busRoute, definitions),
       Some(timestamp2),
       None)
 
@@ -110,6 +111,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       getBusStopFromStopID(sourceLine2.stopID, definitions).get.latLng,
       deleteAfter = false,
       getNextBusStopFromStopID(sourceLine2.stopID, busRoute, definitions).map(_.stopName),
+      getNextBusStopIndexFromStopID(sourceLine1.stopID, busRoute, definitions),
       None,
       None)
 
@@ -140,6 +142,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
         getBusStopFromStopID(sourceLine.stopID, definitions).get.latLng,
         deleteAfter = false,
         getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
+        getNextBusStopIndexFromStopID(sourceLine.stopID, busRoute, definitions),
         None,
         None)
     }
@@ -170,6 +173,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
         getBusStopFromStopID(sourceLine.stopID, definitions).get.latLng,
         deleteAfter = true,
         getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
+        getNextBusStopIndexFromStopID(sourceLine.stopID, busRoute, definitions),
         None,
         None)
     }
@@ -191,7 +195,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
 
     parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 0
 
-    f.cacheReader ! CacheReadCommand(40000)
+    f.cacheReader ! CacheReadCommand(60000)
     Thread.sleep(5000)
     parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 1
 
@@ -211,7 +215,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
 
     parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 0
 
-    f.cacheReader ! CacheReadCommand(40000)
+    f.cacheReader ! CacheReadCommand(60000)
 
     eventually {
       val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value
@@ -223,6 +227,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
         getBusStopFromStopID(sourceLine1.stopID, definitions).get.latLng,
         deleteAfter = false,
         getNextBusStopFromStopID(sourceLine1.stopID, subscribedBusRoute, definitions).map(_.stopName),
+        getNextBusStopIndexFromStopID(sourceLine1.stopID, subscribedBusRoute, definitions),
         None,
         None)
     }
@@ -242,7 +247,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     results should have size 0
   }
 
-  test("user receives no source lines when they are subscribed to route ut not in bounds") { f =>
+  test("user receives no source lines when they are subscribed to route but not in bounds") { f =>
     val subscribedBusRoute = BusRoute("25", "outbound")
     val sourceLine1 = generateSourceLine(route = "25", direction = 1)
 
@@ -285,6 +290,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       getBusStopFromStopID(sourceLine1.stopID, definitions).get.latLng,
       deleteAfter = false,
       getNextBusStopFromStopID(sourceLine1.stopID, busRoute, definitions).map(_.stopName),
+      getNextBusStopIndexFromStopID(sourceLine1.stopID, busRoute, definitions),
       Some(timestamp2),
       None)
   }

@@ -18,12 +18,14 @@ case class BusPositionDataForTransmission(vehicleId: String,
                                           startingLatLng: LatLng,
                                           deleteAfter: Boolean,
                                           nextStopName: Option[String],
+                                          nextStopIndex: Option[Int],
                                           nextStopArrivalTime: Option[Long],
                                           movementInstructionsToNext: Option[List[MovementInstruction]]) {
 
   def satisfiesFilteringParams(fps: FilteringParams): Boolean = {
     fps.busRoutes.contains(this.busRoute) &&
-      fps.latLngBounds.isWithinBounds(this.startingLatLng)
+      (fps.latLngBounds.isWithinBounds(this.startingLatLng) ||
+        this.movementInstructionsToNext.fold(false)( ins => fps.latLngBounds.isWithinBounds(ins.last.to)))
   }
 }
 

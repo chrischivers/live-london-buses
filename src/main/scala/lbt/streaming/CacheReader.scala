@@ -72,6 +72,7 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
         thisStop._2.latLng,
         isPenultimateStop,
         nextStopOpt.map(_._2.stopName),
+        nextStopOpt.map(_._1),
         nextArrivalTimeOpt,
         thisStop._3.map(_.toMovementInstructions))
     })

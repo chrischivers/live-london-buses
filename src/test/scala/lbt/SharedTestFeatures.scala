@@ -26,10 +26,11 @@ trait SharedTestFeatures extends OptionValues {
                             busStop: BusStop = BusStop("490003059E", "Abingdon Street", LatLng(51.49759, -0.125605)),
                             isPenultimateStop: Boolean = false,
                             nextStopNameOpt: Option[String] = Some("NextStop"),
+                            nextStopIndexOpt: Option[Int] = Some(5),
                             arrivalTimeStamp: Long = System.currentTimeMillis(),
                             arrivalTimeAtNextStop: Option[Long] = Some(System.currentTimeMillis() + 120000),
                             movementInstructionsOpt: Option[List[MovementInstruction]] = Some(BusPolyLine("}biyHzoW~KqA").toMovementInstructions)) = {
-    BusPositionDataForTransmission(vehicleId, busRoute, arrivalTimeStamp, busStop.latLng, isPenultimateStop, nextStopNameOpt, arrivalTimeAtNextStop, movementInstructionsOpt)
+    BusPositionDataForTransmission(vehicleId, busRoute, arrivalTimeStamp, busStop.latLng, isPenultimateStop, nextStopNameOpt, nextStopIndexOpt, arrivalTimeAtNextStop, movementInstructionsOpt)
   }
 
   def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),
@@ -75,6 +76,11 @@ trait SharedTestFeatures extends OptionValues {
   def getNextBusStopFromStopID(stopId: String, busRoute: BusRoute, definitions: Definitions): Option[BusStop] = {
     val thisStopIndex = definitions.routeDefinitions(busRoute).find(_._2.stopID == stopId).map(_._1)
     definitions.routeDefinitions(busRoute).find(_._1 == thisStopIndex.get + 1).map(_._2)
+  }
+
+  def getNextBusStopIndexFromStopID(stopId: String, busRoute: BusRoute, definitions: Definitions): Option[Int] = {
+    val thisStopIndex = definitions.routeDefinitions(busRoute).find(_._2.stopID == stopId).map(_._1)
+    definitions.routeDefinitions(busRoute).find(_._1 == thisStopIndex.get + 1).map(_._1)
   }
 
 
