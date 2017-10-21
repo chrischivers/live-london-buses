@@ -27,15 +27,13 @@
                         <h4 class="modal-title">Route Selection</h4>
                     </div>
                     <div class="modal-body">
-                        <div class="modal-body">
 
-                            <div class="form-inline" id="route-selection-form">
-                                @for(route <- busRouteList) {
-                                    <label class="checkbox-inline no_indent"><input type="checkbox" name="routeCheckBox" value = @route>
-                                    @route
-                                    </label>
-                                }
-                            </div>
+                        <div class="form-inline" id="route-selection-form">
+                            @for(route <- busRouteList) {
+                                <label class="checkbox-inline no_indent"><input type="checkbox" name="routeCheckBox" value = @route>
+                                @route
+                                </label>
+                            }
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -105,7 +103,7 @@
                     $.each($("input[name='routeCheckBox']:checked").prop('checked', false));
                 });
 
-                google.maps.InfoWindow.prototype.isOpen = function(){
+                google.maps.InfoWindow.prototype.isOpen = function () {
                     var map = this.getMap();
                     return (map !== null && typeof map !== "undefined");
                 };
@@ -327,19 +325,18 @@
 
                 function createOrUpdateInfoBox(id, routeId, nextStopName, vehicleId, waitTime) {
                     setTimeout(function () {
-                        var restoreOpenState = false;
-                        if ((id in infoBoxArray)) {
-                            restoreOpenState = infoBoxArray[id].isOpen();
-                        }
+                        var previousBox = infoBoxArray[id];
 
                         infoBoxArray[id] = new google.maps.InfoWindow({
                             content: "Route: " + routeId + "<br />" + "Next Stop Name: " + nextStopName + "<br />" + "Vehicle ID: " + vehicleId
                         });
-                        if (restoreOpenState) {
-                            infoBoxArray[id].close();
-                            infoBoxArray[id].open(map, markerArray[id]);
+                        if (typeof previousBox !== 'undefined') {
+                            if (previousBox.isOpen()) {
+                                previousBox.close();
+                                infoBoxArray[id].open(map, markerArray[id]);
+                            }
                         }
-                    } , waitTime);
+                    }, waitTime);
                 }
 
                 function clearUpExpired() {
