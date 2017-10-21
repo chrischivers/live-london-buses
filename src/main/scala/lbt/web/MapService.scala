@@ -72,10 +72,8 @@ class MapService(definitions: Definitions, redisWsClientCache: RedisWsClientCach
         val timeToTravel = rec.nextStopArrivalTime.getOrElse(90000L) - rec.startingTime
         val lateBy = System.currentTimeMillis() - rec.startingTime
         val proportionRemaining = 1.0 - (lateBy.toDouble / timeToTravel.toDouble)
-        println("Proportion remaining: " + proportionRemaining)
 
         def getInstructionsRemaining(remainingList: List[MovementInstruction], accList: List[MovementInstruction], accProportions: Double): (LatLng, List[MovementInstruction]) = {
-          println("Remaining List: " + remainingList + ". accList: " + accList + ". accProportions: " + accProportions)
           if (remainingList.isEmpty) (rec.startingLatLng, accList)
           else {
             val nextInstruction = remainingList.last
