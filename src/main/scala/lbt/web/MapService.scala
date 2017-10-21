@@ -11,6 +11,7 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import lbt.common.Definitions
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
+import lbt.metrics.MetricsLogging
 import lbt.models.{LatLng, MovementInstruction}
 import org.http4s._
 import org.http4s.dsl._

@@ -105,6 +105,11 @@
                     $.each($("input[name='routeCheckBox']:checked").prop('checked', false));
                 });
 
+                google.maps.InfoWindow.prototype.isOpen = function(){
+                    var map = this.getMap();
+                    return (map !== null && typeof map !== "undefined");
+                };
+
                 function onBoundsChange(bounds) {
                     for (var key in markerArray) {
                         var marker = markerArray[key];
@@ -221,6 +226,8 @@
 
                             if (timeToNextStop > 0) {
 
+                                createOrUpdateInfoBox(id, routeId, nextStopName, vehicleId, timeAccumulator);
+
                                 for (var j = 0; j < movementInstructionsRaw.length; j++) {
                                     var latLngToMoveTo = new google.maps.LatLng(movementInstructionsRaw[j].to);
                                     var angle = movementInstructionsRaw[j].angle;
@@ -230,8 +237,6 @@
                                     animateMarker(id, routeId, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
                                     timeAccumulator += proportionalTime
                                 }
-
-                                updateInfoBox(id, routeId, nextStopName, vehicleId);
 
                                 if (deleteAfter) {
                                     console.log("Deleting marker in " + timeAccumulator + " as at end of route");
@@ -320,10 +325,21 @@
                     }, waitTime);
                 }
 
-                function updateInfoBox(id, routeId, nextStopName, vehicleId) {
-                    infoBoxArray[id] = new google.maps.InfoWindow({
-                        content: "Route: " + routeId + "<br />" + "Next Stop Name: " + nextStopName + "<br />" + "Vehicle ID: " + vehicleId
-                    });
+                function createOrUpdateInfoBox(id, routeId, nextStopName, vehicleId, waitTime) {
+                    setTimeout(function () {
+                        var restoreOpenState = false;
+                        if ((id in infoBoxArray)) {
+                            restoreOpenState = infoBoxArray[id].isOpen();
+                        }
+
+                        infoBoxArray[id] = new google.maps.InfoWindow({
+                            content: "Route: " + routeId + "<br />" + "Next Stop Name: " + nextStopName + "<br />" + "Vehicle ID: " + vehicleId
+                        });
+                        if (restoreOpenState) {
+                            infoBoxArray[id].close();
+                            infoBoxArray[id].open(map, markerArray[id]);
+                        }
+                    } , waitTime);
                 }
 
                 function clearUpExpired() {
