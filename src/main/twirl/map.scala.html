@@ -1,5 +1,5 @@
-@import lbt.models.BusRoute
-@(busRouteList: List[String])
+@import lbt.MapServiceConfig
+@(mapServiceConfig: MapServiceConfig, busRouteList: List[String])
 <html>
     <head>
         <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
@@ -24,7 +24,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <button type="button" class="close" data-dismiss="modal">&times;</button>
-                        <h4 class="modal-title">Route Selection</h4>
+                        <h4 class="modal-title">Select Routes (max: @{mapServiceConfig.maxRouteSelection})</h4>
                     </div>
                     <div class="modal-body">
 
@@ -119,6 +119,14 @@
                     var map = this.getMap();
                     return (map !== null && typeof map !== "undefined");
                 };
+
+                $("input[name='routeCheckBox']").change(function () {
+                    var cnt = $("input[name='routeCheckBox']:checked").length;
+                    if (cnt > @{mapServiceConfig.maxRouteSelection}) {
+                        $(this).prop("checked", "");
+                        alert("Maximum " + @{mapServiceConfig.maxRouteSelection} + " routes permitted");
+                    }
+                });
 
                 function onBoundsChange(bounds) {
                     for (var key in markerArray) {
@@ -378,7 +386,7 @@
 
                 function getWidenedBounds() {
                     var bounds = map.getBounds();
-                    var expansionFactor = 1.3;
+                    var expansionFactor = @mapServiceConfig.expandedBoundsMultiple;
                     var southwestLat = bounds.getSouthWest().lat();
                     var southwestLng = bounds.getSouthWest().lng();
                     var northeastLat = bounds.getNorthEast().lat();

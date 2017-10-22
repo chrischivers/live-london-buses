@@ -9,6 +9,7 @@ import fs2.Scheduler
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax._
+import lbt.MapServiceConfig
 import lbt.common.Definitions
 import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
 import lbt.metrics.MetricsLogging
@@ -21,7 +22,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
-class MapService(definitions: Definitions, redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache) extends StrictLogging {
+class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache) extends StrictLogging {
 
   object UUIDQueryParameter extends QueryParamDecoderMatcher[String]("uuid")
   private val supportedAssetTypes = List("css", "js")
@@ -41,7 +42,7 @@ class MapService(definitions: Definitions, redisWsClientCache: RedisWsClientCach
     val busRoutes = definitions.routeDefinitions.map { case (busRoute, _) => busRoute.id }.toList.distinct
     val (digitRoutes, letterRoutes) = busRoutes.partition(_.forall(_.isDigit))
     val sortedRoutes = digitRoutes.sortBy(_.toInt) ++ letterRoutes.sorted
-    Ok(html.map(sortedRoutes))
+    Ok(html.map(mapServiceConfig, sortedRoutes))
   }
 
   private def handleSnapshotRequest(uuid: String, req: Request[IO]) = {

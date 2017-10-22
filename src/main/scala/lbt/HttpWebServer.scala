@@ -28,7 +28,7 @@ object HttpWebServer extends StreamApp[IO] with StrictLogging {
   val redisSubscriberCache = new RedisSubscriberCache(config.redisConfig)
   val redisWsClientCache = new RedisWsClientCache(config.redisConfig,redisSubscriberCache)
 
-  val mapService = new MapService(definitions, redisWsClientCache, redisSubscriberCache)
+  val mapService = new MapService(config.mapServiceConfig, definitions, redisWsClientCache, redisSubscriberCache)
 
 
   override def stream(args: List[String], requestShutdown: IO[Unit]) = {

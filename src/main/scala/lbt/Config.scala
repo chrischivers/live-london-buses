@@ -30,6 +30,8 @@ case class StreamingConfig(idleTimeBeforeVehicleDeleted: FiniteDuration, cleanUp
 
 case class MetricsConfig(host: String, port: Int, dbName: String, updateInterval: Int, enabled: Boolean)
 
+case class MapServiceConfig(maxRouteSelection: Int, expandedBoundsMultiple: Double)
+
 case class LBTConfig(
                       dataSourceConfig: DataSourceConfig,
                       postgresDbConfig: PostgresDBConfig,
@@ -37,7 +39,8 @@ case class LBTConfig(
                       definitionsConfig: DefinitionsConfig,
                       websocketConfig: WebsocketConfig,
                       streamingConfig: StreamingConfig,
-                      metricsConfig: MetricsConfig)
+                      metricsConfig: MetricsConfig,
+                      mapServiceConfig: MapServiceConfig)
 
 object ConfigLoader {
 
@@ -100,7 +103,11 @@ object ConfigLoader {
         defaultConfigFactory.getString("metrics.dbName"),
         defaultConfigFactory.getInt("metrics.updateInterval"),
         defaultConfigFactory.getBoolean("metrics.enabled")
-      )
+      ),
+      MapServiceConfig(
+        defaultConfigFactory.getInt("map-service.maxRoutesSelection"),
+        defaultConfigFactory.getDouble("map-service.expandedBoundsMultiple")
+      ),
     )
   }
 }
