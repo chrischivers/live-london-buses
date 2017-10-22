@@ -56,6 +56,7 @@
         <script src="map/assets/js/markerwithlabel.terikon.js"></script>
         <script>
                 var map;
+                var wsUri = "ws://" + document.location.host + "/ws";
                 var ws;
                 var markerArray = {};
                 var timeNextFreeArray = {};
@@ -83,11 +84,11 @@
                     $(window).on('focus', function() {
                         windowInFocus = true;
                         var newParams = getWSParamsJson(selectedRoutes, getWidenedBounds());
-                        updateParamsAndGetSnapshot(@{uuid}, newParams);
+                        updateParamsAndGetSnapshot('@uuid', newParams);
                     });
 
                     $('#routeSelection').modal('show');
-                    openWebsocket(@{uuid});
+                    openWebsocket('@uuid');
                     setInterval(clearUpExpired, 300000);
                 });
 
@@ -103,7 +104,7 @@
                     selectedRoutes = newSelectedRoutes;
                     clearRoutes(routesToDelete);
                     var newParams = getWSParamsJson(newSelectedRoutes, getWidenedBounds());
-                    updateParamsAndGetSnapshot(@{uuid}, newParams);
+                    updateParamsAndGetSnapshot('@uuid', newParams);
                 });
 
                 $('#clear-selected-routes-button').on('click', function (e) {
@@ -131,11 +132,10 @@
                         }
                     }
                     var newParams = getWSParamsJson(selectedRoutes, bounds);
-                    updateParamsAndGetSnapshot(@{uuid}, newParams);
+                    updateParamsAndGetSnapshot('@uuid', newParams);
                 }
 
                 function getWSParamsJson(selectedRoutes, bounds) {
-                    //TODO move away from hardcoding bounds
                     var busRoutesArray = [];
                     for (var i = 0; i < selectedRoutes.length; i++) {
                         var outboundRoute = {"id": selectedRoutes[i], "direction": "outbound"};
@@ -156,7 +156,7 @@
 
                 function openWebsocket(uuid) {
                     if ("WebSocket" in window) {
-                        ws = new WebSocket("ws://34.209.127.7:80/ws?uuid=" + uuid);
+                        ws = new WebSocket(wsUri + "?uuid=" + uuid);
 
                         ws.onopen = function () {
                             console.log("Websocket opened")
