@@ -83,11 +83,11 @@
                     $(window).on('focus', function() {
                         windowInFocus = true;
                         var newParams = getWSParamsJson(selectedRoutes, getWidenedBounds());
-                        updateParamsAndGetSnapshot(@uuid, newParams);
+                        updateParamsAndGetSnapshot(@{uuid}, newParams);
                     });
 
                     $('#routeSelection').modal('show');
-                    openWebsocket(@uuid);
+                    openWebsocket(@{uuid});
                     setInterval(clearUpExpired, 300000);
                 });
 
@@ -103,7 +103,7 @@
                     selectedRoutes = newSelectedRoutes;
                     clearRoutes(routesToDelete);
                     var newParams = getWSParamsJson(newSelectedRoutes, getWidenedBounds());
-                    updateParamsAndGetSnapshot(@uuid, newParams);
+                    updateParamsAndGetSnapshot(@{uuid}, newParams);
                 });
 
                 $('#clear-selected-routes-button').on('click', function (e) {
@@ -131,7 +131,7 @@
                         }
                     }
                     var newParams = getWSParamsJson(selectedRoutes, bounds);
-                    updateParamsAndGetSnapshot(@uuid, newParams);
+                    updateParamsAndGetSnapshot(@{uuid}, newParams);
                 }
 
                 function getWSParamsJson(selectedRoutes, bounds) {
