@@ -1,6 +1,7 @@
 package lbt.web
 
 import java.io.File
+import java.util.UUID
 
 import cats.effect.IO
 import cats.implicits._
@@ -40,10 +41,11 @@ class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, r
 
   private def handleMapRequest = {
     MetricsLogging.incrMapHttpRequestsReceived
+    val newUUID = UUID.randomUUID().toString
     val busRoutes = definitions.routeDefinitions.map { case (busRoute, _) => busRoute.id }.toList.distinct
     val (digitRoutes, letterRoutes) = busRoutes.partition(_.forall(_.isDigit))
     val sortedRoutes = digitRoutes.sortBy(_.toInt) ++ letterRoutes.sorted
-    Ok(html.map(mapServiceConfig, sortedRoutes))
+    Ok(html.map(newUUID, mapServiceConfig, sortedRoutes))
   }
 
   private def handleSnapshotRequest(uuid: String, req: Request[IO]) = {
