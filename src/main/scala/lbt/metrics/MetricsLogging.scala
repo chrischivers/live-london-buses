@@ -34,27 +34,25 @@ trait MetricsLogging extends StrictLogging with DefaultInstrumented {
   private val sourceLinesValidated: Meter = metrics.meter("source-lines-validated")
   def incrSourceLinesValidated = if (metricsConfig.enabled) sourceLinesValidated.mark()
 
-  private val arrivalTimesLoggedToCache: Meter = metrics.meter("arrival-times-logged")
-  def incrArrivalTimesLogged = if (metricsConfig.enabled) arrivalTimesLoggedToCache.mark()
-
-  private val vehicleArrivalTimesLoggedToCache: Meter = metrics.meter("vehicle-arrival-times-logged")
-  def incrVehicleArrivalTimesLogged = if (metricsConfig.enabled) vehicleArrivalTimesLoggedToCache.mark()
-
   private val cachedRecordsProcessed: Meter = metrics.meter("cached-records-processed")
   def incrCachedRecordsProcessed(n: Int) = if (metricsConfig.enabled) cachedRecordsProcessed.mark(n)
 
-  private val cacheReadProcessingTimer: Timer = metrics.timer("cache-read-processing")
+  private val cacheReadProcessingTimer: Timer = metrics.timer("cache-read-processing-time")
   def measureCacheReadProcess[A](f: => Future[A]) =
     if (metricsConfig.enabled) cacheReadProcessingTimer.timeFuture(f) else f
 
-  private val snapshotResponseTimer: Timer = metrics.timer("snapshot-response-timer")
-  def measureSnapshotResponse[A](f: => Future[A]) =
-    if (metricsConfig.enabled) snapshotResponseTimer.timeFuture(f) else f
+  private val mapHttpRequestsReceived: Meter = metrics.meter("map-http-requests-received")
+  def incrMapHttpRequestsReceived = if (metricsConfig.enabled) mapHttpRequestsReceived.mark()
 
-  private val usersConnectedToWs: Counter = metrics.counter("users-connected-ws")
-  def incrUsersConnectedToWs = if (metricsConfig.enabled)  usersConnectedToWs.inc()
-  def decrUsersConnectedToWs = if (metricsConfig.enabled)  usersConnectedToWs.dec()
 
+  private val snapshotHttpRequestsReceived: Meter = metrics.meter("snapshot-http-requests-received")
+  def incrSnapshotHttpRequestsReceived = if (metricsConfig.enabled) snapshotHttpRequestsReceived.mark()
+
+  private val usersCurrentlySubscribed: Counter = metrics.counter("users-subscribed")
+  def setUsersCurrentlySubscribed(n: Int) = if (metricsConfig.enabled) {
+    usersCurrentlySubscribed.dec(usersCurrentlySubscribed.count)
+    usersCurrentlySubscribed.inc(n)
+  }
 }
 
 object MetricsLogging extends MetricsLogging {

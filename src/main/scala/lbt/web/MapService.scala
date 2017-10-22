@@ -39,6 +39,7 @@ class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, r
   }
 
   private def handleMapRequest = {
+    MetricsLogging.incrMapHttpRequestsReceived
     val busRoutes = definitions.routeDefinitions.map { case (busRoute, _) => busRoute.id }.toList.distinct
     val (digitRoutes, letterRoutes) = busRoutes.partition(_.forall(_.isDigit))
     val sortedRoutes = digitRoutes.sortBy(_.toInt) ++ letterRoutes.sorted
@@ -46,6 +47,7 @@ class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, r
   }
 
   private def handleSnapshotRequest(uuid: String, req: Request[IO]) = {
+    MetricsLogging.incrSnapshotHttpRequestsReceived
     val body = new String(req.body.runLog.unsafeRunSync.toArray, "UTF-8")
     val parseResult = for {
       json <- parse(body)

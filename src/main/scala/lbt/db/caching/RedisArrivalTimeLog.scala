@@ -27,10 +27,7 @@ class RedisArrivalTimeLog(val redisConfig: RedisConfig)(implicit val executionCo
   }
 
   def addArrivalRecord(arrivalTime: Long, arrivalTimeRecord: StopArrivalRecord): Future[Unit] = {
-    for {
-      _ <- client.zadd(ARRIVAL_TIMES_KEY, (arrivalTime, arrivalTimeRecord))
-      _ = MetricsLogging.incrArrivalTimesLogged
-    } yield ()
+    client.zadd(ARRIVAL_TIMES_KEY, (arrivalTime, arrivalTimeRecord)).map(_=> ())
   }
 
   def getAndDropArrivalRecords(arrivalTimesUpTo: Long): Future[Seq[(StopArrivalRecord, Long)]] = {

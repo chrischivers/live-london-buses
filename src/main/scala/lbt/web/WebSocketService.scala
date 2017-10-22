@@ -50,7 +50,6 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
             case f => F.delay(logger.error(s"Unknown message from client, type: $f"))
           }
         }
-        MetricsLogging.incrUsersConnectedToWs
         WS(toClient, fromClient)
       }
   }

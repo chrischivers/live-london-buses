@@ -87,6 +87,7 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
   private def getSubscribersAndFilteringParams(): Future[Seq[(ClientId, FilteringParams)]] = {
     for {
       subscribers <- redisSubscriberCache.getListOfSubscribers
+      _ = MetricsLogging.setUsersCurrentlySubscribed(subscribers.size)
       filteringParams <- Future.sequence(subscribers.map(subscriber =>
         redisSubscriberCache.getParamsForSubscriber(subscriber)
           .map(_.map(fp => (subscriber, fp))))).map(_.flatten)

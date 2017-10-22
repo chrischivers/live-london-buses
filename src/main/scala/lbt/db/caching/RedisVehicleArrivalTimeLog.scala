@@ -28,7 +28,6 @@ class RedisVehicleArrivalTimeLog(val redisConfig: RedisConfig, streamingConfig: 
     for {
       _ <- client.zadd(key, (arrivalTime, stopArrivalRecord.stopIndex))
       _ <- client.expire(key, streamingConfig.idleTimeBeforeVehicleDeleted.toSeconds)
-      _ = MetricsLogging.incrVehicleArrivalTimesLogged
     } yield ()
   }
 

@@ -20,17 +20,6 @@ class MetricsTest extends FunSuite with SharedTestFeatures with ScalaFutures wit
     TestMetricsLogging.incrSourceLinesValidated
     TestMetricsLogging.metrics.meter("source-lines-validated").count shouldBe 1
   }
-  test("Arrival Times logged metrics meter increases when called") {
-    TestMetricsLogging.metrics.meter("arrival-times-logged").count shouldBe 0
-    TestMetricsLogging.incrArrivalTimesLogged
-    TestMetricsLogging.metrics.meter("arrival-times-logged").count shouldBe 1
-  }
-
-  test("Vehicle arrival times logged metrics meter increases when called") {
-    TestMetricsLogging.metrics.meter("vehicle-arrival-times-logged").count shouldBe 0
-    TestMetricsLogging.incrVehicleArrivalTimesLogged
-    TestMetricsLogging.metrics.meter("vehicle-arrival-times-logged").count shouldBe 1
-  }
   test("Cached records processed metrics meter increases when called") {
     TestMetricsLogging.metrics.meter("cached-records-processed").count shouldBe 0
     TestMetricsLogging.incrCachedRecordsProcessed(3)
@@ -43,14 +32,6 @@ class MetricsTest extends FunSuite with SharedTestFeatures with ScalaFutures wit
     }
     Thread.sleep(3000)
     (TestMetricsLogging.metrics.timer("cache-read-processing").mean / 1000 / 1000 / 1000).toInt shouldBe 2
-  }
-
-  test("Users connected to WS counter increments/decrements when called") {
-    TestMetricsLogging.metrics.counter("users-connected-ws").count shouldBe 0
-    TestMetricsLogging.incrUsersConnectedToWs
-    TestMetricsLogging.metrics.counter("users-connected-ws").count shouldBe 1
-    TestMetricsLogging.decrUsersConnectedToWs
-    TestMetricsLogging.metrics.counter("users-connected-ws").count shouldBe 0
   }
 
 }
