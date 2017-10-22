@@ -30,7 +30,7 @@ class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: Rou
            |${schema.tableName} (
            |    ${schema.routeId} varchar NOT NULL,
            |    ${schema.direction} varchar NOT NULL,
-           |    ${schema.sequence} integer NOT NULL,
+           |    ${schema.index} integer NOT NULL,
            |    ${schema.stopId} varchar NOT NULL,
            |    ${schema.stopName} varchar,
            |    ${schema.lat} real NOT NULL,
@@ -49,29 +49,29 @@ class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: Rou
     })
   }
 
-  private def insertRouteDefinition(route: BusRoute, stop: BusStop, stopSeqNo: Int): Future[QueryResult] = {
+  private def insertRouteDefinition(route: BusRoute, stop: BusStop, stopIndex: Int): Future[QueryResult] = {
     val statement =
       s"INSERT INTO ${schema.tableName} " +
-        s"(${schema.routeId}, ${schema.direction}, ${schema.sequence}, " +
+        s"(${schema.routeId}, ${schema.direction}, ${schema.index}, " +
         s"${schema.stopId}, ${schema.stopName}, ${schema.lat}, " +
         s"${schema.lng}, ${schema.lastUpdated}) " +
         "VALUES (?,?,?,?,?,?,?,'now')"
 
     db.connectionPool.sendPreparedStatement(statement,
-      List(route.id, route.direction, stopSeqNo,
+      List(route.id, route.direction, stopIndex,
         stop.stopID, stop.stopName, stop.latLng.lat, stop.latLng.lng))
   }
 
-  def updatePolyLine(route: BusRoute, stopSeqNo: Int, polyLine: BusPolyLine): Future[QueryResult] = {
+  def updatePolyLine(route: BusRoute, stopIndex: Int, polyLine: BusPolyLine): Future[QueryResult] = {
     val statement =
       s"UPDATE ${schema.tableName} " +
       s"SET ${schema.polyline_to_next} = ?, ${schema.lastUpdated} = 'now' " +
       s"WHERE ${schema.routeId} = ? " +
       s"AND ${schema.direction} = ? " +
-      s"AND ${schema.sequence} = ?"
+      s"AND ${schema.index} = ?"
 
     db.connectionPool.sendPreparedStatement(statement,
-      List(polyLine.encodedPolyLine, route.id, route.direction, stopSeqNo))
+      List(polyLine.encodedPolyLine, route.id, route.direction, stopIndex))
   }
 
   def getStopSequenceFor(route: BusRoute): Future[List[(Int, BusStop, Option[BusPolyLine])]] = {
@@ -80,7 +80,7 @@ class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: Rou
         s"FROM ${schema.tableName} " +
         s"WHERE ${schema.routeId} = ? " +
         s"AND ${schema.direction} = ? " +
-        s"ORDER BY ${schema.sequence}"
+        s"ORDER BY ${schema.index}"
     for {
       _ <- db.connectToDB
       queryResult <- db.connectionPool.sendPreparedStatement(query, List(route.id, route.direction))
@@ -91,9 +91,9 @@ class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: Rou
           val name = res(schema.stopName).asInstanceOf[String]
           val lat = res(schema.lat).asInstanceOf[Float].toString.toDouble
           val lng = res(schema.lng).asInstanceOf[Float].toString.toDouble
-          val sequenceNo = res(schema.sequence).asInstanceOf[Int]
+          val index = res(schema.index).asInstanceOf[Int]
           val polyLine = Option(res(schema.polyline_to_next).asInstanceOf[String]).map(BusPolyLine(_))
-          (sequenceNo, BusStop(id, name, LatLng(lat, lng)), polyLine)
+          (index, BusStop(id, name, LatLng(lat, lng)), polyLine)
         }).toList
         case None => List.empty
       }
@@ -104,7 +104,7 @@ class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: Rou
     val query =
       s"SELECT * " +
         s"FROM ${schema.tableName} " +
-        s"ORDER BY ${schema.routeId} ASC, ${schema.direction} ASC, ${schema.sequence} ASC"
+        s"ORDER BY ${schema.routeId} ASC, ${schema.direction} ASC, ${schema.index} ASC"
     for {
       _ <- db.connectToDB
       queryResult <- db.connectionPool.sendPreparedStatement(query)
@@ -117,9 +117,9 @@ class RouteDefinitionsTable(val db: SqlDb[PostgreSQLConnection], val schema: Rou
           val name = res(schema.stopName).asInstanceOf[String]
           val lat = res(schema.lat).asInstanceOf[Float].toString.toDouble
           val lng = res(schema.lng).asInstanceOf[Float].toString.toDouble
-          val sequenceNo = res(schema.sequence).asInstanceOf[Int]
+          val index = res(schema.index).asInstanceOf[Int]
           val polyLine = Option(res(schema.polyline_to_next).asInstanceOf[String]).map(BusPolyLine(_))
-          (BusRoute(routeId, direction), (sequenceNo, BusStop(id, name, LatLng(lat, lng)), polyLine))
+          (BusRoute(routeId, direction), (index, BusStop(id, name, LatLng(lat, lng)), polyLine))
         }).toList
         case None => List.empty
       }
