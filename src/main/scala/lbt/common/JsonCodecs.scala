@@ -6,7 +6,6 @@ import lbt.models.{BusStop, LatLng}
 
 object JsonCodecs {
 
-
   case class JsonRoute(routeId: String, mode: String, directions: List[String])
 
   case class JsonDirection(direction: String)

@@ -156,7 +156,7 @@
 
                 function openWebsocket(uuid) {
                     if ("WebSocket" in window) {
-                        ws = new WebSocket(wsUri + "?uuid=" + uuid);
+                        ws = new WebSocket("ws://34.209.127.7:80/ws?uuid=" + uuid);
 
                         ws.onopen = function () {
                             console.log("Websocket opened")
