@@ -184,7 +184,7 @@
                         };
 
                         ws.onclose = function () {
-                            alert("Websocket connection is closed...");
+                            alert("Error: Websocket connection can't be opened or is closed.");
                         };
 
                         window.onbeforeunload = function (event) {
@@ -258,19 +258,16 @@
                                     var proportionalDistance = movementInstructionsRaw[j].proportion;
                                     var proportionalTime = parseInt(timeToNextStop * proportionalDistance);
 
-                                    animateMarker(id, routeId, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
+                                    animateMarker(id, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
                                     timeAccumulator += proportionalTime
                                 }
 
                                 if (deleteAfter) {
-                                    console.log("Deleting marker in " + timeAccumulator + " as at end of route");
                                     deleteMarker(id, timeAccumulator)
                                 }
 
                                 timeNextFreeArray[id] = nextStopArrivalTime;
                                 lastHandledNextIndexArray[id] = nextStopIndex;
-                            } else {
-                                console.log("Ignoring as timeToNextStop too small")
                             }
                         }
                     }
@@ -317,7 +314,6 @@
                 function deleteExistingMarkerIfOutOfSync(id, deleteAfter, nextStopIndex) {
                     if ((id in lastHandledNextIndexArray)) {
                         if (!deleteAfter && nextStopIndex !== lastHandledNextIndexArray[id] + 1) {
-                            console.log("Gap in arrival time data. Deleting marker.");
                             deleteMarker(id, 0)
                         }
                     }
@@ -343,8 +339,7 @@
                     }, waitTime);
                 }
 
-                function animateMarker(id, routeId, duration, moveTo, rotation, waitTime) {
-                    console.log("Wait time : " + waitTime + ". Duration: " + duration);
+                function animateMarker(id, duration, moveTo, rotation, waitTime) {
 
                     var animationInstruction = setTimeout(function () {
                         var marker = markerArray[id];
