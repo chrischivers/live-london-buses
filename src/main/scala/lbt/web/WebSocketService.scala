@@ -2,6 +2,7 @@ package lbt.web
 
 import java.util.concurrent.atomic.AtomicLong
 
+import cats.Eval
 import cats.effect.{IO, _}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.{Scheduler, Sink, Stream}
@@ -27,8 +28,6 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
 
   object UUIDQueryParameter extends QueryParamDecoderMatcher[String]("uuid")
 
-  val timeLastTransmitted = new AtomicLong(0L)
-
   def service(scheduler: Scheduler): HttpService[IO] = HttpService[IO] {
 
     case GET -> Root :? UUIDQueryParameter(uuid) =>
@@ -40,13 +39,12 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
 
         val toClient: Stream[IO, WebSocketFrame] =
           scheduler.awakeEvery[IO](websocketConfig.clientSendInterval).map { _ =>
-            timeLastTransmitted.set(System.currentTimeMillis())
-            Text(Await.result(webSocketClientHandler.retrieveTransmissionDataForClient(uuid), 10 seconds)) //todo is this await the only option?
+            IO.fromFuture(Eval.now(webSocketClientHandler.retrieveTransmissionDataForClient(uuid)
+              .map(x => Text(x)))).unsafeRunSync()
           }
 
         val fromClient: Sink[IO, WebSocketFrame] = _.evalMap { (ws: WebSocketFrame) =>
           ws match {
-//            case Text(msg, _) => F.delay(handleIncomingMessage(uuid, msg))
             case f => F.delay(logger.error(s"Unknown message from client, type: $f"))
           }
         }

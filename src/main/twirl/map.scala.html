@@ -183,11 +183,6 @@
                     }
                 }
 
-                //                function sendToWS(message) {
-                //                    console.log("Sending message: " + message);
-                //                    ws.send(message);
-                //                }
-
                 function updateParamsAndGetSnapshot(uuid, filterParams) {
                     $.post("map/snapshot?uuid=" + uuid, filterParams, function (data) {
                         $(".result").html(data);
@@ -220,6 +215,7 @@
                             var nextStopName = json[i].nextStopName;
                             var nextStopIndex = json[i].nextStopIndex;
                             var movementInstructionsRaw = json[i].movementInstructionsToNext;
+                            var destination = json[i].destination;
 
                             var id = getId(vehicleId, routeId, direction);
 
@@ -239,7 +235,7 @@
 
                             if (timeToNextStop > 0) {
 
-                                createOrUpdateInfoBox(id, routeId, nextStopName, vehicleId, timeAccumulator);
+                                createOrUpdateInfoBox(id, routeId, nextStopName, vehicleId, destination, timeAccumulator);
 
                                 for (var j = 0; j < movementInstructionsRaw.length; j++) {
                                     var latLngToMoveTo = new google.maps.LatLng(movementInstructionsRaw[j].to);
@@ -338,12 +334,12 @@
                     }, waitTime);
                 }
 
-                function createOrUpdateInfoBox(id, routeId, nextStopName, vehicleId, waitTime) {
+                function createOrUpdateInfoBox(id, routeId, nextStopName, vehicleId, destination, waitTime) {
                     setTimeout(function () {
                         var previousBox = infoBoxArray[id];
 
                         infoBoxArray[id] = new google.maps.InfoWindow({
-                            content: "Route: " + routeId + "<br />" + "Next Stop Name: " + nextStopName + "<br />" + "Vehicle ID: " + vehicleId
+                            content: "Route: " + routeId + "<br />"  + "Towards: " + destination + "<br />" + "Next Stop Name: " + nextStopName + "<br />" + "Vehicle ID: " + vehicleId
                         });
                         if (typeof previousBox !== 'undefined') {
                             if (previousBox.isOpen()) {

@@ -20,7 +20,8 @@ case class BusPositionDataForTransmission(vehicleId: String,
                                           nextStopName: Option[String],
                                           nextStopIndex: Option[Int],
                                           nextStopArrivalTime: Option[Long],
-                                          movementInstructionsToNext: Option[List[MovementInstruction]]) {
+                                          movementInstructionsToNext: Option[List[MovementInstruction]],
+                                          destination: String) {
 
   def satisfiesFilteringParams(fps: FilteringParams): Boolean = {
     fps.busRoutes.contains(this.busRoute) &&

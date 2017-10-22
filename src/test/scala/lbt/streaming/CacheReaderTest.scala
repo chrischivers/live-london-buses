@@ -102,7 +102,8 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       getNextBusStopFromStopID(sourceLine1.stopID, busRoute, definitions).map(_.stopName),
       getNextBusStopIndexFromStopID(sourceLine1.stopID, busRoute, definitions),
       Some(timestamp2),
-      None)
+      None,
+      sourceLine1.destinationText)
 
     results(1) shouldBe BusPositionDataForTransmission(
       sourceLine2.vehicleId,
@@ -113,7 +114,8 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       getNextBusStopFromStopID(sourceLine2.stopID, busRoute, definitions).map(_.stopName),
       getNextBusStopIndexFromStopID(sourceLine1.stopID, busRoute, definitions),
       None,
-      None)
+      None,
+      sourceLine2.destinationText)
 
   }
 
@@ -144,7 +146,8 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
         getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
         getNextBusStopIndexFromStopID(sourceLine.stopID, busRoute, definitions),
         None,
-        None)
+        None,
+        sourceLine.destinationText)
     }
   }
 
@@ -175,7 +178,8 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
         getNextBusStopFromStopID(sourceLine.stopID, busRoute, definitions).map(_.stopName),
         getNextBusStopIndexFromStopID(sourceLine.stopID, busRoute, definitions),
         None,
-        None)
+        None,
+        sourceLine.destinationText)
     }
   }
 
@@ -229,7 +233,8 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
         getNextBusStopFromStopID(sourceLine1.stopID, subscribedBusRoute, definitions).map(_.stopName),
         getNextBusStopIndexFromStopID(sourceLine1.stopID, subscribedBusRoute, definitions),
         None,
-        None)
+        None,
+        sourceLine1.destinationText)
     }
   }
 
@@ -292,7 +297,8 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       getNextBusStopFromStopID(sourceLine1.stopID, busRoute, definitions).map(_.stopName),
       getNextBusStopIndexFromStopID(sourceLine1.stopID, busRoute, definitions),
       Some(timestamp2),
-      None)
+      None,
+      sourceLine1.destinationText)
   }
 
   test("InProgress cache is NOT populated when next stop is available but is in past") { f =>

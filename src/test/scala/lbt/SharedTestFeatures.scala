@@ -29,8 +29,9 @@ trait SharedTestFeatures extends OptionValues {
                             nextStopIndexOpt: Option[Int] = Some(5),
                             arrivalTimeStamp: Long = System.currentTimeMillis(),
                             arrivalTimeAtNextStop: Option[Long] = Some(System.currentTimeMillis() + 120000),
-                            movementInstructionsOpt: Option[List[MovementInstruction]] = Some(BusPolyLine("}biyHzoW~KqA").toMovementInstructions)) = {
-    BusPositionDataForTransmission(vehicleId, busRoute, arrivalTimeStamp, busStop.latLng, isPenultimateStop, nextStopNameOpt, nextStopIndexOpt, arrivalTimeAtNextStop, movementInstructionsOpt)
+                            movementInstructionsOpt: Option[List[MovementInstruction]] = Some(BusPolyLine("}biyHzoW~KqA").toMovementInstructions),
+                            destination: String = "Crystal Palace") = {
+    BusPositionDataForTransmission(vehicleId, busRoute, arrivalTimeStamp, busStop.latLng, isPenultimateStop, nextStopNameOpt, nextStopIndexOpt, arrivalTimeAtNextStop, movementInstructionsOpt, destination)
   }
 
   def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),
@@ -65,8 +66,9 @@ trait SharedTestFeatures extends OptionValues {
                                  vehicleId: String = "BJ11DUV",
                                  busRoute: BusRoute = BusRoute("25", "outbound"),
                                  stopIndex: Int = 7,
+                                 destinationText: String = "Ilford",
                                  lastStop: Boolean = false) = {
-    StopArrivalRecord(vehicleId, busRoute, stopIndex, lastStop)
+    StopArrivalRecord(vehicleId, busRoute, stopIndex, destinationText, lastStop)
   }
 
   def getBusStopFromStopID(stopId: String, definitions: Definitions): Option[BusStop] = {

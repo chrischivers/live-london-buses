@@ -8,7 +8,7 @@ import lbt.models.BusRoute
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class StopArrivalRecord(vehicleId: String, busRoute: BusRoute, stopIndex: Int, lastStop: Boolean)
+case class StopArrivalRecord(vehicleId: String, busRoute: BusRoute, stopIndex: Int, destinationText: String, lastStop: Boolean)
 
 class SourceLineHandler(redisArrivalTimeLog: RedisArrivalTimeLog, redisVehicleArrivalTimeLog: RedisVehicleArrivalTimeLog, definitions: Definitions, streamingConfig: StreamingConfig)(implicit executionContext: ExecutionContext) extends StrictLogging {
 
@@ -20,7 +20,7 @@ class SourceLineHandler(redisArrivalTimeLog: RedisArrivalTimeLog, redisVehicleAr
       .getOrElse(throw new RuntimeException(s"No stopID found for $sourceLine in definitions"))
     val lastStop = thisBusStop._1 == busStopsFoRoute.size - 1
 
-    val stopArrivalRecord = StopArrivalRecord(sourceLine.vehicleId, busRoute, thisBusStop._1, lastStop)
+    val stopArrivalRecord = StopArrivalRecord(sourceLine.vehicleId, busRoute, thisBusStop._1, sourceLine.destinationText, lastStop)
 
     for {
       _ <- addToRedisArrivalTimeLog(sourceLine.arrivalTimeStamp, stopArrivalRecord)

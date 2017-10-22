@@ -118,8 +118,5 @@ class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, r
   private def parseWebsocketCacheResult(str: String): Option[BusPositionDataForTransmission] = {
     parse(str).flatMap(_.as[BusPositionDataForTransmission]).toOption
   }
-
 }
-
-//TODO this needs tests
 
