@@ -227,16 +227,20 @@
 
                         console.log("Handling json for " + routeId + ", " + direction + ". Vehicle: " + vehicleId + ". NextStopIndex: " + nextStopIndex);
 
-                        if (nextStopIndex === lastHandledNextIndexArray[id]) {
-                            console.log("Received duplicate (line already handled) for " + vehicleId + " and NextStopIndex: " + nextStopIndex);
+//                        Additional Logging
+                        if (id in lastHandledNextIndexArray[id]) {
+                            if (nextStopIndex === lastHandledNextIndexArray[id]) {
+                                console.log("Received duplicate (line already handled) for " + vehicleId + " and NextStopIndex: " + nextStopIndex);
+                            }
+
+                            if (nextStopIndex < lastHandledNextIndexArray[id]) {
+                                console.log("Received line in the past for " + vehicleId + " and NextStopIndex: " + nextStopIndex);
+                            }
                         }
 
-                        if (nextStopIndex < lastHandledNextIndexArray[id]) {
-                            console.log("Received line in the past for " + vehicleId + " and NextStopIndex: " + nextStopIndex);
-                        }
-                        if ($.inArray(routeId, selectedRoutes) > -1
-                                && windowInFocus
-                                && nextStopIndex > lastHandledNextIndexArray[id]) {
+                        if (isReceivedRouteInSelected(routeId)
+                                && isReceivedIndexAheadOfLastHandled(nextStopIndex, id)
+                                && windowInFocus) {
                             var startingTime = json[i].startingTime;
                             var startingLatLng = new google.maps.LatLng(json[i].startingLatLng);
                             var deleteAfter = json[i].deleteAfter;
@@ -323,12 +327,23 @@
                 }
 
                 function deleteExistingMarkerIfClientRunningBehind(id, deleteAfter, nextStopIndex) {
-                    if ((id in lastHandledNextIndexArray)) {
+                    if (id in lastHandledNextIndexArray) {
                         if (!deleteAfter && nextStopIndex > lastHandledNextIndexArray[id] + 1) {
                             console.log("Deleting " + id + " as out of sync");
                             deleteMarker(id, 0)
                         }
                     }
+                }
+
+                function isReceivedIndexAheadOfLastHandled(receivedIndex, id) {
+                    if (id in lastHandledNextIndexArray) {
+                        return (receivedIndex > lastHandledNextIndexArray[id])
+                    } else {
+                        return true
+                    }
+                }
+                function isReceivedRouteInSelected(routeId) {
+                    return $.inArray(routeId, selectedRoutes) > -1
                 }
 
                 function deleteMarker(id, waitTime) {
@@ -352,7 +367,6 @@
                 }
 
                 function animateMarker(id, duration, moveTo, rotation, waitTime) {
-
                     var animationInstruction = setTimeout(function () {
                         var marker = markerArray[id];
                         if (typeof marker !== 'undefined') {
