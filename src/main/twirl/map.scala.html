@@ -24,7 +24,9 @@
                     <div class="modal-header">
                         <button type="button" class="close" data-dismiss="modal">&times;</button>
                         <h4 class="modal-title">
-                            Select Routes (max: @{mapServiceConfig.maxRouteSelection})&nbsp&nbsp&nbsp&nbsp
+                            Select Routes (max: @{
+                            mapServiceConfig.maxRouteSelection
+                        })&nbsp&nbsp&nbsp&nbsp
                             <button id ="clear-selected-routes-button" type="button" class="btn btn-primary btn-xs">
                                 Clear selected</button>
                         </h4>
@@ -33,11 +35,11 @@
                     <div class="modal-body">
 
                         <div class="form-inline" id="route-selection-form">
-                            @for(route <- busRouteList) {
-                                <label class="checkbox-inline no_indent"><input type="checkbox" name="routeCheckBox" value=@route>
-                                @route
-                                </label>
-                            }
+                        @for(route <- busRouteList) {
+                            <label class="checkbox-inline no_indent"><input type="checkbox" name="routeCheckBox" value=@route>
+                            @route
+                            </label>
+                        }
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -83,12 +85,12 @@
                         onBoundsChange(getWidenedBounds());
                     });
 
-                    $(window).blur(function() {
+                    $(window).blur(function () {
                         clearMap();
                         windowInFocus = false;
                     });
 
-                    $(window).on('focus', function() {
+                    $(window).on('focus', function () {
                         windowInFocus = true;
                         var newParams = getWSParamsJson(selectedRoutes, getWidenedBounds());
                         updateParamsAndGetSnapshot('@uuid', newParams);
@@ -134,7 +136,7 @@
                     var cnt = $("input[name='routeCheckBox']:checked").length;
                     if (cnt > @{mapServiceConfig.maxRouteSelection}) {
                         $(this).prop("checked", "");
-                        alert("Maximum " + @{mapServiceConfig.maxRouteSelection} + " routes permitted");
+                        alert("Maximum " + @{mapServiceConfig.maxRouteSelection} +" routes permitted");
                     }
                 });
 
@@ -219,15 +221,18 @@
                     for (var i = 0; i < json.length; i++) {
                         var routeId = json[i].busRoute.id;
                         var direction = json[i].busRoute.direction;
+                        var vehicleId = json[i].vehicleId;
+                        var nextStopIndex = json[i].nextStopIndex;
+
+                        console.log("Handling json for " + routeId + ", " + direction + ". Vehicle: " + vehicleId + ". NextStopIndex: " + nextStopIndex);
 
                         if ($.inArray(routeId, selectedRoutes) > -1 && windowInFocus) {
-                            var vehicleId = json[i].vehicleId;
                             var startingTime = json[i].startingTime;
                             var startingLatLng = new google.maps.LatLng(json[i].startingLatLng);
                             var deleteAfter = json[i].deleteAfter;
                             var nextStopArrivalTime = json[i].nextStopArrivalTime !== null ? json[i].nextStopArrivalTime : Date.now() + 90000;
                             var nextStopName = json[i].nextStopName;
-                            var nextStopIndex = json[i].nextStopIndex;
+
                             var movementInstructionsRaw = json[i].movementInstructionsToNext;
                             var destination = json[i].destination;
 
@@ -246,33 +251,27 @@
                             var adjustedStartingTime = startingTime < timeNextFree ? timeNextFree : startingTime;
                             var waitTimeBeforeStart = adjustedStartingTime - now;
                             var timeAccumulator = waitTimeBeforeStart < 0 ? 0 : waitTimeBeforeStart;
-                            var timeToNextStop = nextStopArrivalTime - (adjustedStartingTime < now ? now : adjustedStartingTime);
+                            var realTimeToNextStop = nextStopArrivalTime - (adjustedStartingTime < now ? now : adjustedStartingTime);
+                            var timeToNextStop = realTimeToNextStop > 0 ? realTimeToNextStop : 5000;
 
-                            if (timeToNextStop > 0) {
+                            createOrUpdateInfoBox(id, routeId, nextStopName, vehicleId, destination, timeAccumulator);
 
-                                createOrUpdateInfoBox(id, routeId, nextStopName, vehicleId, destination, timeAccumulator);
+                            for (var j = 0; j < movementInstructionsRaw.length; j++) {
+                                var latLngToMoveTo = new google.maps.LatLng(movementInstructionsRaw[j].to);
+                                var angle = movementInstructionsRaw[j].angle;
+                                var proportionalDistance = movementInstructionsRaw[j].proportion;
+                                var proportionalTime = parseInt(timeToNextStop * proportionalDistance);
 
-                                for (var j = 0; j < movementInstructionsRaw.length; j++) {
-                                    var latLngToMoveTo = new google.maps.LatLng(movementInstructionsRaw[j].to);
-                                    var angle = movementInstructionsRaw[j].angle;
-                                    var proportionalDistance = movementInstructionsRaw[j].proportion;
-                                    var proportionalTime = parseInt(timeToNextStop * proportionalDistance);
-
-                                    animateMarker(id, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
-                                    timeAccumulator += proportionalTime
-                                }
-
-                                if (deleteAfter) {
-                                    deleteMarker(id, timeAccumulator)
-                                }
-
-                                timeNextFreeArray[id] = nextStopArrivalTime;
-                                lastHandledNextIndexArray[id] = nextStopIndex;
-
-                            } else {
-                                deleteMarker(id, 0);
-                                handleReceivedJson(json);
+                                animateMarker(id, proportionalTime, latLngToMoveTo, angle, timeAccumulator);
+                                timeAccumulator += proportionalTime
                             }
+
+                            if (deleteAfter) {
+                                deleteMarker(id, timeAccumulator)
+                            }
+
+                            timeNextFreeArray[id] = nextStopArrivalTime;
+                            lastHandledNextIndexArray[id] = nextStopIndex;
                         }
                     }
                 }
@@ -320,6 +319,7 @@
                         if (!deleteAfter && nextStopIndex !== lastHandledNextIndexArray[id] + 1) {
                             var timeDiff = timeNextFreeArray - Date.now();
                             var waitTime = timeDiff < 0 ? 0 : timeDiff;
+                            console.log("Deleting " + id + " in " + waitTime + " as out of sync");
                             deleteMarker(id, waitTime)
                         }
                     }
@@ -360,11 +360,12 @@
                 }
 
                 function createOrUpdateInfoBox(id, routeId, nextStopName, vehicleId, destination, waitTime) {
-                   setTimeout(function () {
+                    setTimeout(function () {
                         var previousBox = infoBoxArray[id];
 
-                        infoBoxArray[id] = new google.maps.InfoWindow({content:
-                            "Route: " + routeId + "<br />"  +
+                        infoBoxArray[id] = new google.maps.InfoWindow({
+                            content:
+                            "Route: " + routeId + "<br />" +
                             "Towards: " + destination + "<br />" +
                             "Next Stop Name: " + nextStopName + "<br />" +
                             "Vehicle Reg: " + vehicleId
