@@ -268,6 +268,10 @@
 
                                 timeNextFreeArray[id] = nextStopArrivalTime;
                                 lastHandledNextIndexArray[id] = nextStopIndex;
+
+                            } else {
+                                deleteMarker(id, 0);
+                                handleReceivedJson(json);
                             }
                         }
                     }
@@ -314,7 +318,9 @@
                 function deleteExistingMarkerIfOutOfSync(id, deleteAfter, nextStopIndex) {
                     if ((id in lastHandledNextIndexArray)) {
                         if (!deleteAfter && nextStopIndex !== lastHandledNextIndexArray[id] + 1) {
-                            deleteMarker(id, 0)
+                            var timeDiff = timeNextFreeArray - Date.now();
+                            var waitTime = timeDiff < 0 ? 0 : timeDiff;
+                            deleteMarker(id, waitTime)
                         }
                     }
                 }
