@@ -23,7 +23,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
   val config = ConfigLoader.defaultConfig
 
   override implicit val patienceConfig = PatienceConfig(
-    timeout = scaled(1 minute),
+    timeout = scaled(30 seconds),
     interval = scaled(1 second)
   )
 
@@ -112,7 +112,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
       getBusStopFromStopID(sourceLine2.stopID, definitions).get.latLng,
       deleteAfter = false,
       getNextBusStopFromStopID(sourceLine2.stopID, busRoute, definitions).map(_.stopName),
-      getNextBusStopIndexFromStopID(sourceLine1.stopID, busRoute, definitions),
+      getNextBusStopIndexFromStopID(sourceLine2.stopID, busRoute, definitions),
       None,
       None,
       sourceLine2.destinationText)

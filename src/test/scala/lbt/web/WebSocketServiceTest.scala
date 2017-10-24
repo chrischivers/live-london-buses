@@ -79,7 +79,7 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
     val webSocketService: WebSocketService = new WebSocketService(webSocketClientHandler, config.websocketConfig)
 
-    val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, redisVehicleArrivalTimeLog,definitions, config.streamingConfig)(ec)
+    val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, redisVehicleArrivalTimeLog, definitions, config.streamingConfig)(ec)
 
     object TestWebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
       logger.info(s"Starting up web socket service using port $wsPort")
@@ -156,27 +156,6 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     websocketClient.shutdownSync()
   }
 
-  test("Client is able to send filtering parameters, which are updated in the cache") { f =>
-
-    val uuid = UUID.randomUUID().toString
-    val (websocketClient, _) = setUpTestWebSocketClient(uuid, f.wsPort)
-    val params = createFilteringParams()
-
-    val openedSocket = websocketClient.open()
-    f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe List(uuid)
-    f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue should not be defined
-
-    openedSocket ! createJsonStringFromFilteringParams(params)
-
-    eventually {
-      val paramsFromCache = f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue
-      paramsFromCache shouldBe defined
-        paramsFromCache.value shouldBe params
-    }
-
-    websocketClient.shutdownSync()
-  }
-
   test("Client receives data for routes they are subscribed to") { f =>
 
     val uuid = UUID.randomUUID().toString
@@ -185,7 +164,7 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     val params = createFilteringParams(busRoutes = List(subscribedBusRoute))
 
     val openedSocket = websocketClient.open()
-    openedSocket ! createJsonStringFromFilteringParams(params)
+    f.redisSubscriberCache.updateFilteringParameters(uuid, params).futureValue
     parsePacketsReceived(packagesReceivedBuffer) should have size 0
 
     val subscribedSourceLine = generateSourceLine(route = "25", direction = 1, stopId = "490007497E")
@@ -215,9 +194,9 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
 
     val params = createFilteringParams(busRoutes = List(subscribedBusRoute))
     val openedSocket1 = websocketClient1.open()
-    openedSocket1 ! createJsonStringFromFilteringParams(params)
+    f.redisSubscriberCache.updateFilteringParameters(uuid1, params).futureValue
     val openedSocket2 = websocketClient2.open()
-    openedSocket2 ! createJsonStringFromFilteringParams(params)
+    f.redisSubscriberCache.updateFilteringParameters(uuid2, params).futureValue
 
     parsePacketsReceived(packagesReceivedBuffer1) should have size 0
     parsePacketsReceived(packagesReceivedBuffer2) should have size 0
@@ -242,7 +221,7 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     val (websocketClient1, _) = setUpTestWebSocketClient(uuid, f.wsPort)
     websocketClient1.open()
 
-    val (websocketClient2, _) =setUpTestWebSocketClient(uuid, f.wsPort)
+    val (websocketClient2, _) = setUpTestWebSocketClient(uuid, f.wsPort)
 
     assertThrows[WebSocketHandshakeException] {
       websocketClient2.open()
@@ -250,6 +229,40 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
 
     websocketClient1.shutdownSync()
     websocketClient2.shutdownSync()
+  }
+
+  test("If duplicate source line is received after cache read has been triggered, it is not resent to clients") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    val busRoute = BusRoute("25", "outbound")
+    val (websocketClient, packagesReceivedBuffer) = setUpTestWebSocketClient(uuid, f.wsPort)
+    val params = createFilteringParams(busRoutes = List(busRoute))
+
+    val openedSocket = websocketClient.open()
+    f.redisSubscriberCache.updateFilteringParameters(uuid, params).futureValue
+
+    val sourceLine1 = generateSourceLine(timeStamp = System.currentTimeMillis() + 60000)
+    val sourceLine2 = generateSourceLine(timeStamp = System.currentTimeMillis() + 120000)
+    f.sourceLineHandler.handle(sourceLine1).futureValue
+
+    f.cacheReader ! CacheReadCommand(70000)
+
+    eventually {
+      val received = parsePacketsReceived(packagesReceivedBuffer)
+      received should have size 1
+      received.head.busRoute shouldBe busRoute
+    }
+    packagesReceivedBuffer.clear()
+
+    f.sourceLineHandler.handle(sourceLine2).futureValue
+    f.cacheReader ! CacheReadCommand(130000)
+    Thread.sleep(15000)
+
+    val received = parsePacketsReceived(packagesReceivedBuffer)
+    received should have size 0
+
+
+    websocketClient.shutdownSync()
   }
 }
 

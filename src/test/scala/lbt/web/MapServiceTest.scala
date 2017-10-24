@@ -1,7 +1,10 @@
 package lbt.web
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.ActorSystem
+import cats.Id
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.generic.auto._
@@ -86,82 +89,102 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
     response.unsafeRunSync() should include("Bootstrap v3.3.7")
   }
 
+  test("Snapshot without a UUID results in 404") { f =>
+    val filteringParams = createFilteringParams()
+    val request: IO[Request[IO]] = Request()
+      .withMethod(Method.POST)
+      .withUri(Uri.fromString(s"http://localhost:${f.port}/map/snapshot").right.get)
+      .withBody(filteringParams.asJson.noSpaces)
+
+    val response = f.httpClient.status(request).unsafeRunSync()
+    response.code shouldBe 404
+  }
+
   test("Snapshot is empty when no InProgress data exists") { f =>
     val filteringParams = createFilteringParams()
-    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, filteringParams)).unsafeRunSync()).value
+    val uuid = UUID.randomUUID().toString
+    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, filteringParams)).unsafeRunSync()).value
     result shouldBe empty
   }
 
   test("Snapshot is returned when InProgress data exists") { f =>
     val filteringParams = createFilteringParams()
+    val uuid = UUID.randomUUID().toString
     val busPositionData = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() - 10000)
     f.redisWsClientCache.storeVehicleActivityInProgress(busPositionData).futureValue
-    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, filteringParams)).unsafeRunSync()).value
+    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, filteringParams)).unsafeRunSync()).value
     result should have size 1
-    result.head.copy(startingTime = 0, movementInstructionsToNext = None) shouldBe busPositionData.copy(startingTime = 0, movementInstructionsToNext = None)
+    result.head.copy(startingTime = 0, movementInstructionsToNext = None, startingLatLng = busPositionData.startingLatLng) shouldBe busPositionData.copy(startingTime = 0, movementInstructionsToNext = None)
   }
 
   test("Snapshot is empty when InProgress data exists but not route in filtering params") { f =>
     val filteringParams = createFilteringParams()
+    val uuid = UUID.randomUUID().toString
     val busPositionData = createBusPositionData(busRoute = BusRoute("5", "outbound"), arrivalTimeStamp = System.currentTimeMillis() - 10000)
     f.redisWsClientCache.storeVehicleActivityInProgress(busPositionData).futureValue
-    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, filteringParams)).unsafeRunSync()).value
+    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, filteringParams)).unsafeRunSync()).value
     result shouldBe empty
   }
 
   test("Snapshot is empty when InProgress data exists but starts after current time") { f =>
     val filteringParams = createFilteringParams()
+    val uuid = UUID.randomUUID().toString
     val busPositionData = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() + 5000)
     f.redisWsClientCache.storeVehicleActivityInProgress(busPositionData).futureValue
-    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, filteringParams)).unsafeRunSync()).value
+    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, filteringParams)).unsafeRunSync()).value
     result shouldBe empty
   }
 
   test("Snapshot is empty when InProgress data exists but ends before current time") { f =>
     val filteringParams = createFilteringParams()
+    val uuid = UUID.randomUUID().toString
     val busPositionData = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() - 10000, arrivalTimeAtNextStop = Some(System.currentTimeMillis() - 1))
     f.redisWsClientCache.storeVehicleActivityInProgress(busPositionData).futureValue
-    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, filteringParams)).unsafeRunSync()).value
+    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, filteringParams)).unsafeRunSync()).value
     result shouldBe empty
   }
 
   test("Snapshot is empty when InProgress data doesn't have a nextstoparrival time") { f =>
     val filteringParams = createFilteringParams()
+    val uuid = UUID.randomUUID().toString
     val busPositionData = createBusPositionData(arrivalTimeAtNextStop = None)
     f.redisWsClientCache.storeVehicleActivityInProgress(busPositionData).futureValue
-    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, filteringParams)).unsafeRunSync()).value
+    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, filteringParams)).unsafeRunSync()).value
     result shouldBe empty
   }
 
   test("Duplicate bus data for same vehicle is disregarded. Only most imminent is obtained") { f =>
     val filteringParams = createFilteringParams()
+    val uuid = UUID.randomUUID().toString
     val busPositionData1 = createBusPositionData(vehicleId = "VEHICLE1", arrivalTimeStamp = System.currentTimeMillis() - 10000, arrivalTimeAtNextStop = Some(System.currentTimeMillis() + 60000))
     val busPositionData2 = createBusPositionData(vehicleId = "VEHICLE1", arrivalTimeStamp = System.currentTimeMillis() - 10000, arrivalTimeAtNextStop = Some(System.currentTimeMillis() + 120000))
     f.redisWsClientCache.storeVehicleActivityInProgress(busPositionData1).futureValue
     f.redisWsClientCache.storeVehicleActivityInProgress(busPositionData2).futureValue
-    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, filteringParams)).unsafeRunSync()).value
+    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, filteringParams)).unsafeRunSync()).value
     result should have size 1
-    result.head.copy(startingTime = 0, movementInstructionsToNext = None) shouldBe busPositionData2.copy(startingTime = 0, movementInstructionsToNext = None)
+    result.head.copy(startingTime = 0, movementInstructionsToNext = None, startingLatLng = busPositionData2.startingLatLng) shouldBe busPositionData2.copy(startingTime = 0, movementInstructionsToNext = None)
   }
 
   test("Start time for InProgress data is adjusted to reflect current time") { f =>
     val filteringParams = createFilteringParams()
+    val uuid = UUID.randomUUID().toString
     val busPositionData = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() - 60000, arrivalTimeAtNextStop = Some(System.currentTimeMillis() + 60000))
     f.redisWsClientCache.storeVehicleActivityInProgress(busPositionData).futureValue
-    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, filteringParams)).unsafeRunSync()).value
+    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, filteringParams)).unsafeRunSync()).value
     result should have size 1
     result.head.startingTime should (be < System.currentTimeMillis() + 1000 and be > System.currentTimeMillis() - 1000)
   }
 
   test("Movement Instruction List for InProgress data is adjusted in proportion to current time remaining") { f =>
     val filteringParams = createFilteringParams()
+    val uuid = UUID.randomUUID().toString
     val busPositionData = createBusPositionData(
       movementInstructionsOpt = Some(BusPolyLine("}uhyH~mWjBYN??E@G@EHKHAB?FcBx@wOFkACg@Ig@KSEMAQ@QT[Ji@Kq@s@aB").toMovementInstructions),
       arrivalTimeStamp = System.currentTimeMillis() - 60000,
       arrivalTimeAtNextStop = Some(System.currentTimeMillis() + 60000))
     f.redisWsClientCache.storeVehicleActivityInProgress(busPositionData).futureValue
     busPositionData.movementInstructionsToNext.value should have size 21
-    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, filteringParams)).unsafeRunSync()).value
+    val result = parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, filteringParams)).unsafeRunSync()).value
     result should have size 1
     result.head.movementInstructionsToNext.value.size shouldBe 11
     result.head.movementInstructionsToNext.value.map(_.copy(proportion = 0)) shouldBe
@@ -171,11 +194,28 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
     roundedSum shouldBe 1.0
   }
 
-  def generateSnapshotRequest(port: Int, filteringParams: FilteringParams): IO[Request[IO]] = {
+    test("Snapshot request updates filtering params") { f =>
+
+      val uuid = UUID.randomUUID().toString
+      val params = createFilteringParams()
+      f.redisSubscriberCache.subscribe(uuid, None).futureValue
+      f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe List(uuid)
+      f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue should not be defined
+
+     parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, params)).unsafeRunSync()).value
+
+      eventually {
+        val paramsFromCache = f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue
+        paramsFromCache shouldBe defined
+          paramsFromCache.value shouldBe params
+      }
+
+    }
+
+  def generateSnapshotRequest(port: Int, uuid: String, filteringParams: FilteringParams): IO[Request[IO]] = {
     Request()
       .withMethod(Method.POST)
-      .withUri(Uri.fromString(s"http://localhost:$port/map/snapshot").right.get)
+      .withUri(Uri.fromString(s"http://localhost:$port/map/snapshot?uuid=$uuid").right.get)
       .withBody(filteringParams.asJson.noSpaces)
   }
 }
-
