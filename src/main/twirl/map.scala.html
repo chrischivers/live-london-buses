@@ -317,7 +317,7 @@
                 function deleteExistingMarkerIfOutOfSync(id, deleteAfter, nextStopIndex) {
                     if ((id in lastHandledNextIndexArray)) {
                         if (!deleteAfter && nextStopIndex !== lastHandledNextIndexArray[id] + 1) {
-                            var timeDiff = timeNextFreeArray - Date.now();
+                            var timeDiff = timeNextFreeArray[id] - Date.now();
                             var waitTime = timeDiff < 0 ? 0 : timeDiff;
                             console.log("Deleting " + id + " in " + waitTime + " as out of sync");
                             deleteMarker(id, waitTime)
