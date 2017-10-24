@@ -30,7 +30,7 @@ class RedisArrivalTimeLog(val redisConfig: RedisConfig)(implicit val executionCo
     client.zadd(ARRIVAL_TIMES_KEY, (arrivalTime, arrivalTimeRecord)).map(_=> ())
   }
 
-  def getAndDropArrivalRecords(arrivalTimesUpTo: Long): Future[Seq[(StopArrivalRecord, Long)]] = {
+  def takeArrivalRecordsUpTo(arrivalTimesUpTo: Long): Future[Seq[(StopArrivalRecord, Long)]] = {
     for {
       arrivalRecords <- client.zrangebyscoreWithscores[StopArrivalRecord](ARRIVAL_TIMES_KEY, Limit(0), Limit(arrivalTimesUpTo))
       _ <- client.zremrangebyscore(ARRIVAL_TIMES_KEY, Limit(0), Limit(arrivalTimesUpTo))

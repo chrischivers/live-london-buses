@@ -69,7 +69,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     val indexOfStop = f.definitions.routeDefinitions(busRoute).find(_._2.stopID == sourceLine.stopID).value._1
     f.sourceLineHandler.handle(sourceLine).futureValue
 
-    val resultFromArrivalTimeCache = f.redisArrivalTimeLog.getAndDropArrivalRecords(sourceLine.arrivalTimeStamp + 1).futureValue
+    val resultFromArrivalTimeCache = f.redisArrivalTimeLog.takeArrivalRecordsUpTo(sourceLine.arrivalTimeStamp + 1).futureValue
     resultFromArrivalTimeCache should have size 1
     resultFromArrivalTimeCache.head._1 shouldBe StopArrivalRecord(sourceLine.vehicleId, busRoute, indexOfStop, sourceLine.destinationText, lastStop = false)
     resultFromArrivalTimeCache.head._2 shouldBe sourceLine.arrivalTimeStamp
@@ -87,7 +87,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     val indexOfStop = f.definitions.routeDefinitions(busRoute).find(_._2.stopID == sourceLine.stopID).value._1
     f.sourceLineHandler.handle(sourceLine).futureValue
 
-    val resultFromArrivalTimeCache = f.redisArrivalTimeLog.getAndDropArrivalRecords(sourceLine.arrivalTimeStamp + 1).futureValue
+    val resultFromArrivalTimeCache = f.redisArrivalTimeLog.takeArrivalRecordsUpTo(sourceLine.arrivalTimeStamp + 1).futureValue
     resultFromArrivalTimeCache should have size 1
     resultFromArrivalTimeCache.head._1 shouldBe StopArrivalRecord(sourceLine.vehicleId, busRoute, indexOfStop, sourceLine.destinationText, lastStop = true)
     resultFromArrivalTimeCache.head._2 shouldBe sourceLine.arrivalTimeStamp
@@ -107,7 +107,7 @@ class SourceLineHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     f.sourceLineHandler.handle(sourceLine1).futureValue
     f.sourceLineHandler.handle(sourceLine2).futureValue
 
-    val resultFromArrivalTimeCache = f.redisArrivalTimeLog.getAndDropArrivalRecords(sourceLine2.arrivalTimeStamp + 1).futureValue
+    val resultFromArrivalTimeCache = f.redisArrivalTimeLog.takeArrivalRecordsUpTo(sourceLine2.arrivalTimeStamp + 1).futureValue
     resultFromArrivalTimeCache should have size 1
     resultFromArrivalTimeCache.head._1 shouldBe StopArrivalRecord(sourceLine2.vehicleId, busRoute, indexOfStop, sourceLine2.destinationText, lastStop = false)
     resultFromArrivalTimeCache.head._2 shouldBe sourceLine2.arrivalTimeStamp

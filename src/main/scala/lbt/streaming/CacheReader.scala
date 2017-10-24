@@ -6,14 +6,19 @@ import lbt.common.Definitions
 import lbt.db.caching._
 import lbt.metrics.MetricsLogging
 import lbt.web.FilteringParams
-
 import scala.concurrent.{ExecutionContext, Future}
+import scalacache.ScalaCache
+import scalacache.guava.GuavaCache
+import scalacache._
+import scala.concurrent.duration._
+
 
 case class CacheReadCommand(readTimeAhead: Long)
 
 class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArrivalTimeLog: RedisVehicleArrivalTimeLog, redisSubscriberCache: RedisSubscriberCache, redisWsClientCache: RedisWsClientCache, definitions: Definitions)(implicit executionContext: ExecutionContext) extends Actor with StrictLogging {
 
   type ClientId = String
+  implicit private val arrivalRecordsHandledCache: ScalaCache[NoSerialization] = ScalaCache(GuavaCache())
 
   override def receive = {
     case CacheReadCommand(time) =>
@@ -23,29 +28,46 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
     case unknown => throw new RuntimeException(s"Unknown command received by arrival time cache reader: $unknown")
   }
 
-  def transferArrivalTimesToWebSocketCache(arrivalTimesUpTo: Long) = {
-    redisArrivalTimeCache.getAndDropArrivalRecords(System.currentTimeMillis() + arrivalTimesUpTo)
-      .flatMap { allRecords =>
-        MetricsLogging.incrCachedRecordsProcessed(allRecords.size)
-        val filteredRecords = allRecords.filter(_._1.lastStop != true) //disregard last stops as these are not sent to client
-        Future.sequence(filteredRecords.map { case (stopArrivalRecord, timestamp) => createDataForTransmission(stopArrivalRecord, timestamp) }).flatMap { transmissionDataList =>
+  def transferArrivalTimesToWebSocketCache(arrivalTimesUpTo: Long) = for {
+      allRecords <- redisArrivalTimeCache.takeArrivalRecordsUpTo(System.currentTimeMillis() + arrivalTimesUpTo)
+      _ = MetricsLogging.incrCachedRecordsProcessed(allRecords.size)
+      filteredRecords = allRecords.filter(_._1.lastStop != true) //disregard last stops as these are not sent to client
+      transmissionDataList <- getTransmissionList(filteredRecords)
+      subscribersParams <- getSubscribersAndFilteringParams()
+      clientTransmissionRecords = generateClientTransmissionRecords(subscribersParams, transmissionDataList)
+      _ <- storeInClientCaches(clientTransmissionRecords)
+      _ <- addToInProgressCache(transmissionDataList)
+    } yield ()
 
-          for {
-            subscribersParams <- getSubscribersAndFilteringParams()
-            clientTransmissionRecords = generateClientTransmissionRecords(subscribersParams, transmissionDataList)
-            _ <- Future.sequence(clientTransmissionRecords.map { case (client, recordsForTransmission) => Future.sequence(recordsForTransmission
-              .map(record => redisWsClientCache.storeVehicleActivityForClient(client, record)))
-            }).map(_.flatten)
-            _ <- addToInProgressCache(transmissionDataList)
-          } yield ()
-        }
-      }
+  private def getTransmissionList(filteredRecords: Seq[(StopArrivalRecord, Long)]): Future[Seq[BusPositionDataForTransmission]] = {
+    Future.sequence(filteredRecords
+      .map { case (stopArrivalRecord, timestamp) => for {
+        alreadyBeenSent <- hasAlreadyBeenSent(stopArrivalRecord)
+        if !alreadyBeenSent
+        transmissionDataList <- createDataForTransmission(stopArrivalRecord, timestamp)
+        _ <- addToArrivalRecordsHandledCache(stopArrivalRecord)
+      } yield transmissionDataList
+      })
+  }
+
+  private def storeInClientCaches(clientTransmissionRecords: Seq[(ClientId, Seq[BusPositionDataForTransmission])]): Future[Seq[Unit]] = {
+    Future.sequence(clientTransmissionRecords.map { case (client, recordsForTransmission) => Future.sequence(recordsForTransmission
+      .map(record => redisWsClientCache.storeVehicleActivityForClient(client, record)))
+    }).map(_.flatten)
   }
 
   private def generateClientTransmissionRecords(subscribersParams: Seq[(ClientId, FilteringParams)], transmissionDataList: Seq[BusPositionDataForTransmission]): Seq[(ClientId, Seq[BusPositionDataForTransmission])] = {
     subscribersParams.map {
       case (client, params) => client -> transmissionDataList.filter(_.satisfiesFilteringParams(params))
     }
+  }
+
+  private def addToArrivalRecordsHandledCache(stopArrivalRecord: StopArrivalRecord): Future[Any] = {
+    put(stopArrivalRecord)(true, ttl = Some(5 minutes))
+  }
+
+  private def hasAlreadyBeenSent(stopArrivalRecord: StopArrivalRecord): Future[Boolean] = {
+    get[Boolean, NoSerialization](stopArrivalRecord).map(_.isDefined)
   }
 
   private def addToInProgressCache(transmissionData: Seq[BusPositionDataForTransmission]): Future[Seq[Unit]] = {
