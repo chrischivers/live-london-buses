@@ -228,7 +228,7 @@
                         console.log("Handling json for " + routeId + ", " + direction + ". Vehicle: " + vehicleId + ". NextStopIndex: " + nextStopIndex);
 
 //                        Additional Logging
-                        if (id in lastHandledNextIndexArray[id]) {
+                        if (id in lastHandledNextIndexArray) {
                             if (nextStopIndex === lastHandledNextIndexArray[id]) {
                                 console.log("Received duplicate (line already handled) for " + vehicleId + " and NextStopIndex: " + nextStopIndex);
                             }
