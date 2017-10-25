@@ -18,7 +18,7 @@ case class CacheReadCommand(readTimeAhead: Long)
 class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArrivalTimeLog: RedisVehicleArrivalTimeLog, redisSubscriberCache: RedisSubscriberCache, redisWsClientCache: RedisWsClientCache, definitions: Definitions)(implicit executionContext: ExecutionContext) extends Actor with StrictLogging {
 
   type ClientId = String
-  implicit private val arrivalRecordsHandledCache: ScalaCache[NoSerialization] = ScalaCache(GuavaCache())
+  implicit private val outgoingRecordsCache: ScalaCache[NoSerialization] = ScalaCache(GuavaCache())
 
   override def receive = {
     case CacheReadCommand(time) =>
@@ -31,8 +31,9 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
   def transferArrivalTimesToWebSocketCache(arrivalTimesUpTo: Long) = for {
       allRecords <- redisArrivalTimeCache.takeArrivalRecordsUpTo(System.currentTimeMillis() + arrivalTimesUpTo)
       _ = MetricsLogging.incrCachedRecordsProcessed(allRecords.size)
-      filteredRecords = allRecords.filter(_._1.lastStop != true) //disregard last stops as these are not sent to client
-      transmissionDataList <- getTransmissionList(filteredRecords)
+      notLastStopRecords = filterOutLastStops(allRecords) //disregard last stops as these are not sent to client
+      notAlreadySent <- filterOutRecordsAlreadySent(notLastStopRecords)
+      transmissionDataList <- getTransmissionList(notAlreadySent)
       subscribersParams <- getSubscribersAndFilteringParams()
       clientTransmissionRecords = generateClientTransmissionRecords(subscribersParams, transmissionDataList)
       _ <- storeInClientCaches(clientTransmissionRecords)
@@ -42,8 +43,6 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
   private def getTransmissionList(filteredRecords: Seq[(StopArrivalRecord, Long)]): Future[Seq[BusPositionDataForTransmission]] = {
     Future.sequence(filteredRecords
       .map { case (stopArrivalRecord, timestamp) => for {
-        alreadyBeenSent <- hasAlreadyBeenSent(stopArrivalRecord)
-        if !alreadyBeenSent
         transmissionDataList <- createDataForTransmission(stopArrivalRecord, timestamp)
         _ <- addToArrivalRecordsHandledCache(stopArrivalRecord)
       } yield transmissionDataList
@@ -63,12 +62,22 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
   }
 
   private def addToArrivalRecordsHandledCache(stopArrivalRecord: StopArrivalRecord): Future[Any] = {
-    put(stopArrivalRecord)(true, ttl = Some(5 minutes))
+    put(stopArrivalRecord)(true, ttl = Some(5 minutes)) //TODO add to config
   }
 
   private def hasAlreadyBeenSent(stopArrivalRecord: StopArrivalRecord): Future[Boolean] = {
     get[Boolean, NoSerialization](stopArrivalRecord).map(_.isDefined)
   }
+
+  private def filterOutLastStops(records: Seq[(StopArrivalRecord, Long)]): Seq[(StopArrivalRecord, Long)] =
+    records.filter(_._1.lastStop != true)
+
+  private def filterOutRecordsAlreadySent(records: Seq[(StopArrivalRecord, Long)]) ={
+    Future.sequence{
+      records.map(recTime => hasAlreadyBeenSent(recTime._1).map(alreadySent => if(alreadySent) None else Some(recTime)))
+    }.map(_.flatten)
+  }
+
 
   private def addToInProgressCache(transmissionData: Seq[BusPositionDataForTransmission]): Future[Seq[Unit]] = {
     Future.sequence(transmissionData.map(redisWsClientCache.storeVehicleActivityInProgress))

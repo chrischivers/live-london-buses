@@ -243,6 +243,7 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
 
     val sourceLine1 = generateSourceLine(timeStamp = System.currentTimeMillis() + 60000)
     val sourceLine2 = generateSourceLine(timeStamp = System.currentTimeMillis() + 120000)
+    val sourceLine3 = generateSourceLine(vehicleId = "VEHICLE2", timeStamp = System.currentTimeMillis() + 120000)
     f.sourceLineHandler.handle(sourceLine1).futureValue
 
     f.cacheReader ! CacheReadCommand(70000)
@@ -251,18 +252,26 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
       val received = parsePacketsReceived(packagesReceivedBuffer)
       received should have size 1
       received.head.busRoute shouldBe busRoute
+      received.head.vehicleId shouldBe sourceLine1.vehicleId
     }
     packagesReceivedBuffer.clear()
 
     f.sourceLineHandler.handle(sourceLine2).futureValue
+    f.sourceLineHandler.handle(sourceLine3).futureValue
     f.cacheReader ! CacheReadCommand(130000)
-    Thread.sleep(15000)
 
-    val received = parsePacketsReceived(packagesReceivedBuffer)
-    received should have size 0
+    Thread.sleep(5000)
 
+    eventually {
+      val received = parsePacketsReceived(packagesReceivedBuffer)
+      received should have size 1     //Source line 2 disregarded
+      received.head.busRoute shouldBe busRoute
+      received.head.vehicleId shouldBe sourceLine3.vehicleId
+    }
 
     websocketClient.shutdownSync()
   }
+
+
 }
 
