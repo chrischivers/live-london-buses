@@ -4,8 +4,8 @@
     <head>
         <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
         <meta charset="utf-8">
-        <link rel="stylesheet" href="map/assets/css/bootstrap.min.css">
-        <link rel="stylesheet" href="map/assets/css/map.css">
+        <link rel="stylesheet" href="assets/css/bootstrap.min.css">
+        <link rel="stylesheet" href="assets/css/map.css">
         <title>Live London Buses</title>
     </head>
     <body>
@@ -52,17 +52,17 @@
             </div>
         </div>
 
-        <script src="map/assets/js/jquery-3.2.1.min.js"></script>
+        <script src="assets/js/jquery-3.2.1.min.js"></script>
         <script type="text/javascript"
         src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBxCYp9RWcbhuPg0nLWFzJhuPbECQYOqBw&libraries=geometry"></script>
-        <script src="map/assets/js/bootstrap.min.js"></script>
-        <script src="map/assets/js/jquery.easing.1.3.js"></script>
-        <script src="map/assets/js/markerAnimate.js"></script>
-        <script src="map/assets/js/SlidingMarker.min.js"></script>
-        <script src="map/assets/js/date.js"></script>
-        <script src="map/assets/js/infobox.js" type="text/javascript"></script>
+        <script src="assets/js/bootstrap.min.js"></script>
+        <script src="assets/js/jquery.easing.1.3.js"></script>
+        <script src="assets/js/markerAnimate.js"></script>
+        <script src="assets/js/SlidingMarker.min.js"></script>
+        <script src="assets/js/date.js"></script>
+        <script src="assets/js/infobox.js" type="text/javascript"></script>
         <script>SlidingMarker.initializeGlobally();</script>
-        <script src="map/assets/js/markerwithlabel.terikon.js"></script>
+        <script src="assets/js/markerwithlabel.terikon.js"></script>
         <script>
                 var map;
                 var wsUri = "ws://" + document.location.host + "/ws";
@@ -176,19 +176,6 @@
                         var nextStopIndex = json[i].nextStopIndex;
                         var id = getId(vehicleId, routeId, direction);
 
-                        console.log("Handling json for " + routeId + ", " + direction + ". Vehicle: " + vehicleId + ". NextStopIndex: " + nextStopIndex);
-
-//                        Additional Logging
-                        if (id in lastHandledNextIndexArray) {
-                            if (nextStopIndex === lastHandledNextIndexArray[id]) {
-                                console.log("Received duplicate (line already handled) for " + vehicleId + " and NextStopIndex: " + nextStopIndex);
-                            }
-
-                            if (nextStopIndex < lastHandledNextIndexArray[id]) {
-                                console.log("Received line in the past for " + vehicleId + " and NextStopIndex: " + nextStopIndex);
-                            }
-                        }
-
                         if (isReceivedRouteInSelected(routeId)
                                 && isReceivedIndexAheadOfLastHandled(nextStopIndex, id)
                                 && windowInFocus) {
@@ -298,7 +285,7 @@
                 }
 
                 function updateParamsAndGetSnapshot(uuid, filterParams) {
-                    $.post("map/snapshot?uuid=" + uuid, filterParams, function (data) {
+                    $.post("snapshot?uuid=" + uuid, filterParams, function (data) {
                         $(".result").html(data);
                         var json = JSON.parse(data);
                         var filteredArray = [];
@@ -415,7 +402,6 @@
                 function deleteExistingMarkerIfClientRunningBehind(id, deleteAfter, nextStopIndex) {
                     if (id in lastHandledNextIndexArray) {
                         if (!deleteAfter && nextStopIndex > lastHandledNextIndexArray[id] + 1) {
-                            console.log("Deleting " + id + " as out of sync");
                             deleteBusMarker(id, 0)
                         }
                     }
@@ -445,7 +431,7 @@
                     Next Stop Markers and Info Boxes
                 */
 
-                var stopIcon = "map/assets/images/mm_20_orange.png";
+                var stopIcon = "assets/images/mm_20_orange.png";
                 var nextStopsMarkersSelected = [];
                 var idOfNextStopMarkersSelected;
                 var nextStopInfoBoxCurrentlyOpen;
@@ -460,7 +446,7 @@
                 }
 
                 function createNextStopsMarkers(id, vehicleId, routeId, direction, autoOpenForStopId,) {
-                    $.get("/map/nextstops?vehicleId=" + vehicleId + "&routeId=" + routeId + "&direction=" + direction,
+                    $.get("/nextstops?vehicleId=" + vehicleId + "&routeId=" + routeId + "&direction=" + direction,
                             function (data, status) {
                                 var nextStopsJson = JSON.parse(data);
                                 var tempNextStopsMarkersSelected = [];

@@ -38,7 +38,7 @@ object HttpWebServer extends StreamApp[IO] with StrictLogging {
       .bindHttp(port, ip)
       .withIdleTimeout(3.minutes)
       .withWebSockets(true)
-      .mountService(mapService.service, "/map")
+      .mountService(mapService.service, "/")
       .serve
   }
 }

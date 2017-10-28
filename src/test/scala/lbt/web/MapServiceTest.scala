@@ -63,7 +63,7 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
     val redisArrivalTimeLog = new RedisArrivalTimeLog(redisConfig)
     val mapService = new MapService(config.mapServiceConfig, definitions, redisWsClientCache, redisSubscriberCache, redisArrivalTimeLog)
 
-    val builder = BlazeBuilder[IO].bindHttp(port, "localhost").mountService(mapService.service, "/map").start
+    val builder = BlazeBuilder[IO].bindHttp(port, "localhost").mountService(mapService.service, "/").start
     builder.unsafeRunSync
     val httpClient = PooledHttp1Client[IO]()
 
@@ -80,13 +80,13 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
     }
   }
 
-  test("Map is served from /map endpoint") { f =>
-    val response = f.httpClient.expect[String](s"http://localhost:${f.port}/map")
+  test("Map is served from / endpoint") { f =>
+    val response = f.httpClient.expect[String](s"http://localhost:${f.port}/")
     response.unsafeRunSync() should include("<title>Live London Buses</title>")
   }
 
-  test("Assets are served from /map/assets endpoint") { f =>
-    val response = f.httpClient.expect[String](s"http://localhost:${f.port}/map/assets/css/bootstrap.min.css")
+  test("Assets are served from /assets endpoint") { f =>
+    val response = f.httpClient.expect[String](s"http://localhost:${f.port}/assets/css/bootstrap.min.css")
     response.unsafeRunSync() should include("Bootstrap v3.3.7")
   }
 
@@ -94,7 +94,7 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
     val filteringParams = createFilteringParams()
     val request: IO[Request[IO]] = Request()
       .withMethod(Method.POST)
-      .withUri(Uri.fromString(s"http://localhost:${f.port}/map/snapshot").right.get)
+      .withUri(Uri.fromString(s"http://localhost:${f.port}/snapshot").right.get)
       .withBody(filteringParams.asJson.noSpaces)
 
     val response = f.httpClient.status(request).unsafeRunSync()
@@ -248,13 +248,13 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
   def generateSnapshotRequest(port: Int, uuid: String, filteringParams: FilteringParams): IO[Request[IO]] = {
     Request()
       .withMethod(Method.POST)
-      .withUri(Uri.fromString(s"http://localhost:$port/map/snapshot?uuid=$uuid").right.get)
+      .withUri(Uri.fromString(s"http://localhost:$port/snapshot?uuid=$uuid").right.get)
       .withBody(filteringParams.asJson.noSpaces)
   }
 
   def generateNextStopsRequest(httpClient: Client[IO], port: Int, vehicleId: String, busRoute: BusRoute): IO[String] = {
 
-    httpClient.expect[String](Uri.fromString(s"http://localhost:$port/map/nextstops" +
+    httpClient.expect[String](Uri.fromString(s"http://localhost:$port/nextstops" +
       s"?vehicleId=$vehicleId" +
       s"&routeId=${busRoute.id}" +
       s"&direction=${busRoute.direction}").right.get)
