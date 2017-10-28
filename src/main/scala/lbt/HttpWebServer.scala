@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import lbt.common.Definitions
-import lbt.db.caching.{RedisSubscriberCache, RedisWsClientCache}
+import lbt.db.caching.{RedisArrivalTimeLog, RedisSubscriberCache, RedisWsClientCache}
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.web.MapService
 import org.http4s.server.blaze.BlazeBuilder
@@ -25,10 +25,11 @@ object HttpWebServer extends StreamApp[IO] with StrictLogging {
   val db = new PostgresDB(config.postgresDbConfig)
   val routeDefinitionsTable = new RouteDefinitionsTable(db, RouteDefinitionSchema(), createNewTable = false)
   val definitions = new Definitions(routeDefinitionsTable)
+  val redisArrivalTimeLog = new RedisArrivalTimeLog(config.redisConfig)
   val redisSubscriberCache = new RedisSubscriberCache(config.redisConfig)
   val redisWsClientCache = new RedisWsClientCache(config.redisConfig,redisSubscriberCache)
 
-  val mapService = new MapService(config.mapServiceConfig, definitions, redisWsClientCache, redisSubscriberCache)
+  val mapService = new MapService(config.mapServiceConfig, definitions, redisWsClientCache, redisSubscriberCache, redisArrivalTimeLog)
 
 
   override def stream(args: List[String], requestShutdown: IO[Unit]) = {

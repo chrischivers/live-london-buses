@@ -44,6 +44,9 @@ trait MetricsLogging extends StrictLogging with DefaultInstrumented {
   private val mapHttpRequestsReceived: Meter = metrics.meter("map-http-requests-received")
   def incrMapHttpRequestsReceived = if (metricsConfig.enabled) mapHttpRequestsReceived.mark()
 
+  private val nextStopsHttpRequestsReceived: Meter = metrics.meter("next-stops-http-requests-received")
+  def incrNextStopsHttpRequestsReceived = if (metricsConfig.enabled) nextStopsHttpRequestsReceived.mark()
+
 
   private val snapshotHttpRequestsReceived: Meter = metrics.meter("snapshot-http-requests-received")
   def incrSnapshotHttpRequestsReceived = if (metricsConfig.enabled) snapshotHttpRequestsReceived.mark()

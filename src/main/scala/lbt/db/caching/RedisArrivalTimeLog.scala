@@ -7,6 +7,7 @@ import io.circe.parser._
 import io.circe.syntax._
 import lbt.RedisConfig
 import lbt.metrics.MetricsLogging
+import lbt.models.BusRoute
 import lbt.streaming.StopArrivalRecord
 import redis.ByteStringFormatter
 import redis.api.Limit
@@ -27,7 +28,7 @@ class RedisArrivalTimeLog(val redisConfig: RedisConfig)(implicit val executionCo
   }
 
   def addArrivalRecord(arrivalTime: Long, arrivalTimeRecord: StopArrivalRecord): Future[Unit] = {
-    client.zadd(ARRIVAL_TIMES_KEY, (arrivalTime, arrivalTimeRecord)).map(_=> ())
+    client.zadd(ARRIVAL_TIMES_KEY, (arrivalTime, arrivalTimeRecord)).map(_ => ())
   }
 
   def takeArrivalRecordsUpTo(arrivalTimesUpTo: Long): Future[Seq[(StopArrivalRecord, Long)]] = {
@@ -35,5 +36,13 @@ class RedisArrivalTimeLog(val redisConfig: RedisConfig)(implicit val executionCo
       arrivalRecords <- client.zrangebyscoreWithscores[StopArrivalRecord](ARRIVAL_TIMES_KEY, Limit(0), Limit(arrivalTimesUpTo))
       _ <- client.zremrangebyscore(ARRIVAL_TIMES_KEY, Limit(0), Limit(arrivalTimesUpTo))
     } yield arrivalRecords.map(x => (x._1, x._2.toLong))
+  }
+
+  def getArrivalRecordsFor(vehicleId: String, busRoute: BusRoute): Future[Seq[(StopArrivalRecord, Long)]] = {
+    client.zrangeWithscores[StopArrivalRecord](ARRIVAL_TIMES_KEY, 0, Long.MaxValue).map { results =>
+      results.filter { case (stopArrivalRecord, _) =>
+        stopArrivalRecord.vehicleId == vehicleId && stopArrivalRecord.busRoute == busRoute
+      }.map { case (stopArrivalRecord, time) => (stopArrivalRecord, time.toLong) }
+    }
   }
 }

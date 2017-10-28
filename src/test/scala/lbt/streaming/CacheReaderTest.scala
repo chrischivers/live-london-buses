@@ -53,7 +53,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     val redisSubscriberCache = new RedisSubscriberCache(redisConfig)
     val redisWsClientCache = new RedisWsClientCache(redisConfig, redisSubscriberCache)
     val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, redisVehicleArrivalTimeLog, definitions, config.streamingConfig)
-    val cacheReader = actorSystem.actorOf(Props(new CacheReader(redisArrivalTimeLog, redisVehicleArrivalTimeLog, redisSubscriberCache, redisWsClientCache, definitions)))
+    val cacheReader = actorSystem.actorOf(Props(new CacheReader(redisArrivalTimeLog, redisVehicleArrivalTimeLog, redisSubscriberCache, redisWsClientCache, definitions, config.streamingConfig)))
 
     val testFixture = FixtureParam(definitions, sourceLineHandler, redisWsClientCache, redisSubscriberCache, cacheReader)
 

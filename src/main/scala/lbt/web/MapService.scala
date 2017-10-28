@@ -7,14 +7,16 @@ import cats.effect.IO
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import fs2.Scheduler
+import html.map
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax._
 import lbt.MapServiceConfig
 import lbt.common.Definitions
-import lbt.db.caching.{BusPositionDataForTransmission, RedisSubscriberCache, RedisWsClientCache}
+import lbt.db.caching.{BusPositionDataForTransmission, RedisArrivalTimeLog, RedisSubscriberCache, RedisWsClientCache}
 import lbt.metrics.MetricsLogging
-import lbt.models.{LatLng, MovementInstruction}
+import lbt.models.{BusRoute, BusStop, LatLng, MovementInstruction}
+import lbt.web.MapService.NextStopResponse
 import org.http4s._
 import org.http4s.dsl._
 import org.http4s.twirl._
@@ -22,11 +24,17 @@ import org.http4s.twirl._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-
-class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache) extends StrictLogging {
+class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache, redisArrivalTimeLog: RedisArrivalTimeLog) extends StrictLogging {
 
   object UUIDQueryParameter extends QueryParamDecoderMatcher[String]("uuid")
-  private val supportedAssetTypes = List("css", "js")
+
+  object VehicleIdQueryParameter extends QueryParamDecoderMatcher[String]("vehicleId")
+
+  object RouteIdQueryParameter extends QueryParamDecoderMatcher[String]("routeId")
+
+  object DirectionQueryParameter extends QueryParamDecoderMatcher[String]("direction")
+
+  private val supportedAssetTypes = List("css", "js", "images")
 
   def service = HttpService[IO] {
 
@@ -36,8 +44,39 @@ class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, r
 
     case req@POST -> Root / "snapshot" :? UUIDQueryParameter(uuid) =>
       handleSnapshotRequest(uuid, req)
+
+    case req@GET -> Root / "nextstops"
+      :? VehicleIdQueryParameter(vehicleId)
+      :? RouteIdQueryParameter(routeId)
+      :? DirectionQueryParameter(direction) =>
+        val busRoute = BusRoute(routeId, direction)
+        Ok(handleNextStopsRequest(vehicleId, busRoute))
+
     case GET -> Root => handleMapRequest
   }
+
+  private def handleNextStopsRequest(vehicleId: String, busRoute: BusRoute): Future[String] = {
+
+    val busStopsForRoute = definitions.routeDefinitions(busRoute)
+    MetricsLogging.incrNextStopsHttpRequestsReceived
+
+    redisArrivalTimeLog.getArrivalRecordsFor(vehicleId, busRoute
+    ).map { arrivalRecords =>
+      arrivalRecords.flatMap { case (arrivalRecord, time) =>
+        busStopsForRoute
+          .find(_._1 == arrivalRecord.stopIndex).map { busStop =>
+          NextStopResponse(
+            arrivalRecord.vehicleId,
+            arrivalRecord.busRoute,
+            time,
+            arrivalRecord.stopIndex,
+            busStop._2
+          )
+        }
+      }.asJson.noSpaces
+    }
+  }
+
 
   private def handleMapRequest = {
     MetricsLogging.incrMapHttpRequestsReceived
@@ -89,8 +128,9 @@ class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, r
             }
           }
         }
+
         val (startingLatLng, instructionsToNext) = getInstructionsRemaining(movementInstructions, List.empty, 0)
-        val sumOfAllProportions = instructionsToNext.foldLeft(0.0)((acc,ins) => acc + ins.proportion)
+        val sumOfAllProportions = instructionsToNext.foldLeft(0.0)((acc, ins) => acc + ins.proportion)
         val adjustedInstructionsToNext = instructionsToNext.map(ins => ins.copy(proportion = ins.proportion / sumOfAllProportions))
         rec.copy(startingTime = System.currentTimeMillis(), startingLatLng = startingLatLng, movementInstructionsToNext = Some(adjustedInstructionsToNext))
       })
@@ -98,7 +138,6 @@ class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, r
 
 
   private def getInProgressDataSatisfying(filteringParams: FilteringParams): Future[Seq[BusPositionDataForTransmission]] = {
-
     redisWsClientCache.getVehicleActivityInProgress().map { y =>
       y.flatMap(parseWebsocketCacheResult)
         .filter(_.satisfiesFilteringParams(filteringParams))
@@ -120,3 +159,8 @@ class MapService(mapServiceConfig: MapServiceConfig, definitions: Definitions, r
   }
 }
 
+object MapService {
+
+  case class NextStopResponse(vehicleId: String, busRoute: BusRoute, predictedArrival: Long, stopIndex: Int, busStop: BusStop)
+
+}

@@ -74,7 +74,7 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     val redisArrivalTimeLog = new RedisArrivalTimeLog(redisConfig)
     val redisVehicleArrivalTimeLog = new RedisVehicleArrivalTimeLog(redisConfig, config.streamingConfig)
 
-    val cacheReader = actorSystem.actorOf(Props(new CacheReader(redisArrivalTimeLog, redisVehicleArrivalTimeLog, redisSubscriberCache, redisWsClientCache, definitions)))
+    val cacheReader = actorSystem.actorOf(Props(new CacheReader(redisArrivalTimeLog, redisVehicleArrivalTimeLog, redisSubscriberCache, redisWsClientCache, definitions, config.streamingConfig)))
 
     val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
     val webSocketService: WebSocketService = new WebSocketService(webSocketClientHandler, config.websocketConfig)
@@ -144,8 +144,8 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
     val posData1 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis() - 10000)
     val posData2 = createBusPositionData(arrivalTimeStamp = System.currentTimeMillis())
 
-    f.redisWsClientCache.storeVehicleActivityForClient(uuid, posData1).futureValue
     f.redisWsClientCache.storeVehicleActivityForClient(uuid, posData2).futureValue
+    f.redisWsClientCache.storeVehicleActivityForClient(uuid, posData1).futureValue
 
     eventually {
       val messagesReceived = parsePacketsReceived(packagesReceivedBuffer)

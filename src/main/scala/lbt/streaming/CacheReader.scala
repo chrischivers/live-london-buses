@@ -2,10 +2,12 @@ package lbt.streaming
 
 import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
+import lbt.StreamingConfig
 import lbt.common.Definitions
 import lbt.db.caching._
 import lbt.metrics.MetricsLogging
 import lbt.web.FilteringParams
+
 import scala.concurrent.{ExecutionContext, Future}
 import scalacache.ScalaCache
 import scalacache.guava.GuavaCache
@@ -15,7 +17,7 @@ import scala.concurrent.duration._
 
 case class CacheReadCommand(readTimeAhead: Long)
 
-class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArrivalTimeLog: RedisVehicleArrivalTimeLog, redisSubscriberCache: RedisSubscriberCache, redisWsClientCache: RedisWsClientCache, definitions: Definitions)(implicit executionContext: ExecutionContext) extends Actor with StrictLogging {
+class CacheReader(redisArrivalTimeLog: RedisArrivalTimeLog, redisVehicleArrivalTimeLog: RedisVehicleArrivalTimeLog, redisSubscriberCache: RedisSubscriberCache, redisWsClientCache: RedisWsClientCache, definitions: Definitions, streamingConfig: StreamingConfig)(implicit executionContext: ExecutionContext) extends Actor with StrictLogging {
 
   type ClientId = String
   implicit private val outgoingRecordsCache: ScalaCache[NoSerialization] = ScalaCache(GuavaCache())
@@ -29,9 +31,9 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
   }
 
   def transferArrivalTimesToWebSocketCache(arrivalTimesUpTo: Long) = for {
-      allRecords <- redisArrivalTimeCache.takeArrivalRecordsUpTo(System.currentTimeMillis() + arrivalTimesUpTo)
+      allRecords <- redisArrivalTimeLog.takeArrivalRecordsUpTo(System.currentTimeMillis() + arrivalTimesUpTo)
       _ = MetricsLogging.incrCachedRecordsProcessed(allRecords.size)
-      notLastStopRecords = filterOutLastStops(allRecords) //disregard last stops as these are not sent to client
+      notLastStopRecords = filterOutLastStops(allRecords)
       notAlreadySent <- filterOutRecordsAlreadySent(notLastStopRecords)
       transmissionDataList <- getTransmissionList(notAlreadySent)
       subscribersParams <- getSubscribersAndFilteringParams()
@@ -62,7 +64,7 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
   }
 
   private def addToArrivalRecordsHandledCache(stopArrivalRecord: StopArrivalRecord): Future[Any] = {
-    put(stopArrivalRecord)(true, ttl = Some(5 minutes)) //TODO add to config
+    put(stopArrivalRecord)(true, ttl = Some(streamingConfig.outgoingCacheRetain))
   }
 
   private def hasAlreadyBeenSent(stopArrivalRecord: StopArrivalRecord): Future[Boolean] = {
@@ -77,7 +79,6 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
       records.map(recTime => hasAlreadyBeenSent(recTime._1).map(alreadySent => if(alreadySent) None else Some(recTime)))
     }.map(_.flatten)
   }
-
 
   private def addToInProgressCache(transmissionData: Seq[BusPositionDataForTransmission]): Future[Seq[Unit]] = {
     Future.sequence(transmissionData.map(redisWsClientCache.storeVehicleActivityInProgress))
@@ -116,15 +117,18 @@ class CacheReader(redisArrivalTimeCache: RedisArrivalTimeLog, redisVehicleArriva
     })
   }
 
-  private def getSubscribersAndFilteringParams(): Future[Seq[(ClientId, FilteringParams)]] = {
-    for {
+  private def getParametersForSubscriber(subscriber: String) = {
+      redisSubscriberCache.getParamsForSubscriber(subscriber)
+        .map(_.map(fp => (subscriber, fp)))
+  }
+
+  private def getSubscribersAndFilteringParams(): Future[Seq[(ClientId, FilteringParams)]] = for {
       _ <- redisSubscriberCache.cleanUpInactiveSubscribers
       subscribers <- redisSubscriberCache.getListOfSubscribers
       _ = MetricsLogging.setUsersCurrentlySubscribed(subscribers.size)
-      filteringParams <- Future.sequence(subscribers.map(subscriber =>
-        redisSubscriberCache.getParamsForSubscriber(subscriber)
-          .map(_.map(fp => (subscriber, fp))))).map(_.flatten)
+      filteringParams <- Future.sequence(subscribers
+        .map(subscriber => getParametersForSubscriber(subscriber)))
+        .map(_.flatten)
 
     } yield filteringParams
-  }
 }

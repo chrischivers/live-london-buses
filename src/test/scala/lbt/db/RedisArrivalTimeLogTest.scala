@@ -2,6 +2,7 @@ package lbt.db
 
 import akka.actor.ActorSystem
 import lbt.db.caching.RedisArrivalTimeLog
+import lbt.models.BusRoute
 import lbt.{ConfigLoader, SharedTestFeatures}
 import org.scalatest.Matchers._
 import org.scalatest.concurrent.ScalaFutures
@@ -89,5 +90,27 @@ class RedisArrivalTimeLogTest extends fixture.FunSuite with ScalaFutures with Op
     result3 should have size 1
     result3.head._1 shouldBe stopArrivalRecord2
     result3.head._2 shouldBe arrivalTime2
+  }
+
+  test("All arrival records in cache are retrieved given a vehicleID and busRoute, and are not deleted") { f =>
+
+    val vehicleId = "VEHICLE1"
+    val busRoute = BusRoute("25", "outbound")
+
+    val arrivalTime1 = System.currentTimeMillis() + 600000
+    val arrivalTime2 = System.currentTimeMillis() + 500000
+    val stopArrivalRecord1 = generateStopArrivalRecord(vehicleId = vehicleId, busRoute = busRoute, stopIndex = 3)
+    val stopArrivalRecord2 = generateStopArrivalRecord(vehicleId = vehicleId, busRoute = busRoute, stopIndex = 2)
+
+    f.redisArrivalTimeLog.addArrivalRecord(arrivalTime1, stopArrivalRecord1).futureValue
+    f.redisArrivalTimeLog.addArrivalRecord(arrivalTime2, stopArrivalRecord2).futureValue
+
+    val result = f.redisArrivalTimeLog.getArrivalRecordsFor(vehicleId, busRoute).futureValue
+    result should have size 2
+    result.head shouldBe (stopArrivalRecord2, arrivalTime2)
+    result(1) shouldBe (stopArrivalRecord1, arrivalTime1)
+
+    val resultsAgain = f.redisArrivalTimeLog.getArrivalRecordsFor(vehicleId, busRoute).futureValue
+    resultsAgain should have size 2
   }
 }

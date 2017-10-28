@@ -10,6 +10,7 @@ import lbt.db.caching.BusPositionDataForTransmission
 import lbt.models._
 import lbt.streaming.{SourceLine, StopArrivalRecord}
 import lbt.web.FilteringParams
+import lbt.web.MapService.NextStopResponse
 import org.scalatest.OptionValues
 
 import scala.collection.mutable.ListBuffer
@@ -45,6 +46,10 @@ trait SharedTestFeatures extends OptionValues {
 
   def parseWebsocketCacheResult(str: String): Option[List[BusPositionDataForTransmission]] = {
     parse(str).toOption.flatMap(_.as[List[BusPositionDataForTransmission]].toOption)
+  }
+
+  def parseNextStopsJson(str: String): Option[List[NextStopResponse]] = {
+    parse(str).toOption.flatMap(_.as[List[NextStopResponse]].toOption)
   }
 
   def createJsonStringFromFilteringParams(filteringParams: FilteringParams): String = {
@@ -84,6 +89,4 @@ trait SharedTestFeatures extends OptionValues {
     val thisStopIndex = definitions.routeDefinitions(busRoute).find(_._2.stopID == stopId).map(_._1)
     definitions.routeDefinitions(busRoute).find(_._1 == thisStopIndex.get + 1).map(_._1)
   }
-
-
 }

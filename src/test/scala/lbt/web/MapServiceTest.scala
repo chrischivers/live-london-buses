@@ -50,7 +50,7 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
     db.disconnect.futureValue
   }
 
-  case class FixtureParam(redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache, httpClient: Client[IO], port: Int)
+  case class FixtureParam(redisWsClientCache: RedisWsClientCache, redisSubscriberCache: RedisSubscriberCache, redisArrivalTimeLog: RedisArrivalTimeLog, httpClient: Client[IO], port: Int)
 
   def withFixture(test: OneArgTest) = {
 
@@ -60,13 +60,14 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
     val redisConfig = config.redisConfig.copy(dbIndex = 1)
     val redisSubscriberCache = new RedisSubscriberCache(redisConfig) // 1 = test, 0 = main
     val redisWsClientCache = new RedisWsClientCache(redisConfig, redisSubscriberCache)
-    val mapService = new MapService(config.mapServiceConfig, definitions, redisWsClientCache, redisSubscriberCache)
+    val redisArrivalTimeLog = new RedisArrivalTimeLog(redisConfig)
+    val mapService = new MapService(config.mapServiceConfig, definitions, redisWsClientCache, redisSubscriberCache, redisArrivalTimeLog)
 
     val builder = BlazeBuilder[IO].bindHttp(port, "localhost").mountService(mapService.service, "/map").start
     builder.unsafeRunSync
     val httpClient = PooledHttp1Client[IO]()
 
-    val testFixture = FixtureParam(redisWsClientCache, redisSubscriberCache, httpClient, port)
+    val testFixture = FixtureParam(redisWsClientCache, redisSubscriberCache, redisArrivalTimeLog, httpClient, port)
     try {
       redisSubscriberCache.flushDB.futureValue
       redisWsClientCache.flushDB.futureValue
@@ -212,10 +213,50 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
 
     }
 
+  test("NextStops request returns all records for vehicleId and Route") { f =>
+
+    val vehicleId = "VEHICLE1"
+    val busRoute = BusRoute("25", "outbound")
+
+    val stopIndex1 = 5
+    val arrivalTimeStamp1 = System.currentTimeMillis() + 200000
+    val arrivalRecord1 = generateStopArrivalRecord(vehicleId, busRoute, stopIndex = stopIndex1)
+
+    val stopIndex2 = 6
+    val arrivalTimeStamp2 = System.currentTimeMillis() + 300000
+    val arrivalRecord2 = generateStopArrivalRecord(vehicleId, busRoute, stopIndex = stopIndex2)
+
+    f.redisArrivalTimeLog.addArrivalRecord(arrivalTimeStamp1, arrivalRecord1).futureValue
+    f.redisArrivalTimeLog.addArrivalRecord(arrivalTimeStamp2, arrivalRecord2).futureValue
+
+    val result = parseNextStopsJson(generateNextStopsRequest(f.httpClient, f.port, vehicleId, busRoute).unsafeRunSync()).value
+    result should have size 2
+    result.head.vehicleId shouldBe vehicleId
+    result.head.busRoute shouldBe busRoute
+    result.head.stopIndex shouldBe arrivalRecord1.stopIndex
+    result.head.predictedArrival shouldBe arrivalTimeStamp1
+    result.head.busStop shouldBe definitions.routeDefinitions(busRoute).find(_._1 == stopIndex1).value._2
+
+    result(1).vehicleId shouldBe vehicleId
+    result(1).busRoute shouldBe busRoute
+    result(1).stopIndex shouldBe arrivalRecord2.stopIndex
+    result(1).predictedArrival shouldBe arrivalTimeStamp2
+    result(1).busStop shouldBe definitions.routeDefinitions(busRoute).find(_._1 == stopIndex2).value._2
+
+  }
+
   def generateSnapshotRequest(port: Int, uuid: String, filteringParams: FilteringParams): IO[Request[IO]] = {
     Request()
       .withMethod(Method.POST)
       .withUri(Uri.fromString(s"http://localhost:$port/map/snapshot?uuid=$uuid").right.get)
       .withBody(filteringParams.asJson.noSpaces)
+  }
+
+  def generateNextStopsRequest(httpClient: Client[IO], port: Int, vehicleId: String, busRoute: BusRoute): IO[String] = {
+
+    httpClient.expect[String](Uri.fromString(s"http://localhost:$port/map/nextstops" +
+      s"?vehicleId=$vehicleId" +
+      s"&routeId=${busRoute.id}" +
+      s"&direction=${busRoute.direction}").right.get)
   }
 }

@@ -26,7 +26,7 @@ case class RedisConfig(host: String, port: Int, dbIndex: Int, wsClientCacheMaxRe
 
 case class WebsocketConfig(clientSendInterval: FiniteDuration, websocketPort: Int)
 
-case class StreamingConfig(idleTimeBeforeVehicleDeleted: FiniteDuration, cleanUpEveryNLines: Int, readAheadInCache: FiniteDuration, cachePollingInterval: FiniteDuration)
+case class StreamingConfig(idleTimeBeforeVehicleDeleted: FiniteDuration, cleanUpEveryNLines: Int, readAheadInCache: FiniteDuration, cachePollingInterval: FiniteDuration, outgoingCacheRetain: FiniteDuration)
 
 case class MetricsConfig(host: String, port: Int, dbName: String, updateInterval: Int, enabled: Boolean)
 
@@ -96,6 +96,7 @@ object ConfigLoader {
         defaultConfigFactory.getInt("streaming.cleanUpEveryNLines"),
         FiniteDuration(defaultConfigFactory.getDuration("streaming.readAheadInCache").toMillis, TimeUnit.MILLISECONDS),
         FiniteDuration(defaultConfigFactory.getDuration("streaming.cachePolling").toMillis, TimeUnit.MILLISECONDS),
+        FiniteDuration(defaultConfigFactory.getDuration("streaming.outgoingCacheRetain").toMillis, TimeUnit.MILLISECONDS)
       ),
       MetricsConfig(
         defaultConfigFactory.getString("metrics.host"),

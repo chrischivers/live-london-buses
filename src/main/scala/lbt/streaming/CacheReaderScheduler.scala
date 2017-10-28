@@ -17,7 +17,7 @@ class CacheReaderScheduler(redisArrivalTimeCache: RedisArrivalTimeLog,
                           (implicit actorSystem: ActorSystem, executionContext: ExecutionContext) {
 
   private val arrivalTimeCacheReader: ActorRef = actorSystem.actorOf(Props(
-    new CacheReader(redisArrivalTimeCache, redisVehicleArrivalTimeLog, redisSubscriberCache, redisWsClientCache, definitions)))
+    new CacheReader(redisArrivalTimeCache, redisVehicleArrivalTimeLog, redisSubscriberCache, redisWsClientCache, definitions, streamingConfig)))
 
   private val scheduler: Cancellable =
     actorSystem.scheduler.schedule(
