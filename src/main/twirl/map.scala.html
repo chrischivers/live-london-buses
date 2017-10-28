@@ -222,10 +222,10 @@
 
                             if (typeof idOfNextStopMarkersSelected !== 'undefined') {
                                 if (idOfNextStopMarkersSelected === id) {
-                                    var currentlyOpen = nextStopInfoBoxCurrentlyOpen;
+                                    var autoOpenForStopId = idOfNextStopInfoBoxCurrentlyOpen;
                                     closeInfoBoxesForNextStopMarkers();
                                     deleteNextStopMarkers();
-                                    createBusMarkerNextStopsListener(id, vehicleId, routeId, direction);
+                                    createNextStopsMarkers(id, vehicleId, routeId, direction, autoOpenForStopId);
                                 }
                             }
 
