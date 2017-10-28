@@ -224,7 +224,6 @@
                                 if (idOfNextStopMarkersSelected === id) {
                                     var autoOpenForStopId = idOfNextStopInfoBoxCurrentlyOpen;
                                     closeInfoBoxesForNextStopMarkers();
-                                    deleteNextStopMarkers();
                                     createNextStopsMarkers(id, vehicleId, routeId, direction, autoOpenForStopId);
                                 }
                             }
@@ -456,15 +455,15 @@
                     google.maps.event.addListener(markerArray[id], 'click', function () {
                         var autoOpenForStopId = idOfNextStopInfoBoxCurrentlyOpen;
                         closeInfoBoxesForNextStopMarkers();
-                        deleteNextStopMarkers();
                         createNextStopsMarkers(id, vehicleId, routeId, direction, autoOpenForStopId);
                     })
                 }
 
-                function createNextStopsMarkers(id, vehicleId, routeId, direction, autoOpenForStopId) {
+                function createNextStopsMarkers(id, vehicleId, routeId, direction, autoOpenForStopId,) {
                     $.get("/map/nextstops?vehicleId=" + vehicleId + "&routeId=" + routeId + "&direction=" + direction,
                             function (data, status) {
                                 var nextStopsJson = JSON.parse(data);
+                                var tempNextStopsMarkersSelected = [];
                                 for (var i = 0; i < nextStopsJson.length; i++) {
 
                                     var stopId = nextStopsJson[i].busStop.stopID;
@@ -477,12 +476,15 @@
                                         map: map,
                                         icon: stopIcon
                                     });
-                                    nextStopsMarkersSelected.push(nextStopMarker);
+
+                                    tempNextStopsMarkersSelected.push(nextStopMarker);
                                     createNextStopMarkerListener(nextStopMarker, stopId, stopName, predictedArrival);
                                     if (typeof autoOpenForStopId !== 'undefined' && autoOpenForStopId === stopId) {
                                         google.maps.event.trigger(nextStopMarker, 'mouseover');
                                     }
                                 }
+                                deleteNextStopMarkers();
+                                nextStopsMarkersSelected = tempNextStopsMarkersSelected;
                                 idOfNextStopMarkersSelected = id;
                             });
                 }
