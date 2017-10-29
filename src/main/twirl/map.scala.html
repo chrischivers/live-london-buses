@@ -173,7 +173,6 @@
                         var vehicleId = json[i].vehicleId;
                         var nextStopIndex = json[i].nextStopIndex;
                         var id = getId(vehicleId, routeId, direction);
-                        console.log("Json received for id: " + id);
 
                         if (isReceivedRouteInSelected(routeId)
                                 && isReceivedIndexAheadOfLastHandled(nextStopIndex, id)
@@ -286,7 +285,8 @@
 
                 function setUpHttpPolling(uuid) {
                     if (!usingHttpPolling) {
-                        setInterval(getPositionDataOverHttp(uuid), @{mapServiceConfig.httpPollingInterval.toMillis});
+                        var repeatInterval = @{mapServiceConfig.httpPollingInterval.toMillis};
+                        setInterval(getPositionDataOverHttp, repeatInterval, uuid);
                         usingHttpPolling = true;
                     }
                 }
@@ -295,12 +295,12 @@
                     $.get("/positions?uuid=" + uuid,
                             function (data, status) {
                                 var json = JSON.parse(data);
-                                console.log("Json received: " + json);
                                 if (json.length > 0) {
                                     handleReceivedJson(json)
                                 }
                             });
                 }
+
 
                 function updateParamsAndGetSnapshot(uuid, filterParams) {
                     $.post("snapshot?uuid=" + uuid, filterParams, function (data) {
