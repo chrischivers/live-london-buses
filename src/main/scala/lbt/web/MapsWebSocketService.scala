@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 
 case class FilteringParams(busRoutes: List[BusRoute], latLngBounds: LatLngBounds)
 
-class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocketConfig: WebsocketConfig)(implicit F: Effect[IO]) extends Http4sDsl[IO] with StrictLogging {
+class MapsWebSocketService(mapsClientHandler: MapsClientHandler, websocketConfig: WebsocketConfig)(implicit F: Effect[IO]) extends Http4sDsl[IO] with StrictLogging {
 
   object UUIDQueryParameter extends QueryParamDecoderMatcher[String]("uuid")
 
@@ -32,14 +32,14 @@ class WebSocketService(webSocketClientHandler: WebSocketClientHandler, websocket
 
     case GET -> Root :? UUIDQueryParameter(uuid) =>
 
-      val existsAlready = Await.result(webSocketClientHandler.isAlreadySubscribed(uuid), 10 seconds)
+      val existsAlready = Await.result(mapsClientHandler.isAlreadySubscribed(uuid), 10 seconds)
       if (existsAlready) InternalServerError(s"Not subscribed to WS feed, uuid $uuid already subscribed")
       else {
-        webSocketClientHandler.subscribe(uuid)
+        mapsClientHandler.subscribe(uuid)
 
         val toClient: Stream[IO, WebSocketFrame] =
           scheduler.awakeEvery[IO](websocketConfig.clientSendInterval).map { _ =>
-            IO.fromFuture(Eval.now(webSocketClientHandler.retrieveTransmissionDataForClient(uuid)
+            IO.fromFuture(Eval.now(mapsClientHandler.retrieveTransmissionDataForClient(uuid)
               .map(x => Text(x)))).unsafeRunSync()
           }
 

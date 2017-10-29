@@ -30,7 +30,7 @@ case class StreamingConfig(idleTimeBeforeVehicleDeleted: FiniteDuration, cleanUp
 
 case class MetricsConfig(host: String, port: Int, dbName: String, updateInterval: Int, enabled: Boolean)
 
-case class MapServiceConfig(maxRouteSelection: Int, expandedBoundsMultiple: Double)
+case class MapServiceConfig(maxRouteSelection: Int, expandedBoundsMultiple: Double, httpPollingInterval: FiniteDuration)
 
 case class LBTConfig(
                       dataSourceConfig: DataSourceConfig,
@@ -107,7 +107,8 @@ object ConfigLoader {
       ),
       MapServiceConfig(
         defaultConfigFactory.getInt("map-service.maxRoutesSelection"),
-        defaultConfigFactory.getDouble("map-service.expandedBoundsMultiple")
+        defaultConfigFactory.getDouble("map-service.expandedBoundsMultiple"),
+        FiniteDuration(defaultConfigFactory.getDuration("map-service.httpPollingInterval").toMillis, TimeUnit.MILLISECONDS)
       ),
     )
   }

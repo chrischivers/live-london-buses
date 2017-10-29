@@ -10,7 +10,7 @@ import lbt.db.caching.BusPositionDataForTransmission
 import lbt.models._
 import lbt.streaming.{SourceLine, StopArrivalRecord}
 import lbt.web.FilteringParams
-import lbt.web.MapService.NextStopResponse
+import lbt.web.MapsHttpService.NextStopResponse
 import org.scalatest.OptionValues
 
 import scala.collection.mutable.ListBuffer

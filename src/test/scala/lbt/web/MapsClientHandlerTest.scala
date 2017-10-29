@@ -3,7 +3,7 @@ package lbt.web
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import lbt.db.caching.{RedisSubscriberCache, RedisWsClientCache}
+import lbt.db.caching.{RedisArrivalTimeLog, RedisSubscriberCache, RedisWsClientCache}
 import lbt.models.{BusStop, LatLng}
 import lbt.{ConfigLoader, SharedTestFeatures}
 import org.scalatest.Matchers._
@@ -13,7 +13,7 @@ import org.scalatest.{BeforeAndAfterAll, OptionValues, fixture}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class WebSocketClientHandlerTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll {
+class MapsClientHandlerTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll {
 
   val config = ConfigLoader.defaultConfig
 
@@ -22,7 +22,7 @@ class WebSocketClientHandlerTest extends fixture.FunSuite with SharedTestFeature
     interval = scaled(500 millis)
   )
 
-  case class FixtureParam(webSocketClientHandler: WebSocketClientHandler, redisSubscriberCache: RedisSubscriberCache, redisWsClientCache: RedisWsClientCache)
+  case class FixtureParam(webSocketClientHandler: MapsClientHandler, redisSubscriberCache: RedisSubscriberCache, redisWsClientCache: RedisWsClientCache)
 
   def withFixture(test: OneArgTest) = {
     implicit val actorSystem = ActorSystem()
@@ -30,7 +30,8 @@ class WebSocketClientHandlerTest extends fixture.FunSuite with SharedTestFeature
 
     val redisSubscriberCache = new RedisSubscriberCache(redisConfig)
     val redisWsClientCache = new RedisWsClientCache(redisConfig, redisSubscriberCache)
-    val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
+    val redisArrivalTimeLog = new RedisArrivalTimeLog(redisConfig)
+    val webSocketClientHandler = new MapsClientHandler(redisSubscriberCache, redisWsClientCache, redisArrivalTimeLog)
     val testFixture = FixtureParam(webSocketClientHandler, redisSubscriberCache, redisWsClientCache)
 
     try {

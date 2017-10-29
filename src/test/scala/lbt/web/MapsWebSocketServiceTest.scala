@@ -30,7 +30,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll with EitherValues with StrictLogging with Eventually {
+class MapsWebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll with EitherValues with StrictLogging with Eventually {
 
   implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
@@ -76,8 +76,8 @@ class WebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures with
 
     val cacheReader = actorSystem.actorOf(Props(new CacheReader(redisArrivalTimeLog, redisVehicleArrivalTimeLog, redisSubscriberCache, redisWsClientCache, definitions, config.streamingConfig)))
 
-    val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
-    val webSocketService: WebSocketService = new WebSocketService(webSocketClientHandler, config.websocketConfig)
+    val webSocketClientHandler = new MapsClientHandler(redisSubscriberCache, redisWsClientCache, redisArrivalTimeLog)
+    val webSocketService: MapsWebSocketService = new MapsWebSocketService(webSocketClientHandler, config.websocketConfig)
 
     val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, redisVehicleArrivalTimeLog, definitions, config.streamingConfig)(ec)
 

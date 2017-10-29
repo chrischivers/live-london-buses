@@ -7,7 +7,7 @@ import lbt.db.caching.{RedisArrivalTimeLog, RedisSubscriberCache, RedisVehicleAr
 import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.metrics.MetricsLogging
 import lbt.streaming._
-import lbt.web.WebSocketClientHandler
+import lbt.web.MapsClientHandler
 import scala.concurrent.ExecutionContext
 
 object StreamingApp extends App with StrictLogging {
@@ -21,10 +21,10 @@ object StreamingApp extends App with StrictLogging {
 
   val redisSubscriberCache = new RedisSubscriberCache(config.redisConfig)
   val redisWsClientCache = new RedisWsClientCache(config.redisConfig, redisSubscriberCache)
-
-  val webSocketClientHandler = new WebSocketClientHandler(redisSubscriberCache, redisWsClientCache)
-
   val redisArrivalTimeLog = new RedisArrivalTimeLog(config.redisConfig)
+
+  val webSocketClientHandler = new MapsClientHandler(redisSubscriberCache, redisWsClientCache, redisArrivalTimeLog)
+
   val redisVehicleArrivalTimeLog = new RedisVehicleArrivalTimeLog(config.redisConfig, config.streamingConfig)
 
   val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, redisVehicleArrivalTimeLog, definitions, config.streamingConfig)

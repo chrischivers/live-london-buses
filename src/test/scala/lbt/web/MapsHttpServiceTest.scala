@@ -27,7 +27,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 
-class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll with EitherValues with StrictLogging with Eventually {
+class MapsHttpServiceTest extends fixture.FunSuite with SharedTestFeatures with ScalaFutures with OptionValues with BeforeAndAfterAll with EitherValues with StrictLogging with Eventually {
 
   implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
@@ -61,7 +61,8 @@ class MapServiceTest extends fixture.FunSuite with SharedTestFeatures with Scala
     val redisSubscriberCache = new RedisSubscriberCache(redisConfig) // 1 = test, 0 = main
     val redisWsClientCache = new RedisWsClientCache(redisConfig, redisSubscriberCache)
     val redisArrivalTimeLog = new RedisArrivalTimeLog(redisConfig)
-    val mapService = new MapService(config.mapServiceConfig, definitions, redisWsClientCache, redisSubscriberCache, redisArrivalTimeLog)
+    val mapsClientHandler = new MapsClientHandler(redisSubscriberCache, redisWsClientCache, redisArrivalTimeLog)
+    val mapService = new MapsHttpService(config.mapServiceConfig, definitions, mapsClientHandler)
 
     val builder = BlazeBuilder[IO].bindHttp(port, "localhost").mountService(mapService.service, "/").start
     builder.unsafeRunSync
