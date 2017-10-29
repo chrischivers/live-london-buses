@@ -173,6 +173,7 @@
                         var vehicleId = json[i].vehicleId;
                         var nextStopIndex = json[i].nextStopIndex;
                         var id = getId(vehicleId, routeId, direction);
+                        console.log("Json received for id: " + id);
 
                         if (isReceivedRouteInSelected(routeId)
                                 && isReceivedIndexAheadOfLastHandled(nextStopIndex, id)
