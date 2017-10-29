@@ -271,7 +271,7 @@
                             }
                         };
                         ws.onclose = function () {
-                            console.log("Websocket connection can't be opened or is closed. Switching over to http");
+                            console.log("Websocket connection can't be opened or is closed. Switching over to http...");
                             setUpHttpPolling(uuid);
                         };
                         window.onbeforeunload = function (event) {
@@ -279,7 +279,7 @@
                         };
                     }
                     else {
-                        console.log("WebSockets are not supported by Browser. Switching over to http");
+                        console.log("WebSockets are not supported by Browser. Switching over to http...");
                         setUpHttpPolling(uuid);
                     }
                 }
@@ -295,6 +295,7 @@
                     $.get("/positions?uuid=" + uuid,
                             function (data, status) {
                                 var json = JSON.parse(data);
+                                console.log("Json received: " + json);
                                 if (json.length > 0) {
                                     handleReceivedJson(json)
                                 }

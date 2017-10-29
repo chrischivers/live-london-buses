@@ -70,7 +70,7 @@ class MapsClientHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     val uuid = UUID.randomUUID().toString
     val busPositionData = createBusPositionData()
     val filteringParams = createFilteringParams()
-    f.webSocketClientHandler.subscribe(uuid)
+    f.webSocketClientHandler.subscribe(uuid).futureValue
     f.redisSubscriberCache.updateFilteringParameters(uuid, filteringParams).futureValue
     f.redisWsClientCache.storeVehicleActivityForClient(uuid, busPositionData).futureValue
     val result = parseWebsocketCacheResult(f.webSocketClientHandler.retrieveTransmissionDataForClient(uuid).futureValue).value
