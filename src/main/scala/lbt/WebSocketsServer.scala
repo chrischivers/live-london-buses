@@ -7,7 +7,7 @@ import lbt.db.caching.{RedisArrivalTimeLog, RedisSubscriberCache, RedisWsClientC
 import lbt.web.{MapsClientHandler, MapsWebSocketService}
 import org.http4s.dsl.{Http4sDsl, _}
 import org.http4s.server.blaze.BlazeBuilder
-import org.http4s.util.StreamApp
+import org.http4s.util.{ExitCode, StreamApp}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -21,7 +21,7 @@ object WebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
   val webSocketClientHandler = new MapsClientHandler(redisSubscriberCache, redisWsClientCache, redisArrivalTimeLog)
   val webSocketService = new MapsWebSocketService(webSocketClientHandler, config.websocketConfig)
 
-  def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, Nothing] =
+  def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, ExitCode] =
     Scheduler[IO](corePoolSize = 2).flatMap { scheduler =>
       BlazeBuilder[IO]
         .bindHttp(config.websocketConfig.websocketPort)

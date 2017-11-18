@@ -1,23 +1,17 @@
 package lbt.web
 
-import java.util.concurrent.atomic.AtomicLong
-
 import cats.Eval
 import cats.effect.{IO, _}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.{Scheduler, Sink, Stream}
-import io.circe.Json
-import io.circe.generic.auto._
-import io.circe.parser._
 import lbt.WebsocketConfig
-import lbt.metrics.MetricsLogging
 import lbt.models.{BusRoute, LatLngBounds}
 import org.http4s.HttpService
-import org.http4s.dsl.{->, :?, Http4sDsl, Root, _}
+import org.http4s.dsl._
 import org.http4s.server.websocket.WS
-import org.http4s.websocket.WebsocketBits.{Close, Text, WebSocketFrame}
+import org.http4s.websocket.WebsocketBits.{Text, WebSocketFrame}
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 

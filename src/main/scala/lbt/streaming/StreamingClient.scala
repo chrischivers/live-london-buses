@@ -30,12 +30,13 @@ class StreamingClient(dataSourceConfig: DataSourceConfig, action: (String => Uni
       if (total % 10000 == 0) logger.info(s"$total streamed rows processed")
       action(line)
       total + 1
-    }.recoverWith {
-      case e =>
-        logger.error("Exception in stream client. Restarting....", e)
+    }.recover {
+      case error =>
+        logger.error("Exception in stream client", error)
         busDataSourceClient.closeDataSource()
+        logger.info("Waiting before blowing up...")
         Thread.sleep(dataSourceConfig.waitTimeBeforeRestart)
-        start()
+        throw error
     }
   }
 

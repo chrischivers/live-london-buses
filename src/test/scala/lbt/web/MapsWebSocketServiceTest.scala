@@ -20,7 +20,7 @@ import lbt.streaming.{CacheReadCommand, CacheReader, SourceLineHandler}
 import lbt.{ConfigLoader, LBTConfig, SharedTestFeatures}
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.blaze.BlazeBuilder
-import org.http4s.util.StreamApp
+import org.http4s.util.{ExitCode, StreamApp}
 import org.scalatest.Matchers._
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
@@ -84,7 +84,7 @@ class MapsWebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures 
     object TestWebSocketsServer extends StreamApp[IO] with Http4sDsl[IO] {
       logger.info(s"Starting up web socket service using port $wsPort")
 
-      def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, Nothing] =
+      def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, ExitCode] =
         Scheduler[IO](corePoolSize = 2).flatMap { scheduler =>
           BlazeBuilder[IO]
             .bindHttp(wsPort)

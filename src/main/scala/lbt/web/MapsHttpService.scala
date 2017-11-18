@@ -14,8 +14,9 @@ import lbt.common.Definitions
 import lbt.metrics.MetricsLogging
 import lbt.models.{BusRoute, BusStop}
 import org.http4s._
-import org.http4s.dsl._
+import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.http4s.twirl._
+import org.http4s.dsl.io._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future

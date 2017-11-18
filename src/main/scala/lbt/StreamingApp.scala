@@ -8,7 +8,8 @@ import lbt.db.sql.{PostgresDB, RouteDefinitionSchema, RouteDefinitionsTable}
 import lbt.metrics.MetricsLogging
 import lbt.streaming._
 import lbt.web.MapsClientHandler
-import scala.concurrent.ExecutionContext
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object StreamingApp extends App with StrictLogging {
   implicit val actorSystem: ActorSystem = ActorSystem()
@@ -29,8 +30,6 @@ object StreamingApp extends App with StrictLogging {
 
   val sourceLineHandler = new SourceLineHandler(redisArrivalTimeLog, redisVehicleArrivalTimeLog, definitions, config.streamingConfig)
 
-  val streamingClient = new StreamingClient(config.dataSourceConfig, processSourceLine)
-
   val cachedReaderScheduler = new CacheReaderScheduler(
     redisArrivalTimeLog,
     redisVehicleArrivalTimeLog,
@@ -40,7 +39,6 @@ object StreamingApp extends App with StrictLogging {
     config.streamingConfig)
 
   logger.info("Starting streaming client")
-  streamingClient.start().map(_ => ())
 
   def processSourceLine(rawSourceLine: String): Unit = {
     MetricsLogging.incrSourceLinesReceived
@@ -52,4 +50,16 @@ object StreamingApp extends App with StrictLogging {
     }
   }
 
+  def runStreamingClient = new StreamingClient(config.dataSourceConfig, processSourceLine).start()
+
+  def retryHandler[T](f: => Future[T]): Future[T] = {
+    f.recoverWith { case _ => retryHandler(f) }
+  }
+
+  retryHandler(runStreamingClient).map(_ => ())
+
 }
+
+
+
+

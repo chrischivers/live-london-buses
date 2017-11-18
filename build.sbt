@@ -1,10 +1,10 @@
 name := "live-london-buses"
 
-version := "0.1"
+version := "0.2"
 
-scalaVersion := "2.12.3"
-val circeVersion = "0.9.0-M1"
-val Http4sVersion = "0.18.0-M1"
+scalaVersion := "2.12.4"
+val circeVersion = "0.9.0-M2"
+val Http4sVersion = "0.18.0-M5"
 
 resolvers += Resolver.sonatypeRepo("snapshots")
 
@@ -18,14 +18,14 @@ libraryDependencies ++= Seq(
   "org.apache.httpcomponents" % "httpclient" % "4.5.3",
   "com.xebialabs.restito" % "restito" % "0.9.1" % "test",
   "com.typesafe.play" %% "play-ahc-ws-standalone" % "1.0.7",
-  "com.typesafe.akka" % "akka-stream_2.12" % "2.5.4",
-  "com.typesafe.akka" % "akka-actor_2.12" % "2.5.4",
+  "com.typesafe.akka" % "akka-stream_2.12" % "2.5.6",
+  "com.typesafe.akka" % "akka-actor_2.12" % "2.5.6",
   "com.typesafe.akka" % "akka-http_2.12" % "10.0.10",
   "com.github.andyglow" %% "websocket-scala-client" % "0.2.4" % Test,
   "com.github.davidb" % "metrics-influxdb" % "0.9.3",
   "nl.grons" %% "metrics-scala" % "3.5.9_a2.4",
   "com.internetitem" % "logback-elasticsearch-appender" % "1.6",
-  "org.typelevel" %% "cats-core" % "1.0.0-MF",
+  "org.typelevel" %% "cats-core" % "1.0.0-RC1",
   "com.github.cb372" % "scalacache-core_2.12" % "0.10.0",
   "com.github.cb372" %% "scalacache-guava" % "0.10.0"
 )

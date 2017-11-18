@@ -173,6 +173,7 @@
                         var vehicleId = json[i].vehicleId;
                         var nextStopIndex = json[i].nextStopIndex;
                         var id = getId(vehicleId, routeId, direction);
+                        console.log("Json received for id: " + id);
 
                         if (isReceivedRouteInSelected(routeId)
                                 && isReceivedIndexAheadOfLastHandled(nextStopIndex, id)
@@ -295,6 +296,7 @@
                     $.get("/positions?uuid=" + uuid,
                             function (data, status) {
                                 var json = JSON.parse(data);
+                                console.log("json received: " + JSON.stringify(json));
                                 if (json.length > 0) {
                                     handleReceivedJson(json)
                                 }
