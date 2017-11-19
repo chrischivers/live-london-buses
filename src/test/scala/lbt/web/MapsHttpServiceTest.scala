@@ -4,10 +4,10 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorSystem
-import cats.Id
 import cats.effect.IO
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.generic.auto._
+import io.circe.parser._
 import io.circe.syntax._
 import lbt.common.Definitions
 import lbt.db.caching._
@@ -85,6 +85,16 @@ class MapsHttpServiceTest extends fixture.FunSuite with SharedTestFeatures with 
     val response = f.httpClient.expect[String](s"http://localhost:${f.port}/")
     response.unsafeRunSync() should include("<title>Live London Buses</title>")
   }
+
+
+  test("Route List is served from / routeList") { f =>
+
+    val response = f.httpClient.expect[String](s"http://localhost:${f.port}/routelist")
+    val raw = response.unsafeRunSync()
+    val parsed = parse(raw).right.get.as[List[String]].right.get
+    parsed shouldBe definitions.routeDefinitions.keys.map(_.id).toList.distinct
+  }
+
 
   test("Assets are served from /assets endpoint") { f =>
     val response = f.httpClient.expect[String](s"http://localhost:${f.port}/assets/css/bootstrap.min.css")

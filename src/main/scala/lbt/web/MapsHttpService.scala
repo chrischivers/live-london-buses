@@ -39,6 +39,9 @@ class MapsHttpService(mapServiceConfig: MapServiceConfig, definitions: Definitio
       StaticFile.fromFile(new File(s"./src/main/twirl/assets/$assetType/$file"), Some(request))
         .getOrElseF(NotFound())
 
+    case req@GET -> Root / "routelist" =>
+      Ok(definitions.routeDefinitions.keys.map(_.id).toList.distinct.asJson.noSpaces)
+
     case req@POST -> Root / "snapshot" :? UUIDQueryParameter(uuid) =>
       handleSnapshotRequest(uuid, req)
 
