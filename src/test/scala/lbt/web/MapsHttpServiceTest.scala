@@ -86,13 +86,12 @@ class MapsHttpServiceTest extends fixture.FunSuite with SharedTestFeatures with 
     response.unsafeRunSync() should include("<title>Live London Buses</title>")
   }
 
-
   test("Route List is served from / routeList") { f =>
 
     val response = f.httpClient.expect[String](s"http://localhost:${f.port}/routelist")
     val raw = response.unsafeRunSync()
     val parsed = parse(raw).right.get.as[List[String]].right.get
-    parsed shouldBe definitions.routeDefinitions.keys.map(_.id).toList.distinct
+    parsed shouldBe definitions.routeDefinitions.keys.map(_.id).toList.distinct.sorted
   }
 
 

@@ -39,13 +39,13 @@ class MapsHttpService(mapServiceConfig: MapServiceConfig, definitions: Definitio
       StaticFile.fromFile(new File(s"./src/main/twirl/assets/$assetType/$file"), Some(request))
         .getOrElseF(NotFound())
 
-    case req@GET -> Root / "routelist" =>
-      Ok(definitions.routeDefinitions.keys.map(_.id).toList.distinct.asJson.noSpaces)
+    case _@GET -> Root / "routelist" =>
+      Ok(getSortedBusRoutes().asJson.noSpaces)
 
     case req@POST -> Root / "snapshot" :? UUIDQueryParameter(uuid) =>
       handleSnapshotRequest(uuid, req)
 
-    case req@GET -> Root / "nextstops"
+    case _@GET -> Root / "nextstops"
       :? VehicleIdQueryParameter(vehicleId)
       :? RouteIdQueryParameter(routeId)
       :? DirectionQueryParameter(direction) =>
@@ -56,7 +56,7 @@ class MapsHttpService(mapServiceConfig: MapServiceConfig, definitions: Definitio
 
       Ok(mapsClientHandler.getNextStopResponse(vehicleId, busRoute, busStopsForRoute))
 
-    case req@GET -> Root / "positions" :? UUIDQueryParameter(uuid) =>
+    case _@GET -> Root / "positions" :? UUIDQueryParameter(uuid) =>
       MetricsLogging.incrPositionsHttpRequestsReceived
       val result = for {
         existsAlready <- mapsClientHandler.isAlreadySubscribed(uuid)
@@ -72,10 +72,13 @@ class MapsHttpService(mapServiceConfig: MapServiceConfig, definitions: Definitio
   private def handleMapRequest = {
     MetricsLogging.incrMapHttpRequestsReceived
     val newUUID = UUID.randomUUID().toString
+    Ok(html.map(newUUID, mapServiceConfig, getSortedBusRoutes))
+  }
+
+  private def getSortedBusRoutes(): List[String] = {
     val busRoutes = definitions.routeDefinitions.map { case (busRoute, _) => busRoute.id }.toList.distinct
     val (digitRoutes, letterRoutes) = busRoutes.partition(_.forall(_.isDigit))
-    val sortedRoutes = digitRoutes.sortBy(_.toInt) ++ letterRoutes.sorted
-    Ok(html.map(newUUID, mapServiceConfig, sortedRoutes))
+    digitRoutes.sortBy(_.toInt) ++ letterRoutes.sorted
   }
 
   private def handleSnapshotRequest(uuid: String, req: Request[IO]) = {
