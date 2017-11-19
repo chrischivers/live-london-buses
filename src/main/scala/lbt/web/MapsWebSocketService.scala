@@ -49,6 +49,10 @@ class MapsWebSocketService(mapsClientHandler: MapsClientHandler, websocketConfig
               logger.info(s"Received close request for uuid $uuid")
               mapsClientHandler.unsubscribe(uuid)
             }
+            case Text(msg, _) if msg.contains("CLOSE") => F.delay {
+              logger.info(s"Received close request for uuid $uuid. Msg [$msg]")
+              mapsClientHandler.unsubscribe(uuid)
+            }
             case Text(msg, _) => F.delay((for {
                 json <- parse(msg)
                 filteringParams <- json.as[FilteringParams]
