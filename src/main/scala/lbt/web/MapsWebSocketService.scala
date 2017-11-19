@@ -15,6 +15,7 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import _root_.io.circe.parser._
+import _root_.io.circe.generic.auto._
 
 
 case class FilteringParams(busRoutes: List[BusRoute], latLngBounds: LatLngBounds)
@@ -40,11 +41,13 @@ class MapsWebSocketService(mapsClientHandler: MapsClientHandler, websocketConfig
 
         val fromClient: Sink[IO, WebSocketFrame] = _.evalMap { (ws: WebSocketFrame) =>
           ws match {
-            case Text(msg, _) => F.delay(for {
+            case Text(msg, _) => F.delay((for {
                 json <- parse(msg)
                 filteringParams <- json.as[FilteringParams]
-                _ <- mapsClientHandler.updateFilteringParams(uuid, filteringParams)
-              } yield filteringParams)
+              } yield filteringParams) match {
+                  case Left(err) => logger.error("Unable to decode filter params message from websocket", err)
+                  case Right(filteringParams) => mapsClientHandler.updateFilteringParams(uuid, filteringParams)
+                })
             case f => F.delay(logger.error(s"Unknown message from client, type: $f"))
           }
         }
