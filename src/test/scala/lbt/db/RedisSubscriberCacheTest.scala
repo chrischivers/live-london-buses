@@ -55,6 +55,15 @@ class RedisSubscriberCacheTest extends fixture.FunSuite with SharedTestFeatures 
     f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1, uuid2)
   }
 
+  test("A new subscriber can be unsubscribed") { f =>
+
+    val uuid1 = UUID.randomUUID().toString
+    f.redisSubscriberCache.subscribe(uuid1, None).futureValue
+    f.redisSubscriberCache.getListOfSubscribers.futureValue should contain theSameElementsAs List(uuid1)
+    f.redisSubscriberCache.unsubscribe(uuid1).futureValue
+    f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe empty
+  }
+
   test("A new subscriber is added to the cache and their parameters are obtainable") { f =>
 
     val uuid1 = UUID.randomUUID().toString

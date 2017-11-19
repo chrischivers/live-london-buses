@@ -17,7 +17,12 @@ class MapsClientHandler(redisSubscriberCache: RedisSubscriberCache, redisWsClien
     redisSubscriberCache.subscribe(clientUuid, None)
   }
 
-  def isAlreadySubscribed(uuid: String): Future[Boolean] = {
+  def unsubscribe(clientUuid: String) = {
+    logger.info(s"Unsubscribing client $clientUuid")
+    redisSubscriberCache.unsubscribe(clientUuid)
+  }
+
+  def isSubscribed(uuid: String): Future[Boolean] = {
     logger.debug(s"Checking if $uuid already exists")
     redisSubscriberCache.subscriberExists(uuid)
   }

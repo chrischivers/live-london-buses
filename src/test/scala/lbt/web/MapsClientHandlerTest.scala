@@ -52,7 +52,17 @@ class MapsClientHandlerTest extends fixture.FunSuite with SharedTestFeatures wit
     f.webSocketClientHandler.subscribe(uuid).futureValue
     f.redisSubscriberCache.getListOfSubscribers.futureValue should have size 1
     f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe Seq(uuid)
-    f.webSocketClientHandler.isAlreadySubscribed(uuid).futureValue should be
+    f.webSocketClientHandler.isSubscribed(uuid).futureValue shouldBe true
+  }
+
+  test("Web socket handler unsubscribes client") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    f.webSocketClientHandler.subscribe(uuid).futureValue
+    f.redisSubscriberCache.getListOfSubscribers.futureValue should have size 1
+    f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe Seq(uuid)
+    f.webSocketClientHandler.unsubscribe(uuid).futureValue
+    f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe empty
     true
   }
 

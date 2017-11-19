@@ -59,7 +59,7 @@ class MapsHttpService(mapServiceConfig: MapServiceConfig, definitions: Definitio
     case _@GET -> Root / "positions" :? UUIDQueryParameter(uuid) =>
       MetricsLogging.incrPositionsHttpRequestsReceived
       val result = for {
-        existsAlready <- mapsClientHandler.isAlreadySubscribed(uuid)
+        existsAlready <- mapsClientHandler.isSubscribed(uuid)
         _ <- if (!existsAlready) mapsClientHandler.subscribe(uuid) else Future.successful()
         transmissionData <- mapsClientHandler.retrieveTransmissionDataForClient(uuid)
       } yield transmissionData

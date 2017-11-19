@@ -26,6 +26,12 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
     } yield ()
   }
 
+  def unsubscribe(clientUUID: String): Future[Unit] = {
+    for {
+      _ <- client.zrem(SUBSCRIBERS_KEY, clientUUID)
+    } yield ()
+  }
+
   def subscriberExists(uuid: String) = {
     client.zscore(SUBSCRIBERS_KEY, uuid).map(_.isDefined)
   }
