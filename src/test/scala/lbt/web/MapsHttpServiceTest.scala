@@ -91,7 +91,7 @@ class MapsHttpServiceTest extends fixture.FunSuite with SharedTestFeatures with 
     val response = f.httpClient.expect[String](s"http://localhost:${f.port}/routelist")
     val raw = response.unsafeRunSync()
     val parsed = parse(raw).right.get.as[List[String]].right.get
-    parsed shouldBe definitions.routeDefinitions.keys.map(_.id).toList.distinct.sorted
+    parsed should contain theSameElementsAs definitions.routeDefinitions.keys.map(_.id).toList.distinct
   }
 
 
@@ -246,12 +246,14 @@ class MapsHttpServiceTest extends fixture.FunSuite with SharedTestFeatures with 
     result.head.stopIndex shouldBe arrivalRecord1.stopIndex
     result.head.predictedArrival shouldBe arrivalTimeStamp1
     result.head.busStop shouldBe definitions.routeDefinitions(busRoute).find(_._1 == stopIndex1).value._2
+    result.head.polylineToNext shouldBe definitions.routeDefinitions(busRoute).find(_._1 == stopIndex1).get._3
 
     result(1).vehicleId shouldBe vehicleId
     result(1).busRoute shouldBe busRoute
     result(1).stopIndex shouldBe arrivalRecord2.stopIndex
     result(1).predictedArrival shouldBe arrivalTimeStamp2
     result(1).busStop shouldBe definitions.routeDefinitions(busRoute).find(_._1 == stopIndex2).value._2
+    result(1).polylineToNext shouldBe definitions.routeDefinitions(busRoute).find(_._1 == stopIndex2).get._3
 
   }
 

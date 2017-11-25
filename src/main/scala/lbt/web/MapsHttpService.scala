@@ -12,7 +12,7 @@ import io.circe.syntax._
 import lbt.MapServiceConfig
 import lbt.common.Definitions
 import lbt.metrics.MetricsLogging
-import lbt.models.{BusRoute, BusStop}
+import lbt.models.{BusRoute, BusStop, LatLng}
 import org.http4s._
 import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.http4s.twirl._
@@ -72,7 +72,7 @@ class MapsHttpService(mapServiceConfig: MapServiceConfig, definitions: Definitio
   private def handleMapRequest = {
     MetricsLogging.incrMapHttpRequestsReceived
     val newUUID = UUID.randomUUID().toString
-    Ok(html.map(newUUID, mapServiceConfig, getSortedBusRoutes))
+    Ok(html.map(newUUID, mapServiceConfig, getSortedBusRoutes()))
   }
 
   private def getSortedBusRoutes(): List[String] = {
@@ -107,6 +107,6 @@ class MapsHttpService(mapServiceConfig: MapServiceConfig, definitions: Definitio
 
 object MapsHttpService {
 
-  case class NextStopResponse(vehicleId: String, busRoute: BusRoute, predictedArrival: Long, stopIndex: Int, busStop: BusStop)
+  case class NextStopResponse(vehicleId: String, busRoute: BusRoute, predictedArrival: Long, stopIndex: Int, busStop: BusStop, polylineToNext: Option[List[LatLng]])
 
 }

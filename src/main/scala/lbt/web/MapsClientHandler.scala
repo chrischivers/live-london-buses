@@ -83,7 +83,8 @@ class MapsClientHandler(redisSubscriberCache: RedisSubscriberCache, redisWsClien
             arrivalRecord.busRoute,
             time,
             arrivalRecord.stopIndex,
-            busStop._2
+            busStop._2,
+            busStop._3.map(_.decode)
           )
         }
       }.asJson.noSpaces
