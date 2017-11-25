@@ -8,7 +8,6 @@
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-
                 gtag('config', 'UA-109823919-1');
         </script>
 
@@ -468,6 +467,7 @@
 
                 var stopIcon = "assets/images/mm_20_orange.png";
                 var nextStopsMarkersSelected = [];
+                var nextStopsPolylinesSelected = [];
                 var nextStopInfoBoxCurrentlyOpen;
                 var idOfNextStopInfoBoxCurrentlyOpen;
 
@@ -484,12 +484,31 @@
                             function (data, status) {
                                 var nextStopsJson = JSON.parse(data);
                                 var tempNextStopsMarkersSelected = [];
+                                var tempNextStopsPolylinesSelected = [];
+
+
+                                //Set up first polyline segment
+                                var currentPos = markerArray[id].position;
+                                var firstLatLngPos = nextStopsJson[0].busStop.latLng;
+                                if (typeof firstLatLngPos !== 'undefined' && typeof currentPos !== 'undefined') {
+                                    var firstStopPolyline = new google.maps.Polyline({
+                                        path: [currentPos, firstLatLngPos],
+                                        strokeColor: '#FF0000',
+                                        strokeOpacity: 1.0,
+                                        strokeWeight: 2
+                                    });
+                                    firstStopPolyline.setMap(map);
+                                    tempNextStopsMarkersSelected.push(firstStopPolyline);
+                                }
+
+                                //Set up other next stops and polylines
                                 for (var i = 0; i < nextStopsJson.length; i++) {
 
                                     var stopId = nextStopsJson[i].busStop.stopID;
                                     var stopName = nextStopsJson[i].busStop.stopName;
                                     var predictedArrival = nextStopsJson[i].predictedArrival;
                                     var latLng = nextStopsJson[i].busStop.latLng;
+                                    var polyLineToNext = nextStopsJson[i].polylineToNext;
 
                                     var nextStopMarker = new google.maps.Marker({
                                         position: latLng,
@@ -498,13 +517,30 @@
                                     });
 
                                     tempNextStopsMarkersSelected.push(nextStopMarker);
+
+                                    if (typeof polyLineToNext !== 'undefined') {
+                                        var nextStopPolyline = new google.maps.Polyline({
+                                            path: polyLineToNext,
+                                            strokeColor: '#FF0000',
+                                            strokeOpacity: 1.0,
+                                            strokeWeight: 2
+                                        });
+                                        nextStopPolyline.setMap(map);
+                                        tempNextStopsMarkersSelected.push(nextStopPolyline);
+                                    }
+
+
                                     createNextStopMarkerListener(nextStopMarker, stopId, stopName, predictedArrival);
                                     if (typeof autoOpenForStopId !== 'undefined' && autoOpenForStopId === stopId) {
                                         google.maps.event.trigger(nextStopMarker, 'mouseover');
                                     }
                                 }
+
+
                                 deleteNextStopMarkers();
+                                deleteNextStopPolylines();
                                 nextStopsMarkersSelected = tempNextStopsMarkersSelected;
+                                nextStopsPolylinesSelected = tempNextStopsPolylinesSelected;
                                 idOfNextStopMarkersSelected = id;
                             });
                 }
@@ -522,6 +558,13 @@
                         nextStopsMarkersSelected[i].setMap(null);
                     }
                     nextStopsMarkersSelected = [];
+                }
+
+                function deleteNextStopPolylines() {
+                    for (var i = 0; i < nextStopsPolylinesSelected.length; i++) {
+                        nextStopsPolylinesSelected[i].setMap(null);
+                    }
+                    nextStopsPolylinesSelected = [];
                 }
 
                 function createNextStopMarkerListener(marker, stopId, name, arrivalTime) {
@@ -579,6 +622,7 @@
                         deleteBusMarker(key, 0);
                         closeInfoBoxesForNextStopMarkers();
                         deleteNextStopMarkers();
+                        deleteNextStopPolylines();
                     }
                 }
 
