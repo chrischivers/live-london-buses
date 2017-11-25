@@ -407,7 +407,7 @@
                             marker.setIcon(getIconParams(rotation));
                             marker.setPosition(moveTo);
                         }
-//                        animationInstructionsArray[id].remove(this);
+                        animationInstructionsArray[id].shift()
                     }, waitTime);
                     animationInstructionsArray[id].push(animationInstruction);
                     console.log("Animation instructions array for " + id + " is " + animationInstructionsArray[id].length + " long");
@@ -518,6 +518,7 @@
 
                                     tempNextStopsMarkersSelected.push(nextStopMarker);
 
+                                    console.log("Polyline to next: " + JSON.stringify(polyLineToNext));
                                     if (typeof polyLineToNext !== 'undefined') {
                                         var nextStopPolyline = new google.maps.Polyline({
                                             path: polyLineToNext,
