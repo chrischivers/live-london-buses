@@ -161,7 +161,7 @@ class MapsWebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures 
     val uuid = UUID.randomUUID().toString
     val subscribedBusRoute = BusRoute("25", "outbound")
     val (websocketClient, packagesReceivedBuffer) = setUpTestWebSocketClient(uuid, f.wsPort)
-    val params = createFilteringParams(busRoutes = List(subscribedBusRoute))
+    val params = createFilteringParams(busRoutes = Some(List(subscribedBusRoute)))
 
     val openedSocket = websocketClient.open()
     f.redisSubscriberCache.updateFilteringParameters(uuid, params).futureValue
@@ -192,7 +192,7 @@ class MapsWebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures 
     val (websocketClient1, packagesReceivedBuffer1) = setUpTestWebSocketClient(uuid1, f.wsPort)
     val (websocketClient2, packagesReceivedBuffer2) = setUpTestWebSocketClient(uuid2, f.wsPort)
 
-    val params = createFilteringParams(busRoutes = List(subscribedBusRoute))
+    val params = createFilteringParams(busRoutes = Some(List(subscribedBusRoute)))
     val openedSocket1 = websocketClient1.open()
     f.redisSubscriberCache.updateFilteringParameters(uuid1, params).futureValue
     val openedSocket2 = websocketClient2.open()
@@ -236,7 +236,7 @@ class MapsWebSocketServiceTest extends fixture.FunSuite with SharedTestFeatures 
     val uuid = UUID.randomUUID().toString
     val busRoute = BusRoute("25", "outbound")
     val (websocketClient, packagesReceivedBuffer) = setUpTestWebSocketClient(uuid, f.wsPort)
-    val params = createFilteringParams(busRoutes = List(busRoute))
+    val params = createFilteringParams(busRoutes = Some(List(busRoute)))
 
     val openedSocket = websocketClient.open()
     f.redisSubscriberCache.updateFilteringParameters(uuid, params).futureValue

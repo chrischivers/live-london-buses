@@ -24,7 +24,7 @@ case class BusPositionDataForTransmission(vehicleId: String,
                                           destination: String) {
 
   def satisfiesFilteringParams(fps: FilteringParams): Boolean = {
-    fps.busRoutes.contains(this.busRoute) &&
+    fps.busRoutes.fold(true)(_.contains(this.busRoute)) &&
       (fps.latLngBounds.isWithinBounds(this.startingLatLng) ||
         this.movementInstructionsToNext.fold(false)( ins => fps.latLngBounds.isWithinBounds(ins.last.to)))
   }

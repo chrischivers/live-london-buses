@@ -35,7 +35,7 @@ trait SharedTestFeatures extends OptionValues {
     BusPositionDataForTransmission(vehicleId, busRoute, arrivalTimeStamp, busStop.latLng, isPenultimateStop, nextStopNameOpt, nextStopIndexOpt, arrivalTimeAtNextStop, movementInstructionsOpt, destination)
   }
 
-  def createFilteringParams(busRoutes: List[BusRoute] = List(BusRoute("3", "outbound")),
+  def createFilteringParams(busRoutes: Option[List[BusRoute]] = Some(List(BusRoute("3", "outbound"))),
                             latLngBounds: LatLngBounds = LatLngBounds(LatLng(50, -1), LatLng(52, 1))) = {
     FilteringParams(busRoutes, latLngBounds)
   }

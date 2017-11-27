@@ -18,7 +18,7 @@ import _root_.io.circe.parser._
 import _root_.io.circe.generic.auto._
 
 
-case class FilteringParams(busRoutes: List[BusRoute], latLngBounds: LatLngBounds)
+case class FilteringParams(busRoutes: Option[List[BusRoute]], latLngBounds: LatLngBounds)
 
 class MapsWebSocketService(mapsClientHandler: MapsClientHandler, websocketConfig: WebsocketConfig)(implicit F: Effect[IO]) extends Http4sDsl[IO] with StrictLogging {
 

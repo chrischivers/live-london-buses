@@ -81,7 +81,7 @@ class RedisSubscriberCache(val redisConfig: RedisConfig)(implicit val executionC
     val flatList = input.flatten
     if (flatList.size != 2) None
     else for {
-      busRoutes <- parse(flatList.head).flatMap(x => x.as[List[BusRoute]]).toOption
+      busRoutes <- parse(flatList.head).flatMap(x => x.as[Option[List[BusRoute]]]).toOption
       latLngBounds <- parse(flatList(1)).flatMap(x => x.as[LatLngBounds]).toOption
     } yield {
       FilteringParams(busRoutes, latLngBounds)

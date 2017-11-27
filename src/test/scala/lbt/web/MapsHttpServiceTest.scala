@@ -220,9 +220,24 @@ class MapsHttpServiceTest extends fixture.FunSuite with SharedTestFeatures with 
         paramsFromCache shouldBe defined
           paramsFromCache.value shouldBe params
       }
-
     }
 
+  test("Snapshot request updates filtering params, where no route selection is provided") { f =>
+
+    val uuid = UUID.randomUUID().toString
+    val params = createFilteringParams(busRoutes = None)
+    f.redisSubscriberCache.subscribe(uuid, None).futureValue
+    f.redisSubscriberCache.getListOfSubscribers.futureValue shouldBe List(uuid)
+    f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue should not be defined
+
+    parseWebsocketCacheResult(f.httpClient.fetchAs[String](generateSnapshotRequest(f.port, uuid, params)).unsafeRunSync()).value
+
+    eventually {
+      val paramsFromCache = f.redisSubscriberCache.getParamsForSubscriber(uuid).futureValue
+      paramsFromCache shouldBe defined
+      paramsFromCache.value shouldBe params
+    }
+  }
   test("NextStops request returns all records for vehicleId and Route") { f =>
 
     val vehicleId = "VEHICLE1"

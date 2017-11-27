@@ -82,7 +82,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     val sourceLine2 = generateSourceLine(stopId = definitionsForRoute(6)._2.stopID, timeStamp = timestamp2)
 
     val uuid = UUID.randomUUID().toString
-    val params = FilteringParams(List(busRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
+    val params = FilteringParams(Some(List(busRoute)), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
     f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
 
     f.sourceLineHandler.handle(sourceLine1).futureValue
@@ -125,7 +125,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
 
     val uuid = UUID.randomUUID().toString
-    val params = FilteringParams(List(busRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
+    val params = FilteringParams(Some(List(busRoute)), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
     f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
 
     f.sourceLineHandler.handle(sourceLine).futureValue
@@ -157,7 +157,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
   val busRoute = BusRoute(sourceLine.route, Commons.toDirection(sourceLine.direction))
 
     val uuid = UUID.randomUUID().toString
-    val params = FilteringParams(List(busRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
+    val params = FilteringParams(Some(List(busRoute)), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
     f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
 
     f.sourceLineHandler.handle(sourceLine).futureValue
@@ -191,7 +191,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     val busRoute = BusRoute(sourceLineLastStop.route, Commons.toDirection(sourceLineLastStop.direction))
 
     val uuid = UUID.randomUUID().toString
-    val params = FilteringParams(List(busRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
+    val params = FilteringParams(Some(List(busRoute)), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
     f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
 
     f.sourceLineHandler.handle(sourceLineLastStop).futureValue
@@ -211,7 +211,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     val sourceLine2 = generateSourceLine(route = "3", direction = 1, stopId = "490006864S1")
 
     val uuid = UUID.randomUUID().toString
-    val params = FilteringParams(List(subscribedBusRoute), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
+    val params = FilteringParams(Some(List(subscribedBusRoute)), LatLngBounds(LatLng(50, -1), LatLng(52, 1)))
     f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
 
     f.sourceLineHandler.handle(sourceLine1).futureValue
@@ -238,6 +238,38 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     }
   }
 
+  test("where no routes are subscribed to, user only receives source lines within bounds") { f =>
+    val sourceLine1 = generateSourceLine(route = "3", direction = 1, vehicleId = "Vehicle1", stopId = "490013847S")
+    val sourceLine2 = generateSourceLine(route = "3", direction = 1, vehicleId = "Vehicle2", stopId = "490006864S1")
+
+    val uuid = UUID.randomUUID().toString
+    val params = FilteringParams(busRoutes = None, LatLngBounds(LatLng(51.49200, -0.110910), LatLng(51.49204, -0.110908)))
+    f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
+
+    f.sourceLineHandler.handle(sourceLine1).futureValue
+    f.sourceLineHandler.handle(sourceLine2).futureValue
+
+    parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value should have size 0
+
+    f.cacheReader ! CacheReadCommand(60000)
+
+    eventually {
+      val results = parseWebsocketCacheResult(f.redisWsClientCache.getVehicleActivityJsonForClient(uuid).futureValue).value
+      results should have size 1
+      results.head shouldBe BusPositionDataForTransmission(
+        sourceLine2.vehicleId,
+        BusRoute("3", "outbound"),
+        sourceLine2.arrivalTimeStamp,
+        getBusStopFromStopID(sourceLine2.stopID, definitions).get.latLng,
+        deleteAfter = false,
+        getNextBusStopFromStopID(sourceLine2.stopID, BusRoute("3", "outbound"), definitions).map(_.stopName),
+        getNextBusStopIndexFromStopID(sourceLine2.stopID, BusRoute("3", "outbound"), definitions),
+        None,
+        None,
+        sourceLine2.destinationText)
+    }
+  }
+
   test("user not subscribed receives no source lines") { f =>
     val sourceLine1 = generateSourceLine()
 
@@ -257,7 +289,7 @@ class CacheReaderTest extends fixture.FunSuite with SharedTestFeatures with Scal
     val sourceLine1 = generateSourceLine(route = "25", direction = 1)
 
     val uuid = UUID.randomUUID().toString
-    val params = FilteringParams(List(subscribedBusRoute), LatLngBounds(LatLng(53, -1), LatLng(54, 1)))
+    val params = FilteringParams(Some(List(subscribedBusRoute)), LatLngBounds(LatLng(53, -1), LatLng(54, 1)))
     f.redisSubscriberCache.subscribe(uuid, Some(params)).futureValue
 
     f.sourceLineHandler.handle(sourceLine1).futureValue
