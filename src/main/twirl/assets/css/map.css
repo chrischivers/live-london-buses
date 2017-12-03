@@ -22,11 +22,30 @@
 }
 
 #map {
-    height: 100%;
+    border-top:32px;
 }
 
-html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
+html, body, .container-fluid, #map {
+    height:100%;
+}
+
+header {
+    height:32px;
+}
+
+.navbar-nav > li > a {
+    padding-top:5px !important;
+    padding-bottom:5px !important;
+    cursor: pointer;
+}
+.navbar {
+    min-height:32px !important;
+    cursor: pointer;
+}
+
+.container-fluid {
+    width:100%;
+    position:absolute;
+    top:0;
+    padding:0;
 }

@@ -6,7 +6,11 @@
         <script async src="https://www.googletagmanager.com/gtag/js?id=UA-109823919-1"></script>
         <script>
                 window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
+
+                function gtag() {
+                    dataLayer.push(arguments);
+                }
+
                 gtag('js', new Date());
                 gtag('config', 'UA-109823919-1');
         </script>
@@ -18,12 +22,18 @@
         <title>Live London Buses</title>
     </head>
     <body>
-        <div id="map"></div>
+        <header class="hidden-print">
+            <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+                    <ul class="nav nav-pills nav-justified">
+                        <li><a id="route-mode-button">Buses by route</a></li>
+                        <li><a id="nearby-mode-button">Buses nearby</a></li>
+                    </ul>
 
-        @*Route Selection Button*@
-        <div id="routes-button-div">
-            <button type="button" id="routes-button" class="btn btn-primary btn-md" data-toggle="modal" data-target="#routeSelection">
-                Select Routes</button>
+            </div>
+        </header>
+
+        <div class="container-fluid">
+            <div id="map"></div>
         </div>
 
         @*Route Selection Modal*@
@@ -85,20 +95,31 @@
                 var infoBoxArray = {};
                 var animationInstructionsArray = {};
 
+                var mode = "NONE";
+                var nearbyModeStartingZoom = 16;
+                var nearbyModeZoomLimit = 16;
+                var routesModeStartingZoom = 11;
+
                 /*
                     Set Up
                 */
                 $(function () {
                     map = new google.maps.Map(document.getElementById('map'), {
                         center: {lat: 51.505485, lng: -0.127889},
-                        zoom: 11
+                        zoom: routesModeStartingZoom
                     });
 
                     google.maps.event.addListener(map, 'idle', function () {
                         onBoundsChange(getWidenedBounds());
                     });
 
-                    google.maps.event.addListener(map, "click", function(event) {
+                    google.maps.event.addListener(map, 'zoom_changed', function () {
+                        if (mode === "NEARBY" && map.getZoom() < nearbyModeZoomLimit) {
+                            map.setZoom(nearbyModeZoomLimit);
+                        }
+                    });
+
+                    google.maps.event.addListener(map, "click", function (event) {
                         deleteNextStopMarkers();
                         deleteNextStopPolylines();
                         if (typeof idOfNextStopMarkersSelected !== 'undefined') {
@@ -113,11 +134,12 @@
 
                     $(window).on('focus', function () {
                         windowInFocus = true;
-                        var newParams = getFilteringParamsJson(selectedRoutes, getWidenedBounds());
-                        updateParamsAndGetSnapshot('@uuid', newParams);
+                        if (mode !== "NONE") {
+                            var newParams = getFilteringParamsJson(selectedRoutes, getWidenedBounds());
+                            updateParamsAndGetSnapshot('@uuid', newParams);
+                        }
                     });
 
-                    $('#routeSelection').modal('show');
                     setUpDataFeed('@uuid');
                     setInterval(clearUpExpired, 300000);
                 });
@@ -144,18 +166,35 @@
                             }
                         }
                     }
-                    var newParams = getFilteringParamsJson(selectedRoutes, bounds);
-                    updateParamsAndGetSnapshot('@uuid', newParams);
+                    if (mode !== "NONE") {
+                        var newParams = getFilteringParamsJson(selectedRoutes, bounds);
+                        updateParamsAndGetSnapshot('@uuid', newParams);
+                    }
                 }
 
                 /*
                    Buttons
                 */
 
-                var routeSelectionButtonDiv = document.getElementById('routes-button-div');
+                $('#route-mode-button').on('click', function (e) {
+                    $('#route-mode-button').parent().addClass('active');
+                    $('#nearby-mode-button').parent().removeClass('active');
+                    if (mode === "NEARBY") {
+                        clearMap();
+                    }
+                    $('#routeSelection').modal('show');
+                });
 
-                $('#routes-button').on('click', function (e) {
-                    map.controls[google.maps.ControlPosition.TOP_CENTER].clear();
+                $('#nearby-mode-button').on('click', function (e) {
+                    $('#nearby-mode-button').parent().addClass('active');
+                    $('#route-mode-button').parent().removeClass('active');
+                    $('#routeSelection').modal('hide');
+
+                    mode = "NEARBY";
+                    selectedRoutes = [];
+                    startNearbyMode();
+                    var newParams = getFilteringParamsJson(selectedRoutes, getWidenedBounds());
+                    updateParamsAndGetSnapshot('@uuid', newParams);
                 });
 
                 $('#submit-route-selection-button').on('click', function (e) {
@@ -170,17 +209,18 @@
                     });
                     selectedRoutes = newSelectedRoutes;
                     clearRoutes(routesToDelete);
+
+                    mode = "ROUTES";
                     var newParams = getFilteringParamsJson(newSelectedRoutes, getWidenedBounds());
                     updateParamsAndGetSnapshot('@uuid', newParams);
-                    map.controls[google.maps.ControlPosition.TOP_CENTER].push(routeSelectionButtonDiv);
                 });
 
                 $('#close-route-selection-button').on('click', function (e) {
-                    map.controls[google.maps.ControlPosition.TOP_CENTER].push(routeSelectionButtonDiv);
+
                 });
 
                 $('#x-close-route-selection-button').on('click', function (e) {
-                    map.controls[google.maps.ControlPosition.TOP_CENTER].push(routeSelectionButtonDiv);
+
                 });
 
                 $('#clear-selected-routes-button').on('click', function (e) {
@@ -193,6 +233,7 @@
                 */
 
                 function handleReceivedJson(json) {
+                    console.log("Received json " + JSON.stringify(json));
                     for (var i = 0; i < json.length; i++) {
                         var routeId = json[i].busRoute.id;
                         var direction = json[i].busRoute.direction;
@@ -200,7 +241,7 @@
                         var nextStopIndex = json[i].nextStopIndex;
                         var id = getId(vehicleId, routeId, direction);
 
-                        if (isReceivedRouteInSelected(routeId)
+                        if ((isReceivedRouteInSelected(routeId) || mode === "NEARBY")
                                 && isReceivedIndexAheadOfLastHandled(nextStopIndex, id)
                                 && windowInFocus) {
                             var startingTime = json[i].startingTime;
@@ -329,6 +370,8 @@
 
 
                 function updateParamsAndGetSnapshot(uuid, filterParams) {
+
+                    console.log("posting the followijng filter params " + filterParams);
                     $.post("snapshot?uuid=" + uuid, filterParams, function (data) {
                         $(".result").html(data);
                         var json = JSON.parse(data);
@@ -354,6 +397,10 @@
 
                         busRoutesArray.push(outboundRoute);
                         busRoutesArray.push(inboundRoute);
+                    }
+
+                    if (busRoutesArray.length === 0) {
+                        busRoutesArray = null;
                     }
 
                     var southwest = {"lat": bounds.getSouthWest().lat(), "lng": bounds.getSouthWest().lng()};
@@ -630,6 +677,11 @@
                         deleteNextStopMarkers();
                         deleteNextStopPolylines();
                     }
+                }
+
+                function startNearbyMode() {
+                    //TODO user current position
+                    map.setZoom(nearbyModeStartingZoom);
                 }
 
                 function getWidenedBounds() {
