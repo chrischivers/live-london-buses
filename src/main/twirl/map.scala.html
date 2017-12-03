@@ -415,7 +415,6 @@
                     Bus Markers and Info Boxes
                 */
 
-                var labelAnchor = new google.maps.Point(routeId.length * 5.5, 10);
                 var iconAnchor = new google.maps.Point(15.5, 28.3);
 
                 function createBusMarker(routeId, latLng, rotation) {
@@ -426,7 +425,7 @@
                         map: map,
                         labelContent: routeId,
                         labelClass: "labels",
-                        labelAnchor: labelAnchor,
+                        labelAnchor: new google.maps.Point(routeId.length * 5.5, 10),
                         visible: false,
                         easing: "linear"
                     });
