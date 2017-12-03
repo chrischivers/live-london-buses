@@ -233,7 +233,6 @@
                 */
 
                 function handleReceivedJson(json) {
-                    console.log("Received json " + JSON.stringify(json));
                     for (var i = 0; i < json.length; i++) {
                         var routeId = json[i].busRoute.id;
                         var direction = json[i].busRoute.direction;
@@ -371,7 +370,6 @@
 
                 function updateParamsAndGetSnapshot(uuid, filterParams) {
 
-                    console.log("posting the followijng filter params " + filterParams);
                     $.post("snapshot?uuid=" + uuid, filterParams, function (data) {
                         $(".result").html(data);
                         var json = JSON.parse(data);
@@ -417,6 +415,8 @@
                     Bus Markers and Info Boxes
                 */
 
+                var labelAnchor = new google.maps.Point(routeId.length * 5.5, 10);
+                var iconAnchor = new google.maps.Point(15.5, 28.3);
 
                 function createBusMarker(routeId, latLng, rotation) {
 
@@ -426,7 +426,7 @@
                         map: map,
                         labelContent: routeId,
                         labelClass: "labels",
-                        labelAnchor: new google.maps.Point(routeId.length * 5.5, 10),
+                        labelAnchor: labelAnchor,
                         visible: false,
                         easing: "linear"
                     });
@@ -434,7 +434,7 @@
 
                 function getIconParams(rotation) {
                     return {
-                        anchor: new google.maps.Point(15.5, 28.3),
+                        anchor: iconAnchor,
                         path: busIconSVGpath,
                         scale: 1,
                         fillColor: "#D40000",
